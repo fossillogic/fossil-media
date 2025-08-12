@@ -12,7 +12,7 @@
  * -----------------------------------------------------------------------------
  */
 #include <fossil/pizza/framework.h>
-#include "fossil/cryptic/framework.h"
+#include "fossil/media/framework.h"
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -22,13 +22,13 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(c_hash_fixture);
+FOSSIL_TEST_SUITE(c_json_fixture);
 
-FOSSIL_SETUP(c_hash_fixture) {
+FOSSIL_SETUP(c_json_fixture) {
     // Setup the test fixture
 }
 
-FOSSIL_TEARDOWN(c_hash_fixture) {
+FOSSIL_TEARDOWN(c_json_fixture) {
     // Teardown the test fixture
 }
 
@@ -47,8 +47,8 @@ FOSSIL_TEST_CASE(c_test_blaink) {
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
-FOSSIL_TEST_GROUP(c_hash_tests) {    
-    FOSSIL_TEST_ADD(c_hash_fixture, c_test_blaink);
+FOSSIL_TEST_GROUP(c_json_tests) {    
+    FOSSIL_TEST_ADD(c_json_fixture, c_test_blaink);
 
-    FOSSIL_TEST_REGISTER(c_hash_fixture);
+    FOSSIL_TEST_REGISTER(c_json_fixture);
 } // end of tests
