@@ -9,7 +9,7 @@ else
 endif
 
 fossil_media_lib = static_library('fossil-media',
-    files('json.c'),
+    files('json.c', 'xml.c'),
     install: true,
     dependencies: [cc.find_library('m', required: false), winsock_dep],
     include_directories: dir)
