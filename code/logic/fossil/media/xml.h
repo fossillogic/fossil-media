@@ -32,8 +32,54 @@ typedef enum fossil_media_xml_type_t {
     FOSSIL_MEDIA_XML_DOCUMENT   /**< Root document node */
 } fossil_media_xml_type_t;
 
-/** Forward declaration of XML node structure */
-typedef struct fossil_media_xml_node_t fossil_media_xml_node_t;
+/**
+ * @brief Represents a single XML node in the DOM tree.
+ *
+ * fossil_media_xml_node_t is the core structure for the XML sub-library.
+ * It stores tag names, attributes, textual content, and links to
+ * child/sibling/parent nodes.
+ *
+ * The XML tree is a hierarchy of fossil_media_xml_node_t structures linked
+ * together via doubly-linked sibling lists and a parent pointer.
+ *
+ * Memory Management:
+ *  - All strings (tag_name, text, attribute keys/values) are heap-allocated
+ *    and owned by the node.
+ *  - Attributes are stored in a dynamic array inside the node.
+ *  - Nodes must be released using fossil_media_xml_free_tree() to
+ *    recursively clean up the hierarchy.
+ */
+typedef struct fossil_media_xml_node_t {
+    /** Tag name (e.g., "book", "title"). NULL for text nodes. */
+    char *tag_name;
+
+    /** Text content for text nodes (CDATA or PCDATA). NULL if not a text node. */
+    char *text;
+
+    /**
+     * Attributes: stored as alternating key/value C strings
+     * in a flat array: [key0, value0, key1, value1, ...].
+     * attr_count is the number of key/value pairs.
+     */
+    char **attributes;
+    size_t attr_count;
+
+    /** Parent node, or NULL if this is the root. */
+    struct fossil_media_xml_node_t *parent;
+
+    /** First child node, or NULL if there are no children. */
+    struct fossil_media_xml_node_t *first_child;
+
+    /** Last child node for quick append. */
+    struct fossil_media_xml_node_t *last_child;
+
+    /** Previous sibling node, or NULL if this is the first sibling. */
+    struct fossil_media_xml_node_t *prev_sibling;
+
+    /** Next sibling node, or NULL if this is the last sibling. */
+    struct fossil_media_xml_node_t *next_sibling;
+
+} fossil_media_xml_node_t;
 
 /** Error information structure */
 typedef struct fossil_media_xml_error_t {
