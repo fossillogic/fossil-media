@@ -252,17 +252,197 @@ const char *fossil_media_json_type_name(fossil_media_json_type_t t);
 
 #ifdef __cplusplus
 }
-#include <stdexcept>
-#include <vector>
 #include <string>
+#include <stdexcept>
+#include <utility>
 
 namespace fossil {
 
-namespace media {
+    namespace media {
 
+        /**
+         * @brief Exception type thrown when JSON operations fail in FossilMediaJson.
+         */
+        class JsonError : public std::runtime_error {
+        public:
+            /**
+             * @brief Construct a new JsonError with the given message.
+             * @param msg Error message text.
+             */
+            explicit JsonError(const std::string& msg)
+                : std::runtime_error(msg) {}
+        };
+        
+        /**
+         * @brief C++ RAII wrapper around fossil_media_json_value_t from the C API.
+         * 
+         * This class manages the lifetime of the underlying JSON value automatically
+         * and provides type-safe, snake_case access methods for manipulating JSON data.
+         * 
+         * It is designed for convenience in C++ applications while still relying on
+         * the lightweight, portable C backend provided by Fossil Media.
+         */
+        class Json {
+        public:
+            /**
+             * @brief Construct an empty null JSON value.
+             */
+            Json() : value_(fossil_media_json_new_null()) {}
+        
+            /**
+             * @brief Construct from a C API value pointer (takes ownership).
+             * @param val Pointer to a fossil_media_json_value_t.
+             * @throws std::invalid_argument if val is nullptr.
+             */
+            explicit Json(fossil_media_json_value_t* val) : value_(val) {
+                if (!val) {
+                    throw std::invalid_argument("Null JSON value pointer passed to Json");
+                }
+            }
+        
+            /**
+             * @brief Destructor: frees the underlying C API JSON value.
+             */
+            ~Json() {
+                fossil_media_json_free(value_);
+            }
+        
+            // Non-copyable
+            Json(const Json&) = delete;
+            Json& operator=(const Json&) = delete;
+        
+            // Movable
+            Json(Json&& other) noexcept : value_(other.value_) {
+                other.value_ = nullptr;
+            }
+        
+            Json& operator=(Json&& other) noexcept {
+                if (this != &other) {
+                    fossil_media_json_free(value_);
+                    value_ = other.value_;
+                    other.value_ = nullptr;
+                }
+                return *this;
+            }
+        
+            /**
+             * @brief Parse JSON text into a Json object.
+             * @param text NUL-terminated JSON string.
+             * @return Parsed Json object.
+             * @throws JsonError if parsing fails.
+             */
+            static Json parse(const std::string& text) {
+                fossil_media_json_error_t err{};
+                fossil_media_json_value_t* val = fossil_media_json_parse(text.c_str(), &err);
+                if (!val) {
+                    throw JsonError(std::string("Parse error: ") + err.message);
+                }
+                return Json(val);
+            }
+        
+            /**
+             * @brief Create a JSON boolean value.
+             * @param b Boolean value.
+             * @return Json object holding a boolean.
+             */
+            static Json new_bool(bool b) {
+                return Json(fossil_media_json_new_bool(b ? 1 : 0));
+            }
+        
+            /**
+             * @brief Create a JSON number value.
+             * @param n Number value (double).
+             * @return Json object holding a number.
+             */
+            static Json new_number(double n) {
+                return Json(fossil_media_json_new_number(n));
+            }
+        
+            /**
+             * @brief Create a JSON string value.
+             * @param s String value (copied internally).
+             * @return Json object holding a string.
+             */
+            static Json new_string(const std::string& s) {
+                return Json(fossil_media_json_new_string(s.c_str()));
+            }
+        
+            /**
+             * @brief Create a JSON array.
+             * @return Json object holding an empty array.
+             */
+            static Json new_array() {
+                return Json(fossil_media_json_new_array());
+            }
+        
+            /**
+             * @brief Create a JSON object.
+             * @return Json object holding an empty object.
+             */
+            static Json new_object() {
+                return Json(fossil_media_json_new_object());
+            }
+        
+            /**
+             * @brief Append a value to a JSON array.
+             * @param val Json value to append (moved).
+             * @throws JsonError if not an array or append fails.
+             */
+            void array_append(Json&& val) {
+                if (fossil_media_json_array_append(value_, val.value_) != 0) {
+                    throw JsonError("Failed to append to array");
+                }
+                val.value_ = nullptr; // Ownership transferred
+            }
+        
+            /**
+             * @brief Get element at index in JSON array.
+             * @param index Zero-based index.
+             * @return Json element at index (shared, no ownership transfer).
+             */
+            Json array_get(size_t index) const {
+                fossil_media_json_value_t* v = fossil_media_json_array_get(value_, index);
+                if (!v) {
+                    throw JsonError("Array index out of range");
+                }
+                return Json(fossil_media_json_new_string(fossil_media_json_stringify(v, 0, nullptr))); // Copy via stringify
+            }
+        
+            /**
+             * @brief Set key-value in JSON object.
+             * @param key String key.
+             * @param val Json value to set (moved).
+             * @throws JsonError if not an object or set fails.
+             */
+            void object_set(const std::string& key, Json&& val) {
+                if (fossil_media_json_object_set(value_, key.c_str(), val.value_) != 0) {
+                    throw JsonError("Failed to set key in object");
+                }
+                val.value_ = nullptr; // Ownership transferred
+            }
+        
+            /**
+             * @brief Serialize JSON to string.
+             * @param pretty If true, output with indentation.
+             * @return Serialized JSON string.
+             * @throws JsonError if stringify fails.
+             */
+            std::string stringify(bool pretty = false) const {
+                fossil_media_json_error_t err{};
+                char* s = fossil_media_json_stringify(value_, pretty ? 1 : 0, &err);
+                if (!s) {
+                    throw JsonError(std::string("Stringify error: ") + err.message);
+                }
+                std::string result(s);
+                free(s);
+                return result;
+            }
+        
+        private:
+            fossil_media_json_value_t* value_;
+        };
 
-
-} // namespace media
+    } // namespace media
 
 } // namespace fossil
 
