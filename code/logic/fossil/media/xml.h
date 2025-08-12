@@ -22,71 +22,44 @@ extern "C"
 {
 #endif
 
-/* XML node type enumeration */
+/**
+ * @brief Node type in the XML DOM.
+ */
 typedef enum fossil_media_xml_type_t {
-    FOSSIL_MEDIA_XML_ELEMENT,   /**< XML element node */
-    FOSSIL_MEDIA_XML_TEXT,      /**< Text content node */
-    FOSSIL_MEDIA_XML_COMMENT,   /**< XML comment node */
-    FOSSIL_MEDIA_XML_CDATA,     /**< CDATA section node */
-    FOSSIL_MEDIA_XML_PI,        /**< Processing instruction node */
-    FOSSIL_MEDIA_XML_DOCUMENT   /**< Root document node */
+    FOSSIL_MEDIA_XML_ELEMENT, /**< Standard XML element */
+    FOSSIL_MEDIA_XML_TEXT,    /**< Text node */
+    FOSSIL_MEDIA_XML_COMMENT  /**< Comment node */
 } fossil_media_xml_type_t;
 
 /**
- * @brief Represents a single XML node in the DOM tree.
+ * @brief Error codes for XML operations.
+ */
+typedef enum fossil_media_xml_error_t {
+    FOSSIL_MEDIA_XML_OK = 0,
+    FOSSIL_MEDIA_XML_ERR_MEMORY,
+    FOSSIL_MEDIA_XML_ERR_PARSE
+} fossil_media_xml_error_t;
+
+/**
+ * @brief XML DOM Node structure.
  *
- * fossil_media_xml_node_t is the core structure for the XML sub-library.
- * It stores tag names, attributes, textual content, and links to
- * child/sibling/parent nodes.
- *
- * The XML tree is a hierarchy of fossil_media_xml_node_t structures linked
- * together via doubly-linked sibling lists and a parent pointer.
- *
- * Memory Management:
- *  - All strings (tag_name, text, attribute keys/values) are heap-allocated
- *    and owned by the node.
- *  - Attributes are stored in a dynamic array inside the node.
- *  - Nodes must be released using fossil_media_xml_free_tree() to
- *    recursively clean up the hierarchy.
+ * Stores element names, attributes, text content, and hierarchical children.
+ * Children and attributes are stored in dynamically allocated arrays.
  */
 typedef struct fossil_media_xml_node_t {
-    /** Tag name (e.g., "book", "title"). NULL for text nodes. */
-    char *tag_name;
+    fossil_media_xml_type_t type;  /**< Node type (element, text, comment) */
+    char *name;                    /**< Element name (NULL for text/comment nodes) */
+    char *content;                  /**< Text or comment content (NULL for elements without direct text) */
 
-    /** Text content for text nodes (CDATA or PCDATA). NULL if not a text node. */
-    char *text;
+    struct fossil_media_xml_node_t **children; /**< Array of pointers to child nodes */
+    size_t child_count;                        /**< Number of child nodes */
 
-    /**
-     * Attributes: stored as alternating key/value C strings
-     * in a flat array: [key0, value0, key1, value1, ...].
-     * attr_count is the number of key/value pairs.
-     */
-    char **attributes;
-    size_t attr_count;
+    char **attr_names;   /**< Array of attribute names */
+    char **attr_values;  /**< Array of attribute values */
+    size_t attr_count;   /**< Number of attributes */
 
-    /** Parent node, or NULL if this is the root. */
-    struct fossil_media_xml_node_t *parent;
-
-    /** First child node, or NULL if there are no children. */
-    struct fossil_media_xml_node_t *first_child;
-
-    /** Last child node for quick append. */
-    struct fossil_media_xml_node_t *last_child;
-
-    /** Previous sibling node, or NULL if this is the first sibling. */
-    struct fossil_media_xml_node_t *prev_sibling;
-
-    /** Next sibling node, or NULL if this is the last sibling. */
-    struct fossil_media_xml_node_t *next_sibling;
-
+    struct fossil_media_xml_node_t *parent; /**< Parent node (NULL for root) */
 } fossil_media_xml_node_t;
-
-/** Error information structure */
-typedef struct fossil_media_xml_error_t {
-    int code;               /**< Error code (0 = no error) */
-    size_t position;        /**< Byte offset in the input string */
-    char message[128];      /**< Human-readable error message */
-} fossil_media_xml_error_t;
 
 /* ----------------------------------------------------------------------
  * Parsing and memory management
