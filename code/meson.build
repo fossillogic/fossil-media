@@ -1,0 +1,2 @@
+subdir('logic')
+subdir('tests')

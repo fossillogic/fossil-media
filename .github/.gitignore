@@ -1,0 +1,4 @@
+builddir
+.DS_Store
+subprojects/**
+.vscode/**
