@@ -13,6 +13,7 @@
  */
 #include "fossil/media/json.h"
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
