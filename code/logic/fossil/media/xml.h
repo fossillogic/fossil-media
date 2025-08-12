@@ -22,7 +22,7 @@ extern "C"
 {
 #endif
 
- XML node type enumeration */
+/* XML node type enumeration */
 typedef enum fossil_media_xml_type_t {
     FOSSIL_MEDIA_XML_ELEMENT,   /**< XML element node */
     FOSSIL_MEDIA_XML_TEXT,      /**< Text content node */
