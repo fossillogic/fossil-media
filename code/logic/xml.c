@@ -255,10 +255,10 @@ char *fossil_media_xml_stringify(const fossil_media_xml_node_t *node, int pretty
 }
 
 fossil_media_xml_node_t *fossil_media_xml_first_child(fossil_media_xml_node_t *node) {
-    if (!node) {
+    if (!node || node->child_count == 0) {
         return NULL;
     }
-    return *node.children;
+    return node->children[0];
 }
 
 fossil_media_xml_node_t *fossil_media_xml_new_pi(const char *target, const char *data) {
@@ -266,11 +266,22 @@ fossil_media_xml_node_t *fossil_media_xml_new_pi(const char *target, const char 
     if (!node) {
         return NULL;
     }
+
     node->type = FOSSIL_MEDIA_XML_PI;
-    node->name = target ? fossil_media_strdup(target) : NULL;
-    node->content = data ? fossil_media_strdup(data) : NULL;
+
+    if (target) {
+        node->name = fissil_media_strdup(target);
+    }
+    if (content) {
+        node->content = fissil_media_strdup(data);
+    }
+
     node->children = NULL;
-    node->next = NULL;
+    node->child_count = 0;
+    node->attr_names = NULL;
+    node->attr_values = NULL;
+    node->attr_count = 0;
+    node->parent = NULL;
+
     return node;
 }
-
