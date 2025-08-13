@@ -112,9 +112,11 @@ fossil_media_xml_node_t *fossil_media_xml_new_comment(const char *text);
 fossil_media_xml_node_t *fossil_media_xml_new_cdata(const char *text);
 
 /**
- * Create a new processing instruction node.
- * @param target The PI target (copied internally).
- * @param data The PI data string (copied internally).
+ * @brief Create a new processing instruction (PI) XML node.
+ *
+ * @param target The PI target (e.g., "xml-stylesheet").
+ * @param data The PI data string.
+ * @return Pointer to the new PI node, or NULL on allocation failure.
  */
 fossil_media_xml_node_t *fossil_media_xml_new_pi(const char *target, const char *data);
 
@@ -132,10 +134,10 @@ int fossil_media_xml_append_child(fossil_media_xml_node_t *parent, fossil_media_
 
 /**
  * Get the first child node of a parent.
- * @param parent Parent node.
+ * @param node Parent node.
  * @return Pointer to first child, or NULL if none.
  */
-fossil_media_xml_node_t *fossil_media_xml_first_child(const fossil_media_xml_node_t *parent);
+fossil_media_xml_node_t *fossil_media_xml_first_child(fossil_media_xml_node_t *node);
 
 /**
  * Get the next sibling node.
