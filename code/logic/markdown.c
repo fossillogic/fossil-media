@@ -47,7 +47,10 @@ fossil_media_md_node_t *fossil_media_md_parse(const char *input) {
             size_t level = 0;
             while (*line == '#') { level++; line++; }
             while (*line == ' ') line++;
-            md_add_child(root, md_new_node(FOSSIL_MEDIA_MD_HEADING, line, NULL));
+
+            fossil_media_md_node_t *heading = md_new_node(FOSSIL_MEDIA_MD_HEADING, line, NULL);
+            heading->level = (int)level;  /* Store heading level in node */
+            md_add_child(root, heading);
         }
         else if (*line == '-' && line[1] == ' ') {
             md_add_child(root, md_new_node(FOSSIL_MEDIA_MD_LIST_ITEM, line + 2, NULL));
@@ -56,7 +59,7 @@ fossil_media_md_node_t *fossil_media_md_parse(const char *input) {
             line += 3;
             const char *end = strstr(line, "```");
             if (!end) break;
-            char *block = fossil_media_strndup(line, end - line);
+            char *block = fossil_media_strndup(line, (size_t)(end - line));
             md_add_child(root, md_new_node(FOSSIL_MEDIA_MD_CODE_BLOCK, block, NULL));
             free(block);
             line = end + 3;
