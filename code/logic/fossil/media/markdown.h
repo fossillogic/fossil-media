@@ -47,6 +47,7 @@ typedef struct fossil_media_md_node_t {
 
     struct fossil_media_md_node_t **children; /**< Child nodes (for lists, blocks) */
     size_t child_count;
+    int level;
 
     struct fossil_media_md_node_t *parent;    /**< Parent node */
 } fossil_media_md_node_t;
