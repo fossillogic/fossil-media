@@ -28,7 +28,8 @@ extern "C"
 typedef enum fossil_media_xml_type_t {
     FOSSIL_MEDIA_XML_ELEMENT, /**< Standard XML element */
     FOSSIL_MEDIA_XML_TEXT,    /**< Text node */
-    FOSSIL_MEDIA_XML_COMMENT  /**< Comment node */
+    FOSSIL_MEDIA_XML_COMMENT, /**< Comment node */
+    FOSSIL_MEDIA_XML_PI
 } fossil_media_xml_type_t;
 
 /**
