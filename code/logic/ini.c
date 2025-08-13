@@ -17,6 +17,15 @@
 #include <string.h>
 #include <ctype.h>
 
+static char *fossil_strdup(const char *src) {
+    if (!src) return NULL;
+    size_t len = strlen(src);
+    char *out = (char *)malloc(len + 1);
+    if (!out) return NULL;
+    memcpy(out, src, len + 1);
+    return out;
+}
+
 static char *strdup_trim(const char *src) {
     if (!src) return NULL;
     while (isspace((unsigned char)*src)) src++; // trim left
@@ -139,7 +148,7 @@ int fossil_media_ini_set(fossil_media_ini_t *ini, const char *section, const cha
     if (!sec) {
         ini->sections = realloc(ini->sections, sizeof(*ini->sections) * (ini->section_count + 1));
         sec = &ini->sections[ini->section_count++];
-        sec->name = strdup(section);
+        sec->name = fossil_strdup(section);
         sec->entries = NULL;
         sec->entry_count = 0;
     }
@@ -147,11 +156,11 @@ int fossil_media_ini_set(fossil_media_ini_t *ini, const char *section, const cha
     if (!entry) {
         sec->entries = realloc(sec->entries, sizeof(*sec->entries) * (sec->entry_count + 1));
         entry = &sec->entries[sec->entry_count++];
-        entry->key = strdup(key);
-        entry->value = strdup(value);
+        entry->key = fossil_strdup(key);
+        entry->value = fossil_strdup(value);
     } else {
         free(entry->value);
-        entry->value = strdup(value);
+        entry->value = fossil_strdup(value);
     }
     return 0;
 }
