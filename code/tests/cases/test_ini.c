@@ -45,7 +45,7 @@ FOSSIL_TEST_CASE(c_test_ini_load_string) {
         "[section]\n"
         "key=value\n";
     fossil_media_ini_t ini;
-    int result = fossil_media_ini_load_string(ini_data, &ini);
+    fossil_media_ini_load_string(ini_data, &ini);
 
     const char *val = fossil_media_ini_get(&ini, "section", "key");
     ASSUME_NOT_CNULL(val);
@@ -56,7 +56,7 @@ FOSSIL_TEST_CASE(c_test_ini_load_string) {
 
 FOSSIL_TEST_CASE(c_test_ini_set_and_get) {
     fossil_media_ini_t ini = {0};
-    int result = fossil_media_ini_set(&ini, "main", "foo", "bar");
+    fossil_media_ini_set(&ini, "main", "foo", "bar");
 
     const char *val = fossil_media_ini_get(&ini, "main", "foo");
     ASSUME_NOT_CNULL(val);
@@ -70,7 +70,7 @@ FOSSIL_TEST_CASE(c_test_ini_save_and_load_file) {
     fossil_media_ini_t ini = {0};
     fossil_media_ini_set(&ini, "alpha", "beta", "gamma");
 
-    int save_result = fossil_media_ini_save_file(test_path, &ini);
+    fossil_media_ini_save_file(test_path, &ini);
     
     fossil_media_ini_t loaded = {0};
     int load_result = fossil_media_ini_load_file(test_path, &loaded);
