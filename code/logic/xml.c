@@ -160,40 +160,6 @@ fossil_media_xml_parse(const char *xml_text, fossil_media_xml_error_t *err_out) 
  * Public API: Stringify
  * ------------------------------------------------------- */
 
-static void stringify_node(const fossil_media_xml_node_t *node, int pretty, int depth, FILE *out) {
-    if (!node) return;
-    if (node->type == FOSSIL_MEDIA_XML_ELEMENT) {
-        if (pretty) for (int i = 0; i < depth; i++) fputs("  ", out);
-        fprintf(out, "<%s", node->name ? node->name : "");
-        for (size_t i = 0; i < node->attr_count; i++) {
-            fprintf(out, " %s=\"%s\"", node->attr_names[i], node->attr_values[i]);
-        }
-        if (node->child_count == 0) {
-            fputs("/>", out);
-            if (pretty) fputc('\n', out);
-            return;
-        }
-        fputc('>', out);
-        if (pretty) fputc('\n', out);
-        for (size_t i = 0; i < node->child_count; i++) {
-            stringify_node(node->children[i], pretty, depth + 1, out);
-        }
-        if (pretty) for (int i = 0; i < depth; i++) fputs("  ", out);
-        fprintf(out, "</%s>", node->name ? node->name : "");
-        if (pretty) fputc('\n', out);
-    }
-    else if (node->type == FOSSIL_MEDIA_XML_TEXT) {
-        if (pretty) for (int i = 0; i < depth; i++) fputs("  ", out);
-        fputs(node->content ? node->content : "", out);
-        if (pretty) fputc('\n', out);
-    }
-    else if (node->type == FOSSIL_MEDIA_XML_COMMENT) {
-        if (pretty) for (int i = 0; i < depth; i++) fputs("  ", out);
-        fprintf(out, "<!--%s-->", node->content ? node->content : "");
-        if (pretty) fputc('\n', out);
-    }
-}
-
 typedef struct {
     char *buffer;
     size_t length;
