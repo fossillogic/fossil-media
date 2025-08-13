@@ -13,6 +13,7 @@
  */
 #define _GNU_SOURCE
 #include "fossil/media/xml.h"
+#include "fossil/media/media.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -20,15 +21,6 @@
 /* -------------------------------------------------------
  * Internal helpers
  * ------------------------------------------------------- */
-
-static char *fossil_media_strdup(const char *s) {
-    if (!s) return NULL;
-    size_t len = strlen(s);
-    char *out = (char *)malloc(len + 1);
-    if (!out) return NULL;
-    memcpy(out, s, len + 1);
-    return out;
-}
 
 static fossil_media_xml_node_t *alloc_node(fossil_media_xml_type_t type) {
     fossil_media_xml_node_t *n = (fossil_media_xml_node_t *)calloc(1, sizeof(fossil_media_xml_node_t));

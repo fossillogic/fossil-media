@@ -12,25 +12,17 @@
  * -----------------------------------------------------------------------------
  */
 #include "fossil/media/csv.h"
+#include "fossil/media/media.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-
-/* Internal: duplicate string safely */
-static char *csv_strdup(const char *s) {
-    if (!s) return NULL;
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) memcpy(copy, s, len + 1);
-    return copy;
-}
 
 /* Internal: add a field to a row */
 static int csv_row_add_field(fossil_media_csv_row_t *row, const char *field) {
     char **new_fields = realloc(row->fields, (row->field_count + 1) * sizeof(char *));
     if (!new_fields) return -1;
     row->fields = new_fields;
-    row->fields[row->field_count] = csv_strdup(field ? field : "");
+    row->fields[row->field_count] = fossil_media_strdup(field ? field : "");
     if (!row->fields[row->field_count]) return -1;
     row->field_count++;
     return 0;

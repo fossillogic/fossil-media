@@ -12,19 +12,11 @@
  * -----------------------------------------------------------------------------
  */
 #include "fossil/media/ini.h"
+#include "fossil/media/media.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-
-static char *fossil_strdup(const char *src) {
-    if (!src) return NULL;
-    size_t len = strlen(src);
-    char *out = (char *)malloc(len + 1);
-    if (!out) return NULL;
-    memcpy(out, src, len + 1);
-    return out;
-}
 
 static char *strdup_trim(const char *src) {
     if (!src) return NULL;
@@ -148,7 +140,7 @@ int fossil_media_ini_set(fossil_media_ini_t *ini, const char *section, const cha
     if (!sec) {
         ini->sections = realloc(ini->sections, sizeof(*ini->sections) * (ini->section_count + 1));
         sec = &ini->sections[ini->section_count++];
-        sec->name = fossil_strdup(section);
+        sec->name = fossil_media_strdup(section);
         sec->entries = NULL;
         sec->entry_count = 0;
     }
@@ -156,11 +148,11 @@ int fossil_media_ini_set(fossil_media_ini_t *ini, const char *section, const cha
     if (!entry) {
         sec->entries = realloc(sec->entries, sizeof(*sec->entries) * (sec->entry_count + 1));
         entry = &sec->entries[sec->entry_count++];
-        entry->key = fossil_strdup(key);
-        entry->value = fossil_strdup(value);
+        entry->key = fossil_media_strdup(key);
+        entry->value = fossil_media_strdup(value);
     } else {
         free(entry->value);
-        entry->value = fossil_strdup(value);
+        entry->value = fossil_media_strdup(value);
     }
     return 0;
 }
