@@ -194,16 +194,104 @@ static void stringify_node(const fossil_media_xml_node_t *node, int pretty, int 
     }
 }
 
+typedef struct {
+    char *buffer;
+    size_t length;
+    size_t capacity;
+    int error;
+} mem_buffer_t;
+
+static int mem_buffer_append(mem_buffer_t *mb, const char *str, size_t len) {
+    if (mb->error) return -1;
+    if (mb->length + len + 1 > mb->capacity) {
+        size_t new_cap = mb->capacity ? mb->capacity * 2 : 256;
+        while (new_cap < mb->length + len + 1) new_cap *= 2;
+        char *new_buf = (char *)realloc(mb->buffer, new_cap);
+        if (!new_buf) {
+            mb->error = 1;
+            return -1;
+        }
+        mb->buffer = new_buf;
+        mb->capacity = new_cap;
+    }
+    memcpy(mb->buffer + mb->length, str, len);
+    mb->length += len;
+    mb->buffer[mb->length] = '\0';
+    return 0;
+}
+
+/* Modified stringify_node that writes to mem_buffer_t */
+static int stringify_node_to_buffer(const fossil_media_xml_node_t *node, int pretty, int depth, mem_buffer_t *mb);
+
+/* Helper to append indentation */
+static int append_indent(mem_buffer_t *mb, int depth) {
+    for (int i = 0; i < depth; i++) {
+        if (mem_buffer_append(mb, "  ", 2) < 0) return -1;
+    }
+    return 0;
+}
+
+static int stringify_node_to_buffer(const fossil_media_xml_node_t *node, int pretty, int depth, mem_buffer_t *mb) {
+    if (!node || mb->error) return -1;
+
+    if (node->type == FOSSIL_MEDIA_XML_ELEMENT) {
+        if (pretty && append_indent(mb, depth) < 0) return -1;
+        if (mem_buffer_append(mb, "<", 1) < 0) return -1;
+        if (node->name && mem_buffer_append(mb, node->name, strlen(node->name)) < 0) return -1;
+
+        for (size_t i = 0; i < node->attr_count; i++) {
+            if (mem_buffer_append(mb, " ", 1) < 0) return -1;
+            if (mem_buffer_append(mb, node->attr_names[i], strlen(node->attr_names[i])) < 0) return -1;
+            if (mem_buffer_append(mb, "=\"", 2) < 0) return -1;
+            if (mem_buffer_append(mb, node->attr_values[i], strlen(node->attr_values[i])) < 0) return -1;
+            if (mem_buffer_append(mb, "\"", 1) < 0) return -1;
+        }
+
+        if (node->child_count == 0) {
+            if (mem_buffer_append(mb, "/>", 2) < 0) return -1;
+            if (pretty && mem_buffer_append(mb, "\n", 1) < 0) return -1;
+            return 0;
+        }
+
+        if (mem_buffer_append(mb, ">", 1) < 0) return -1;
+        if (pretty && mem_buffer_append(mb, "\n", 1) < 0) return -1;
+
+        for (size_t i = 0; i < node->child_count; i++) {
+            if (stringify_node_to_buffer(node->children[i], pretty, depth + 1, mb) < 0) return -1;
+        }
+
+        if (pretty && append_indent(mb, depth) < 0) return -1;
+        if (mem_buffer_append(mb, "</", 2) < 0) return -1;
+        if (node->name && mem_buffer_append(mb, node->name, strlen(node->name)) < 0) return -1;
+        if (mem_buffer_append(mb, ">", 1) < 0) return -1;
+        if (pretty && mem_buffer_append(mb, "\n", 1) < 0) return -1;
+    }
+    else if (node->type == FOSSIL_MEDIA_XML_TEXT) {
+        if (pretty && append_indent(mb, depth) < 0) return -1;
+        if (node->content && mem_buffer_append(mb, node->content, strlen(node->content)) < 0) return -1;
+        if (pretty && mem_buffer_append(mb, "\n", 1) < 0) return -1;
+    }
+    else if (node->type == FOSSIL_MEDIA_XML_COMMENT) {
+        if (pretty && append_indent(mb, depth) < 0) return -1;
+        if (mem_buffer_append(mb, "<!--", 4) < 0) return -1;
+        if (node->content && mem_buffer_append(mb, node->content, strlen(node->content)) < 0) return -1;
+        if (mem_buffer_append(mb, "-->", 3) < 0) return -1;
+        if (pretty && mem_buffer_append(mb, "\n", 1) < 0) return -1;
+    }
+
+    return 0;
+}
+
+/**
+ * Portable replacement for fossil_media_xml_stringify without open_memstream.
+ */
 char *fossil_media_xml_stringify(const fossil_media_xml_node_t *node, int pretty, fossil_media_xml_error_t *err_out) {
-    char *buf = NULL;
-    size_t bufsize = 0;
-    FILE *mem = open_memstream(&buf, &bufsize);
-    if (!mem) {
+    mem_buffer_t mb = {0};
+    if (stringify_node_to_buffer(node, pretty, 0, &mb) < 0) {
+        free(mb.buffer);
         if (err_out) *err_out = FOSSIL_MEDIA_XML_ERR_MEMORY;
         return NULL;
     }
-    stringify_node(node, pretty, 0, mem);
-    fclose(mem);
     if (err_out) *err_out = FOSSIL_MEDIA_XML_OK;
-    return buf;
+    return mb.buffer;
 }
