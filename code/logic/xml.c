@@ -285,3 +285,12 @@ fossil_media_xml_node_t *fossil_media_xml_new_pi(const char *target, const char 
 
     return node;
 }
+
+fossil_media_xml_node_t *fossil_media_xml_new_cdata(const char *data) {
+    fossil_media_xml_node_t *node = calloc(1, sizeof(fossil_media_xml_node_t));
+    if (!node) return NULL;
+
+    node->type = FOSSIL_MEDIA_XML_CDATA; // Assuming you have this in fossil_media_xml_type_t
+    node->content = data ? fossil_media_strdup(data) : NULL;
+    return node;
+}
