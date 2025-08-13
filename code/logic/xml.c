@@ -253,3 +253,24 @@ char *fossil_media_xml_stringify(const fossil_media_xml_node_t *node, int pretty
     if (err_out) *err_out = FOSSIL_MEDIA_XML_OK;
     return mb.buffer;
 }
+
+fossil_media_xml_node_t *fossil_media_xml_first_child(fossil_media_xml_node_t *node) {
+    if (!node) {
+        return NULL;
+    }
+    return node->children;
+}
+
+fossil_media_xml_node_t *fossil_media_xml_new_pi(const char *target, const char *data) {
+    fossil_media_xml_node_t *node = (fossil_media_xml_node_t *)calloc(1, sizeof(fossil_media_xml_node_t));
+    if (!node) {
+        return NULL;
+    }
+    node->type = FOSSIL_MEDIA_XML_PI;
+    node->name = target ? strdup(target) : NULL;
+    node->content = data ? strdup(data) : NULL;
+    node->children = NULL;
+    node->next = NULL;
+    return node;
+}
+
