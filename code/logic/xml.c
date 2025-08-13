@@ -258,7 +258,7 @@ fossil_media_xml_node_t *fossil_media_xml_first_child(fossil_media_xml_node_t *n
     if (!node) {
         return NULL;
     }
-    return node->children;
+    return node.children;
 }
 
 fossil_media_xml_node_t *fossil_media_xml_new_pi(const char *target, const char *data) {
@@ -270,7 +270,7 @@ fossil_media_xml_node_t *fossil_media_xml_new_pi(const char *target, const char 
     node->name = target ? fossil_media_strdup(target) : NULL;
     node->content = data ? fossil_media_strdup(data) : NULL;
     node->children = NULL;
-    node->next = NULL;
+    node.next = NULL;
     return node;
 }
 
