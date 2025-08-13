@@ -270,10 +270,10 @@ fossil_media_xml_node_t *fossil_media_xml_new_pi(const char *target, const char 
     node->type = FOSSIL_MEDIA_XML_PI;
 
     if (target) {
-        node->name = fissil_media_strdup(target);
+        node->name = fossil_media_strdup(target);
     }
-    if (content) {
-        node->content = fissil_media_strdup(data);
+    if (data) {
+        node->content = fossil_media_strdup(data);
     }
 
     node->children = NULL;
