@@ -73,7 +73,7 @@ FOSSIL_TEST_CASE(c_test_ini_save_and_load_file) {
     fossil_media_ini_save_file(test_path, &ini);
     
     fossil_media_ini_t loaded = {0};
-    int load_result = fossil_media_ini_load_file(test_path, &loaded);
+    fossil_media_ini_load_file(test_path, &loaded);
 
     const char *val = fossil_media_ini_get(&loaded, "alpha", "beta");
     ASSUME_NOT_CNULL(val);
