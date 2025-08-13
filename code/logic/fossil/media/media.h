@@ -41,6 +41,22 @@ extern "C"
 char *fossil_media_strdup(const char *src);
 
 /**
+ * @brief Duplicate up to `n` characters from a string into a new heap-allocated buffer.
+ *
+ * This behaves like POSIX `strndup`, but is implemented here to ensure
+ * portability since not all platforms provide it (especially Windows/MSVC).
+ *
+ * @param s   The source C-string to duplicate. Must not be NULL.
+ * @param n   Maximum number of characters to copy (not counting the null terminator).
+ *
+ * @return Newly allocated null-terminated string containing at most `n` characters
+ *         from `s`. Returns NULL if allocation fails or if `s` is NULL.
+ *
+ * @note Caller must free the returned buffer with `free()` when done.
+ */
+char *fossil_media_strndup(const char *s, size_t n);
+
+/**
  * @brief Reads an entire file into a null-terminated buffer.
  *
  * @param path Path to the file to read.
