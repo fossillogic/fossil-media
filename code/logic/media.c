@@ -36,6 +36,33 @@ char *fossil_media_strdup(const char *src) {
     return copy;
 }
 
+char *fossil_media_strndup(const char *s, size_t n) {
+    char *copy;
+    size_t len;
+
+    if (!s) {
+        return NULL;
+    }
+
+    /* Determine actual length to copy, which is the smaller of n and strlen(s) */
+    len = 0;
+    while (len < n && s[len] != '\0') {
+        len++;
+    }
+
+    copy = (char *)malloc(len + 1); /* +1 for null terminator */
+    if (!copy) {
+        return NULL;
+    }
+
+    if (len > 0) {
+        memcpy(copy, s, len);
+    }
+    copy[len] = '\0';
+
+    return copy;
+}
+
 /* -------------------------------------------------------------
  *  fossil_media_read_file
  * -------------------------------------------------------------
