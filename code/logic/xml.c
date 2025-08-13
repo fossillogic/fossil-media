@@ -267,8 +267,8 @@ fossil_media_xml_node_t *fossil_media_xml_new_pi(const char *target, const char 
         return NULL;
     }
     node->type = FOSSIL_MEDIA_XML_PI;
-    node->name = target ? strdup(target) : NULL;
-    node->content = data ? strdup(data) : NULL;
+    node->name = target ? fossil_media_strdup(target) : NULL;
+    node->content = data ? fossil_media_strdup(data) : NULL;
     node->children = NULL;
     node->next = NULL;
     return node;
