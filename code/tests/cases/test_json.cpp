@@ -45,7 +45,7 @@ using fossil::media::JsonError;
 
 FOSSIL_TEST_CASE(cpp_test_json_parse_null) {
     Json j = Json::parse("null");
-    ASSUME_ITS_EQUAL_CSTR(j.stringify(), "null");
+    ASSUME_ITS_EQUAL_CSTR(j.stringify().c_str(), "null");
 }
 
 FOSSIL_TEST_CASE(cpp_test_json_parse_bool) {
