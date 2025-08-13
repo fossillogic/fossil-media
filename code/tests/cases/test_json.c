@@ -87,7 +87,7 @@ FOSSIL_TEST_CASE(c_test_json_parse_array) {
     fossil_media_json_value_t *val = fossil_media_json_parse(json, &err);
     ASSUME_NOT_CNULL(val);
     ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(val->type), "array");
-    ASSUME_ITS_EQUAL_CSTR(fossil_media_json_array_size(val), 3);
+    ASSUME_ITS_EQUAL_SIZE(fossil_media_json_array_size(val), 3);
     fossil_media_json_free(val);
 }
 
