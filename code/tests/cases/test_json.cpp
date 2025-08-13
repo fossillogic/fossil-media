@@ -40,8 +40,49 @@ FOSSIL_TEARDOWN(cpp_json_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(cpp_test_blaink) {
-    ASSUME_ITS_TRUE(1);
+using fossil::media::Json;
+using fossil::media::JsonError;
+
+FOSSIL_TEST_CASE(cpp_test_json_parse_null) {
+    Json j = Json::parse("null");
+    ASSUME_ITS_EQUAL_CSTR(j.stringify(), "null");
+}
+
+FOSSIL_TEST_CASE(cpp_test_json_parse_bool) {
+    Json jt = Json::parse("true");
+    Json jf = Json::parse("false");
+    ASSUME_ITS_EQUAL_CSTR(jt.stringify(), "true");
+    ASSUME_ITS_EQUAL_CSTR(jf.stringify(), "false");
+}
+
+FOSSIL_TEST_CASE(cpp_test_json_parse_number) {
+    Json j = Json::parse("42.5");
+    ASSUME_ITS_EQUAL_CSTR(j.stringify(), "42.5");
+}
+
+FOSSIL_TEST_CASE(cpp_test_json_parse_string) {
+    Json j = Json::parse("\"hello\"");
+    ASSUME_ITS_EQUAL_CSTR(j.stringify(), "\"hello\"");
+}
+
+FOSSIL_TEST_CASE(cpp_test_json_parse_array) {
+    Json j = Json::parse("[1, 2, 3]");
+    ASSUME_ITS_EQUAL_CSTR(j.stringify(), "[1,2,3]");
+}
+
+FOSSIL_TEST_CASE(cpp_test_json_parse_object) {
+    Json j = Json::parse("{\"a\":1,\"b\":2}");
+    // Accept either order due to unordered object keys
+    std::string s = j.stringify();
+    bool ok = (s == "{\"a\":1,\"b\":2}" || s == "{\"b\":2,\"a\":1}");
+    ASSUME_ITS_TRUE(ok);
+}
+
+FOSSIL_TEST_CASE(cpp_test_json_stringify_roundtrip) {
+    std::string src = "{\"foo\":[1,true,null]}";
+    Json j = Json::parse(src);
+    std::string out = j.stringify();
+    ASSUME_ITS_TRUE(out == src || out == "{\"foo\":[1,true,null]}");
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -49,7 +90,13 @@ FOSSIL_TEST_CASE(cpp_test_blaink) {
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_json_tests) {    
     // C++ Wrapper Tests
-    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_blaink);
+    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_json_parse_null);
+    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_json_parse_bool);
+    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_json_parse_number);
+    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_json_parse_string);
+    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_json_parse_array);
+    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_json_parse_object);
+    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_json_stringify_roundtrip);
 
     FOSSIL_TEST_REGISTER(cpp_json_fixture);
 } // end of tests

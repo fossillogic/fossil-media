@@ -40,15 +40,85 @@ FOSSIL_TEARDOWN(c_json_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(c_test_blaink) {
-    ASSUME_ITS_TRUE(1);
+FOSSIL_TEST_CASE(c_test_json_parse_null) {
+    fossil_media_json_error_t err = {0};
+    const char *json = "null";
+    fossil_media_json_value_t *val = fossil_media_json_parse(json, &err);
+    ASSUME_NOT_CNULL(val);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(val->type), "null");
+    fossil_media_json_free(val);
+}
+
+FOSSIL_TEST_CASE(c_test_json_parse_bool) {
+    fossil_media_json_error_t err = {0};
+    const char *json_true = "true";
+    const char *json_false = "false";
+    fossil_media_json_value_t *val_true = fossil_media_json_parse(json_true, &err);
+    fossil_media_json_value_t *val_false = fossil_media_json_parse(json_false, &err);
+    ASSUME_NOT_CNULL(val_true);
+    ASSUME_NOT_CNULL(val_false);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(val_true->type), "bool");
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(val_false->type), "bool");
+    fossil_media_json_free(val_true);
+    fossil_media_json_free(val_false);
+}
+
+FOSSIL_TEST_CASE(c_test_json_parse_number) {
+    fossil_media_json_error_t err = {0};
+    const char *json = "42.5";
+    fossil_media_json_value_t *val = fossil_media_json_parse(json, &err);
+    ASSUME_NOT_CNULL(val);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(val->type), "number");
+    fossil_media_json_free(val);
+}
+
+FOSSIL_TEST_CASE(c_test_json_parse_string) {
+    fossil_media_json_error_t err = {0};
+    const char *json = "\"hello\"";
+    fossil_media_json_value_t *val = fossil_media_json_parse(json, &err);
+    ASSUME_NOT_CNULL(val);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(val->type), "string");
+    fossil_media_json_free(val);
+}
+
+FOSSIL_TEST_CASE(c_test_json_parse_array) {
+    fossil_media_json_error_t err = {0};
+    const char *json = "[1, 2, 3]";
+    fossil_media_json_value_t *val = fossil_media_json_parse(json, &err);
+    ASSUME_NOT_CNULL(val);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(val->type), "array");
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_json_array_size(val), 3);
+    fossil_media_json_free(val);
+}
+
+FOSSIL_TEST_CASE(c_test_json_parse_object) {
+    fossil_media_json_error_t err = {0};
+    const char *json = "{\"a\":1,\"b\":2}";
+    fossil_media_json_value_t *val = fossil_media_json_parse(json, &err);
+    ASSUME_NOT_CNULL(val);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(val->type), "object");
+    fossil_media_json_free(val);
+}
+
+FOSSIL_TEST_CASE(c_test_json_stringify_roundtrip) {
+    fossil_media_json_error_t err = {0};
+    const char *json = "{\"foo\":[1,true,null]}";
+    char *out = fossil_media_json_roundtrip(json, 0, &err);
+    ASSUME_NOT_CNULL(out);
+    free(out);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
-FOSSIL_TEST_GROUP(c_json_tests) {    
-    FOSSIL_TEST_ADD(c_json_fixture, c_test_blaink);
+FOSSIL_TEST_GROUP(c_json_tests) {
+    FOSSIL_TEST_ADD(c_json_fixture, c_test_json_parse_null);
+    FOSSIL_TEST_ADD(c_json_fixture, c_test_json_parse_bool);
+    FOSSIL_TEST_ADD(c_json_fixture, c_test_json_parse_number);
+    FOSSIL_TEST_ADD(c_json_fixture, c_test_json_parse_string);
+    FOSSIL_TEST_ADD(c_json_fixture, c_test_json_parse_array);
+    FOSSIL_TEST_ADD(c_json_fixture, c_test_json_parse_object);
+    FOSSIL_TEST_ADD(c_json_fixture, c_test_json_stringify_roundtrip);
 
     FOSSIL_TEST_REGISTER(c_json_fixture);
 } // end of tests
