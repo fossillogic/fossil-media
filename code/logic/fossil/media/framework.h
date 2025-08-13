@@ -15,5 +15,8 @@
 #define FOSSIL_MEDIA_FRAMEWORK_H
 
 #include "json.h"
+#include "ini.h"
+#include "xml.h"
+#include "csv.h"
 
 #endif /* FOSSIL_MEDIA_FRAMEWORK_H */
