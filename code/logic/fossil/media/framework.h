@@ -14,9 +14,12 @@
 #ifndef FOSSIL_MEDIA_FRAMEWORK_H
 #define FOSSIL_MEDIA_FRAMEWORK_H
 
+#include "media.h"
+#include "markdown.h" 
 #include "json.h"
 #include "yaml.h"
 #include "toml.h"
+#include "text.h"
 #include "ini.h"
 #include "xml.h"
 #include "csv.h"
