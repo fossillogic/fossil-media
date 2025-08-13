@@ -51,23 +51,23 @@ FOSSIL_TEST_CASE(cpp_test_json_parse_null) {
 FOSSIL_TEST_CASE(cpp_test_json_parse_bool) {
     Json jt = Json::parse("true");
     Json jf = Json::parse("false");
-    ASSUME_ITS_EQUAL_CSTR(jt.stringify(), "true");
-    ASSUME_ITS_EQUAL_CSTR(jf.stringify(), "false");
+    ASSUME_ITS_EQUAL_CSTR(jt.stringify().c_str(), "true");
+    ASSUME_ITS_EQUAL_CSTR(jf.stringify().c_str(), "false");
 }
 
 FOSSIL_TEST_CASE(cpp_test_json_parse_number) {
     Json j = Json::parse("42.5");
-    ASSUME_ITS_EQUAL_CSTR(j.stringify(), "42.5");
+    ASSUME_ITS_EQUAL_CSTR(j.stringify().c_str(), "42.5");
 }
 
 FOSSIL_TEST_CASE(cpp_test_json_parse_string) {
     Json j = Json::parse("\"hello\"");
-    ASSUME_ITS_EQUAL_CSTR(j.stringify(), "\"hello\"");
+    ASSUME_ITS_EQUAL_CSTR(j.stringify().c_str(), "\"hello\"");
 }
 
 FOSSIL_TEST_CASE(cpp_test_json_parse_array) {
     Json j = Json::parse("[1, 2, 3]");
-    ASSUME_ITS_EQUAL_CSTR(j.stringify(), "[1,2,3]");
+    ASSUME_ITS_EQUAL_CSTR(j.stringify().c_str(), "[1,2,3]");
 }
 
 FOSSIL_TEST_CASE(cpp_test_json_parse_object) {
