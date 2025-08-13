@@ -18,13 +18,6 @@
 #include <string.h>
 #include <ctype.h>
 
-static char *yaml_trim(char *s) {
-    while (isspace((unsigned char)*s)) s++;
-    if (*s == 0) return s;
-    char *end = s + strlen(s) - 1;
-    while (end > s && isspace((unsigned char)*end)) *end-- = '\0';
-    return s;
-}
 
 fossil_media_yaml_node_t *fossil_media_yaml_parse(const char *input) {
     if (!input) return NULL;
