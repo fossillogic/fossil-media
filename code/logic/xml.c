@@ -11,6 +11,7 @@
  * Copyright (C) 2024 Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
+#define _GNU_SOURCE
 #include "fossil/media/xml.h"
 #include <stdlib.h>
 #include <string.h>
