@@ -40,7 +40,7 @@ FOSSIL_TEARDOWN(c_xml_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(c_test_parse_simple_element) {
+FOSSIL_TEST_CASE(c_test_xml_parse_simple_element) {
     const char *xml = "<root></root>";
     fossil_media_xml_error_t err = {0};
     fossil_media_xml_node_t *doc = fossil_media_xml_parse(xml, &err);
@@ -92,7 +92,7 @@ FOSSIL_TEST_CASE(c_test_cdata_and_pi_nodes) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_xml_tests) {    
-    FOSSIL_TEST_ADD(c_xml_fixture, c_test_parse_simple_element);
+    FOSSIL_TEST_ADD(c_xml_fixture, c_test_xml_parse_simple_element);
     FOSSIL_TEST_ADD(c_xml_fixture, c_test_create_element_and_attribute);
     FOSSIL_TEST_ADD(c_xml_fixture, c_test_append_child_and_serialize);
     FOSSIL_TEST_ADD(c_xml_fixture, c_test_text_and_comment_nodes);
