@@ -53,6 +53,7 @@ FOSSIL_TEST_CASE(c_test_md_parse_and_serialize) {
     ASSUME_ITS_TRUE(strstr(md_output, "bold") != NULL);
 
     fossil_media_md_free(root);
+    free(md_output);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * *

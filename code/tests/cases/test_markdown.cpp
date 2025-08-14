@@ -45,11 +45,14 @@ FOSSIL_TEST_CASE(cpp_test_md_parse_and_serialize) {
     fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
     ASSUME_NOT_CNULL(root);
 
-    std::string md_output = fossil::media::Markdown::serialize(root);
-    ASSUME_ITS_TRUE(md_output.find("Heading") != std::string::npos);
-    ASSUME_ITS_TRUE(md_output.find("bold") != std::string::npos);
+    // Defensive: Check root before further use
+    if (root) {
+        std::string md_output = fossil::media::Markdown::serialize(root);
+        ASSUME_ITS_TRUE(md_output.find("Heading") != std::string::npos);
+        ASSUME_ITS_TRUE(md_output.find("bold") != std::string::npos);
 
-    fossil::media::Markdown::free(root);
+        fossil::media::Markdown::free(root);
+    }
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
