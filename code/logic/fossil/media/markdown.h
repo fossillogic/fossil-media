@@ -72,6 +72,7 @@ void fossil_media_md_free(fossil_media_md_node_t *node);
 #include <string>
 #include <stdexcept>
 #include <utility>
+#include <cstdlib>
 
 namespace fossil {
 
@@ -104,9 +105,9 @@ namespace fossil {
             static std::string serialize(const fossil_media_md_node_t* root) {
                 char* result = fossil_media_md_serialize(root);
                 if (!result)
-                    throw std::runtime_error("Failed to serialize Markdown");
                 std::string output(result);
-                free(result);
+                std::free(result);
+                return output;
                 return output;
             }
 
