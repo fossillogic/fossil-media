@@ -72,12 +72,53 @@ void fossil_media_md_free(fossil_media_md_node_t *node);
 #include <string>
 #include <stdexcept>
 #include <utility>
+#include <cstdlib>
 
 namespace fossil {
 
     namespace media {
 
+        /**
+         * @brief C++ wrapper class for Markdown parsing and serialization.
+         */
+        class Markdown {
+        public:
+            /**
+             * @brief Parse Markdown text into a tree of nodes.
+             * @param input The Markdown text to parse.
+             * @return Pointer to the root node of the parsed tree.
+             * @throws std::runtime_error on parse failure.
+             */
+            static fossil_media_md_node_t* parse(const std::string& input) {
+                fossil_media_md_node_t* root = fossil_media_md_parse(input.c_str());
+                if (!root)
+                    throw std::runtime_error("Failed to parse Markdown");
+                return root;
+            }
 
+            /**
+             * @brief Serialize a Markdown node tree back into Markdown text.
+             * @param root Pointer to the root node of the tree.
+             * @return Serialized Markdown text.
+             * @throws std::runtime_error on serialization failure.
+             */
+            static std::string serialize(const fossil_media_md_node_t* root) {
+                char* result = fossil_media_md_serialize(root);
+                if (!result)
+                    throw std::runtime_error("Failed to serialize Markdown");
+                std::string output(result);
+                std::free(result);
+                return output;
+            }
+
+            /**
+             * @brief Free a Markdown node tree.
+             * @param node Pointer to the root node to free.
+             */
+            static void free(fossil_media_md_node_t* node) {
+                fossil_media_md_free(node);
+            }
+        };
 
     } // namespace media
 

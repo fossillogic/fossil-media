@@ -204,7 +204,219 @@ namespace fossil {
 
     namespace media {
 
+        /**
+         * @brief C++ RAII wrapper for fossil_media_xml_node_t and related XML operations.
+         *
+         * Provides safe memory management and convenient methods for XML parsing,
+         * node creation, tree manipulation, attribute handling, and serialization.
+         */
+        class Xml {
+        public:
+            /**
+             * @brief Construct an empty Xml object (null node).
+             */
+            Xml() noexcept : node_(nullptr) {}
 
+            /**
+             * @brief Parse XML text into a DOM-like tree.
+             * @param xml_text The XML string to parse.
+             * @throws std::runtime_error on parse error.
+             */
+            explicit Xml(const char* xml_text) {
+                fossil_media_xml_error_t err = FOSSIL_MEDIA_XML_OK;
+                node_ = fossil_media_xml_parse(xml_text, &err);
+                if (!node_ || err != FOSSIL_MEDIA_XML_OK) {
+                    throw std::runtime_error("XML parse error");
+                }
+            }
+
+            /**
+             * @brief Construct from an existing node (takes ownership).
+             * @param node Pointer to fossil_media_xml_node_t.
+             */
+            explicit Xml(fossil_media_xml_node_t* node) noexcept : node_(node) {}
+
+            /**
+             * @brief Move constructor.
+             */
+            Xml(Xml&& other) noexcept : node_(other.node_) {
+                other.node_ = nullptr;
+            }
+
+            /**
+             * @brief Move assignment.
+             */
+            Xml& operator=(Xml&& other) noexcept {
+                if (this != &other) {
+                    reset();
+                    node_ = other.node_;
+                    other.node_ = nullptr;
+                }
+                return *this;
+            }
+
+            /**
+             * @brief Destructor. Frees the XML DOM tree.
+             */
+            ~Xml() { reset(); }
+
+            /**
+             * @brief Release ownership of the node.
+             * @return Pointer to fossil_media_xml_node_t, or nullptr.
+             */
+            fossil_media_xml_node_t* release() noexcept {
+                auto* tmp = node_;
+                node_ = nullptr;
+                return tmp;
+            }
+
+            /**
+             * @brief Reset to a new node, freeing the old one.
+             * @param node New node pointer (default nullptr).
+             */
+            void reset(fossil_media_xml_node_t* node = nullptr) noexcept {
+                if (node_) fossil_media_xml_free(node_);
+                node_ = node;
+            }
+
+            /**
+             * @brief Access the underlying node pointer.
+             */
+            fossil_media_xml_node_t* get() noexcept { return node_; }
+            const fossil_media_xml_node_t* get() const noexcept { return node_; }
+
+            /**
+             * @brief Create a new XML element node.
+             * @param name Element name.
+             * @return Xml object owning the new node.
+             */
+            static Xml new_element(const char* name) {
+                return Xml(fossil_media_xml_new_element(name));
+            }
+
+            /**
+             * @brief Create a new text node.
+             * @param text Text content.
+             * @return Xml object owning the new node.
+             */
+            static Xml new_text(const char* text) {
+                return Xml(fossil_media_xml_new_text(text));
+            }
+
+            /**
+             * @brief Create a new comment node.
+             * @param text Comment text.
+             * @return Xml object owning the new node.
+             */
+            static Xml new_comment(const char* text) {
+                return Xml(fossil_media_xml_new_comment(text));
+            }
+
+            /**
+             * @brief Create a new CDATA section node.
+             * @param text CDATA content.
+             * @return Xml object owning the new node.
+             */
+            static Xml new_cdata(const char* text) {
+                return Xml(fossil_media_xml_new_cdata(text));
+            }
+
+            /**
+             * @brief Create a new processing instruction node.
+             * @param target PI target.
+             * @param data PI data.
+             * @return Xml object owning the new node.
+             */
+            static Xml new_pi(const char* target, const char* data) {
+                return Xml(fossil_media_xml_new_pi(target, data));
+            }
+
+            /**
+             * @brief Append a child node to this node.
+             * @param child Xml object (ownership transferred).
+             * @throws std::runtime_error on error.
+             */
+            void append_child(Xml&& child) {
+                if (!node_ || !child.node_) throw std::runtime_error("Null node");
+                if (fossil_media_xml_append_child(node_, child.node_) != 0)
+                    throw std::runtime_error("Failed to append child");
+                child.node_ = nullptr;
+            }
+
+            /**
+             * @brief Get the first child node.
+             * @return Xml object (non-owning, does not free).
+             */
+            Xml first_child() const {
+                if (!node_) return Xml();
+                return Xml(fossil_media_xml_first_child(node_));
+            }
+
+            /**
+             * @brief Get the next sibling node.
+             * @return Xml object (non-owning, does not free).
+             */
+            Xml next_sibling() const {
+                if (!node_) return Xml();
+                return Xml(const_cast<fossil_media_xml_node_t*>(
+                    fossil_media_xml_next_sibling(node_)));
+            }
+
+            /**
+             * @brief Set or replace an attribute on an element node.
+             * @param name Attribute name.
+             * @param value Attribute value.
+             * @throws std::runtime_error on error.
+             */
+            void set_attribute(const char* name, const char* value) {
+                if (!node_) throw std::runtime_error("Null node");
+                if (fossil_media_xml_set_attribute(node_, name, value) != 0)
+                    throw std::runtime_error("Failed to set attribute");
+            }
+
+            /**
+             * @brief Get an attribute value by name.
+             * @param name Attribute name.
+             * @return Attribute value string, or nullptr if not found.
+             */
+            const char* get_attribute(const char* name) const {
+                if (!node_) return nullptr;
+                return fossil_media_xml_get_attribute(node_, name);
+            }
+
+            /**
+             * @brief Serialize this node (and its children) to a string.
+             * @param pretty Indent for human readability.
+             * @return std::string with XML content.
+             * @throws std::runtime_error on error.
+             */
+            std::string stringify(bool pretty = false) const {
+                if (!node_) return {};
+                fossil_media_xml_error_t err = FOSSIL_MEDIA_XML_OK;
+                char* str = fossil_media_xml_stringify(node_, pretty ? 1 : 0, &err);
+                if (!str || err != FOSSIL_MEDIA_XML_OK)
+                    throw std::runtime_error("XML stringify error");
+                std::string result(str);
+                free(str);
+                return result;
+            }
+
+            /**
+             * @brief Get the type name of this node.
+             * @return Static string representation.
+             */
+            const char* type_name() const {
+                if (!node_) return nullptr;
+                return fossil_media_xml_type_name(node_->type);
+            }
+
+            // Non-copyable
+            Xml(const Xml&) = delete;
+            Xml& operator=(const Xml&) = delete;
+
+        private:
+            fossil_media_xml_node_t* node_;
+        };
 
     } // namespace media
 

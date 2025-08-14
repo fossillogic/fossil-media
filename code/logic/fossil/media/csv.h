@@ -94,13 +94,134 @@ int fossil_media_csv_append_row(fossil_media_csv_doc_t *doc, const char **fields
 }
 #include <string>
 #include <stdexcept>
+#include <vector>
 #include <utility>
 
 namespace fossil {
 
     namespace media {
 
+        /**
+         * @class Csv
+         * @brief C++ RAII wrapper for fossil_media_csv_doc_t.
+         *
+         * Provides convenient C++ interface for parsing, manipulating,
+         * and serializing CSV data using the underlying C library.
+         */
+        class Csv {
+        public:
+            /**
+             * @brief Construct from CSV string.
+             * @param csv_text   CSV input as std::string.
+             * @param delimiter  Field delimiter (default: ',').
+             * @throws std::runtime_error on parse error.
+             */
+            Csv(const std::string& csv_text, char delimiter = ',') {
+                fossil_media_csv_error_t err = FOSSIL_MEDIA_CSV_OK;
+                doc_ = fossil_media_csv_parse(csv_text.c_str(), delimiter, &err);
+                if (!doc_ || err != FOSSIL_MEDIA_CSV_OK) {
+                    throw std::runtime_error("CSV parse error");
+                }
+                delimiter_ = delimiter;
+            }
 
+            /**
+             * @brief Destructor. Frees all resources.
+             */
+            ~Csv() {
+                if (doc_) {
+                    fossil_media_csv_free(doc_);
+                }
+            }
+
+            // Non-copyable
+            Csv(const Csv&) = delete;
+            Csv& operator=(const Csv&) = delete;
+
+            /**
+             * @brief Move constructor.
+             */
+            Csv(Csv&& other) noexcept : doc_(other.doc_), delimiter_(other.delimiter_) {
+                other.doc_ = nullptr;
+            }
+
+            /**
+             * @brief Move assignment.
+             */
+            Csv& operator=(Csv&& other) noexcept {
+                if (this != &other) {
+                    if (doc_) fossil_media_csv_free(doc_);
+                    doc_ = other.doc_;
+                    delimiter_ = other.delimiter_;
+                    other.doc_ = nullptr;
+                }
+                return *this;
+            }
+
+            /**
+             * @brief Get number of rows in the CSV document.
+             * @return Row count.
+             */
+            size_t row_count() const {
+                return doc_ ? doc_->row_count : 0;
+            }
+
+            /**
+             * @brief Get number of fields in a given row.
+             * @param row Row index.
+             * @return Number of fields, or 0 if out of bounds.
+             */
+            size_t field_count(size_t row) const {
+                if (!doc_ || row >= doc_->row_count) return 0;
+                return doc_->rows[row].field_count;
+            }
+
+            /**
+             * @brief Get field value as string.
+             * @param row Row index.
+             * @param col Column index.
+             * @return Field value, or empty string if out of bounds.
+             */
+            std::string field(size_t row, size_t col) const {
+                if (!doc_ || row >= doc_->row_count) return {};
+                const fossil_media_csv_row_t& r = doc_->rows[row];
+                if (col >= r.field_count) return {};
+                return r.fields[col] ? r.fields[col] : "";
+            }
+
+            /**
+             * @brief Append a row to the CSV document.
+             * @param fields Vector of field strings.
+             * @throws std::runtime_error on error.
+             */
+            void append_row(const std::vector<std::string>& fields) {
+                std::vector<const char*> cfields;
+                for (const auto& f : fields) cfields.push_back(f.c_str());
+                if (fossil_media_csv_append_row(doc_, cfields.data(), cfields.size()) != 0) {
+                    throw std::runtime_error("CSV append_row error");
+                }
+            }
+
+            /**
+             * @brief Convert the CSV document back to a CSV-formatted string.
+             * @return CSV string.
+             * @throws std::runtime_error on error.
+             */
+            std::string to_string() const {
+                fossil_media_csv_error_t err = FOSSIL_MEDIA_CSV_OK;
+                char* cstr = fossil_media_csv_stringify(doc_, delimiter_, &err);
+                if (!cstr || err != FOSSIL_MEDIA_CSV_OK) {
+                    throw std::runtime_error("CSV stringify error");
+                }
+                std::string result(cstr);
+                free(cstr);
+                return result;
+            }
+
+        private:
+            fossil_media_csv_doc_t* doc_ = nullptr; /**< Underlying CSV document pointer */
+            char delimiter_ = ',';                  /**< Field delimiter */
+        };
 
     } // namespace media
 

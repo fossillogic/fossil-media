@@ -80,14 +80,122 @@ size_t fossil_media_text_split(char *str, char delim, char **tokens, size_t max_
 #ifdef __cplusplus
 }
 #include <string>
+#include <vector>
 #include <stdexcept>
 #include <utility>
+#include <cstring>
 
 namespace fossil {
 
     namespace media {
 
+        /**
+         * @brief Text utility class providing static string manipulation methods.
+         */
+        class Text {
+        public:
+            /**
+             * @brief Remove leading and trailing whitespace from a string.
+             *
+             * @param str String to trim.
+             * @return Trimmed string.
+             */
+            static std::string trim(const std::string& str) {
+                std::string s = str;
+                char *buf = new char[s.size() + 1];
+                std::strcpy(buf, s.c_str());
+                fossil_media_text_trim(buf);
+                std::string result(buf);
+                delete[] buf;
+                return result;
+            }
 
+            /**
+             * @brief Convert a string to lowercase.
+             *
+             * @param str String to convert.
+             * @return Lowercase string.
+             */
+            static std::string tolower(const std::string& str) {
+                std::string s = str;
+                char *buf = new char[s.size() + 1];
+                std::strcpy(buf, s.c_str());
+                fossil_media_text_tolower(buf);
+                std::string result(buf);
+                delete[] buf;
+                return result;
+            }
+
+            /**
+             * @brief Convert a string to uppercase.
+             *
+             * @param str String to convert.
+             * @return Uppercase string.
+             */
+            static std::string toupper(const std::string& str) {
+                std::string s = str;
+                char *buf = new char[s.size() + 1];
+                std::strcpy(buf, s.c_str());
+                fossil_media_text_toupper(buf);
+                std::string result(buf);
+                delete[] buf;
+                return result;
+            }
+
+            /**
+             * @brief Replace all occurrences of a substring within a string.
+             *
+             * @param str      The input string.
+             * @param old_sub  Substring to replace.
+             * @param new_sub  Substring to insert.
+             * @return String with replacements.
+             */
+            static std::string replace(const std::string& str, const std::string& old_sub, const std::string& new_sub) {
+                size_t buf_size = str.size() + (new_sub.size() > old_sub.size() ? (str.size() * (new_sub.size() - old_sub.size())) : 1) + 1;
+                char *buf = new char[buf_size];
+                std::strcpy(buf, str.c_str());
+                fossil_media_text_replace(buf, old_sub.c_str(), new_sub.c_str(), buf_size);
+                std::string result(buf);
+                delete[] buf;
+                return result;
+            }
+
+            /**
+             * @brief Find the first occurrence of a substring in a string (case-sensitive).
+             *
+             * @param haystack The string to search in.
+             * @param needle   The substring to search for.
+             * @return Position of the first occurrence, or std::string::npos if not found.
+             */
+            static size_t find(const std::string& haystack, const std::string& needle) {
+                char *res = fossil_media_text_find(haystack.c_str(), needle.c_str());
+                if (!res) return std::string::npos;
+                return static_cast<size_t>(res - haystack.c_str());
+            }
+
+            /**
+             * @brief Split a string into tokens by a delimiter.
+             *
+             * @param str        String to split.
+             * @param delim      Delimiter character.
+             * @return Vector of tokens.
+             */
+            static std::vector<std::string> split(const std::string& str, char delim) {
+                std::vector<std::string> tokens;
+                std::string s = str;
+                // Estimate max tokens as length + 1
+                size_t max_tokens = s.size() + 1;
+                std::vector<char*> c_tokens(max_tokens, nullptr);
+                char *buf = new char[s.size() + 1];
+                std::strcpy(buf, s.c_str());
+                size_t count = fossil_media_text_split(buf, delim, c_tokens.data(), max_tokens);
+                for (size_t i = 0; i < count; ++i) {
+                    tokens.emplace_back(c_tokens[i]);
+                }
+                delete[] buf;
+                return tokens;
+            }
+        };
 
     } // namespace media
 
