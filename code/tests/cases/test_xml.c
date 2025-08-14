@@ -66,7 +66,6 @@ FOSSIL_TEST_CASE(c_test_append_child_and_serialize) {
     fossil_media_xml_error_t err = {0};
     char *xml = fossil_media_xml_stringify(parent, 0, &err);
     ASSUME_ITS_TRUE(xml != NULL);
-    free(xml);
     fossil_media_xml_free(parent);
 }
 
