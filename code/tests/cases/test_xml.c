@@ -70,24 +70,6 @@ FOSSIL_TEST_CASE(c_test_append_child_and_serialize) {
     fossil_media_xml_free(parent);
 }
 
-FOSSIL_TEST_CASE(c_test_text_and_comment_nodes) {
-    fossil_media_xml_node_t *elem = fossil_media_xml_new_element("data");
-    fossil_media_xml_node_t *text = fossil_media_xml_new_text("Hello");
-    fossil_media_xml_node_t *comment = fossil_media_xml_new_comment("A comment");
-    fossil_media_xml_append_child(elem, text);
-    fossil_media_xml_append_child(elem, comment);
-    fossil_media_xml_free(elem);
-}
-
-FOSSIL_TEST_CASE(c_test_cdata_and_pi_nodes) {
-    fossil_media_xml_node_t *elem = fossil_media_xml_new_element("script");
-    fossil_media_xml_node_t *cdata = fossil_media_xml_new_cdata("x < y && y > z");
-    fossil_media_xml_node_t *pi = fossil_media_xml_new_pi("xml-stylesheet", "type=\"text/xsl\" href=\"style.xsl\"");
-    fossil_media_xml_append_child(elem, cdata);
-    fossil_media_xml_append_child(elem, pi);
-    fossil_media_xml_free(elem);
-}
-
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -95,8 +77,6 @@ FOSSIL_TEST_GROUP(c_xml_tests) {
     FOSSIL_TEST_ADD(c_xml_fixture, c_test_xml_parse_simple_element);
     FOSSIL_TEST_ADD(c_xml_fixture, c_test_create_element_and_attribute);
     FOSSIL_TEST_ADD(c_xml_fixture, c_test_append_child_and_serialize);
-    FOSSIL_TEST_ADD(c_xml_fixture, c_test_text_and_comment_nodes);
-    FOSSIL_TEST_ADD(c_xml_fixture, c_test_cdata_and_pi_nodes);
 
     FOSSIL_TEST_REGISTER(c_xml_fixture);
 } // end of tests

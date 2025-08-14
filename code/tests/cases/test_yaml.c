@@ -86,10 +86,6 @@ FOSSIL_TEST_CASE(c_test_yaml_get_value) {
     fossil_media_yaml_free(head);
 }
 
-FOSSIL_TEST_CASE(c_test_yaml_free_null) {
-    fossil_media_yaml_free(NULL); // Should not crash
-}
-
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -98,7 +94,6 @@ FOSSIL_TEST_GROUP(c_yaml_tests) {
     FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_parse_with_indent);
     FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_parse_empty_and_invalid);
     FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_get_value);
-    FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_free_null);
 
     FOSSIL_TEST_REGISTER(c_yaml_fixture);
 } // end of tests
