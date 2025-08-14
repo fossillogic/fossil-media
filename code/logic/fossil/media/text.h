@@ -80,6 +80,7 @@ size_t fossil_media_text_split(char *str, char delim, char **tokens, size_t max_
 #ifdef __cplusplus
 }
 #include <string>
+#include <vector>
 #include <stdexcept>
 #include <utility>
 

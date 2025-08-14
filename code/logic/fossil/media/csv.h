@@ -94,6 +94,7 @@ int fossil_media_csv_append_row(fossil_media_csv_doc_t *doc, const char **fields
 }
 #include <string>
 #include <stdexcept>
+#include <vector>
 #include <utility>
 
 namespace fossil {
