@@ -102,7 +102,7 @@ namespace fossil {
              */
             static std::string trim(const std::string& str) {
                 std::string s = str;
-                strcpy(buf, s.c_str());
+                char *buf = new char[s.size() + 1];
                 std::strcpy(buf, s.c_str());
                 fossil_media_text_trim(buf);
                 std::string result(buf);
@@ -152,7 +152,7 @@ namespace fossil {
              */
             static std::string replace(const std::string& str, const std::string& old_sub, const std::string& new_sub) {
                 size_t buf_size = str.size() + (new_sub.size() > old_sub.size() ? (str.size() * (new_sub.size() - old_sub.size())) : 1) + 1;
-                strcpy(buf, str.c_str());
+                char *buf = new char[buf_size];
                 std::strcpy(buf, str.c_str());
                 fossil_media_text_replace(buf, old_sub.c_str(), new_sub.c_str(), buf_size);
                 std::string result(buf);
