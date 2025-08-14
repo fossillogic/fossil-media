@@ -111,7 +111,144 @@ namespace fossil {
 
     namespace media {
 
+        /**
+         * @brief C++ wrapper class for handling INI files.
+         */
+        class Ini {
+        public:
+            /**
+             * @brief Construct an empty INI object.
+             */
+            Ini() {
+                ini_.sections = nullptr;
+                ini_.section_count = 0;
+            }
 
+            /**
+             * @brief Construct and load an INI file from disk.
+             * @param path Path to the .ini file.
+             * @throw std::runtime_error on failure.
+             */
+            explicit Ini(const std::string& path) {
+                ini_.sections = nullptr;
+                ini_.section_count = 0;
+                if (fossil_media_ini_load_file(path.c_str(), &ini_) != 0)
+                    throw std::runtime_error("Failed to load INI file: " + path);
+            }
+
+            /**
+             * @brief Construct and load an INI file from a string buffer.
+             * @param data INI data as null-terminated string.
+             * @throw std::runtime_error on failure.
+             */
+            Ini(const char* data) {
+                ini_.sections = nullptr;
+                ini_.section_count = 0;
+                if (fossil_media_ini_load_string(data, &ini_) != 0)
+                    throw std::runtime_error("Failed to load INI from string");
+            }
+
+            /**
+             * @brief Move constructor.
+             */
+            Ini(Ini&& other) noexcept
+            : ini_{other.ini_} {
+                other.ini_.sections = nullptr;
+                other.ini_.section_count = 0;
+            }
+
+            /**
+             * @brief Move assignment operator.
+             */
+            Ini& operator=(Ini&& other) noexcept {
+                if (this != &other) {
+                    fossil_media_ini_free(&ini_);
+                    ini_ = other.ini_;
+                    other.ini_.sections = nullptr;
+                    other.ini_.section_count = 0;
+                }
+                return *this;
+            }
+
+            /**
+             * @brief Destructor. Frees all memory used by the INI structure.
+             */
+            ~Ini() {
+                fossil_media_ini_free(&ini_);
+            }
+
+            // Non-copyable
+            Ini(const Ini&) = delete;
+            Ini& operator=(const Ini&) = delete;
+
+            /**
+             * @brief Load an INI file from disk.
+             * @param path Path to the .ini file.
+             * @return true on success, false on failure.
+             */
+            bool load_file(const std::string& path) {
+                fossil_media_ini_free(&ini_);
+                ini_.sections = nullptr;
+                ini_.section_count = 0;
+                return fossil_media_ini_load_file(path.c_str(), &ini_) == 0;
+            }
+
+            /**
+             * @brief Load an INI file from a string buffer.
+             * @param data INI data as null-terminated string.
+             * @return true on success, false on failure.
+             */
+            bool load_string(const char* data) {
+                fossil_media_ini_free(&ini_);
+                ini_.sections = nullptr;
+                ini_.section_count = 0;
+                return fossil_media_ini_load_string(data, &ini_) == 0;
+            }
+
+            /**
+             * @brief Save the INI structure to disk.
+             * @param path Path to output file.
+             * @return true on success, false on failure.
+             */
+            bool save_file(const std::string& path) const {
+                return fossil_media_ini_save_file(path.c_str(), &ini_) == 0;
+            }
+
+            /**
+             * @brief Get the value for a given section/key.
+             * @param section Section name.
+             * @param key Key name.
+             * @return Value string or empty string if not found.
+             */
+            std::string get(const std::string& section, const std::string& key) const {
+                const char* val = fossil_media_ini_get(&ini_, section.c_str(), key.c_str());
+                return val ? std::string(val) : std::string();
+            }
+
+            /**
+             * @brief Set the value for a given section/key. Creates section/key if they do not exist.
+             * @param section Section name.
+             * @param key Key name.
+             * @param value Value string.
+             * @return true on success, false on failure.
+             */
+            bool set(const std::string& section, const std::string& key, const std::string& value) {
+                return fossil_media_ini_set(&ini_, section.c_str(), key.c_str(), value.c_str()) == 0;
+            }
+
+            /**
+             * @brief Get the underlying C structure (const).
+             */
+            const fossil_media_ini_t* c_struct() const { return &ini_; }
+
+            /**
+             * @brief Get the underlying C structure (non-const).
+             */
+            fossil_media_ini_t* c_struct() { return &ini_; }
+
+        private:
+            fossil_media_ini_t ini_;
+        };
 
     } // namespace media
 

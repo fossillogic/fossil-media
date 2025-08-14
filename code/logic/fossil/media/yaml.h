@@ -69,7 +69,66 @@ namespace fossil {
 
     namespace media {
 
+        /**
+         * @brief C++ wrapper for YAML parsing and manipulation.
+         */
+        class Yaml {
+        public:
+            /**
+             * @brief Construct a Yaml object by parsing a YAML string.
+             * @param input YAML text (null-terminated)
+             * @throw std::runtime_error on parse failure
+             */
+            explicit Yaml(const char* input)
+            : head_(::fossil_media_yaml_parse(input)) {
+                if (!head_) {
+                    throw std::runtime_error("Failed to parse YAML input");
+                }
+            }
 
+            /**
+             * @brief Destructor. Frees the linked list of YAML nodes.
+             */
+            ~Yaml() {
+                ::fossil_media_yaml_free(head_);
+            }
+
+            // Non-copyable
+            Yaml(const Yaml&) = delete;
+            Yaml& operator=(const Yaml&) = delete;
+
+            // Movable
+            Yaml(Yaml&& other) noexcept : head_(other.head_) {
+                other.head_ = nullptr;
+                }
+                Yaml& operator=(Yaml&& other) noexcept {
+                if (this != &other) {
+                    ::fossil_media_yaml_free(head_);
+                    head_ = other.head_;
+                    other.head_ = nullptr;
+                }
+                return *this;
+            }
+
+            /**
+             * @brief Get the value for a given key (first match).
+             * @param key Key string to search
+             * @return Value string, or nullptr if not found.
+             */
+            const char* get(const char* key) const {
+                return ::fossil_media_yaml_get(head_, key);
+            }
+
+            /**
+             * @brief Print the YAML node list to stdout (debug).
+             */
+            void print() const {
+                ::fossil_media_yaml_print(head_);
+            }
+
+        private:
+            fossil_media_yaml_node_t* head_;
+        };
 
     } // namespace media
 

@@ -83,7 +83,82 @@ namespace fossil {
 
     namespace media {
 
+        /**
+         * @brief C++ wrapper for parsed TOML documents.
+         *
+         * Provides RAII management and convenient access to TOML data.
+         */
+        class Toml {
+        public:
+            /**
+             * @brief Parse TOML data from a string.
+             *
+             * @param input TOML string to parse.
+             * @throws std::runtime_error on parse error.
+             */
+            explicit Toml(const std::string& input) {
+                if (fossil_media_toml_parse(input.c_str(), &doc_) != 0) {
+                    throw std::runtime_error("Failed to parse TOML data");
+                }
+            }
 
+            /**
+             * @brief Move constructor.
+             */
+            Toml(Toml&& other) noexcept : doc_{other.doc_} {
+                other.doc_.tables = nullptr;
+                other.doc_.table_count = 0;
+            }
+
+            /**
+             * @brief Move assignment operator.
+             */
+            Toml& operator=(Toml&& other) noexcept {
+                if (this != &other) {
+                    fossil_media_toml_free(&doc_);
+                    doc_ = other.doc_;
+                    other.doc_.tables = nullptr;
+                    other.doc_.table_count = 0;
+                }
+                return *this;
+            }
+
+            /**
+             * @brief Deleted copy constructor.
+             */
+            Toml(const Toml&) = delete;
+
+            /**
+             * @brief Deleted copy assignment operator.
+             */
+            Toml& operator=(const Toml&) = delete;
+
+            /**
+             * @brief Destructor. Frees the TOML document.
+             */
+            ~Toml() {
+                fossil_media_toml_free(&doc_);
+            }
+
+            /**
+             * @brief Retrieve a value from a specific table by key.
+             *
+             * @param table_name Table name to search (empty for root).
+             * @param key Key name to search for.
+             * @return Value string, or empty string if not found.
+             */
+            std::string get(const std::string& table_name, const std::string& key) const {
+                const char* val = fossil_media_toml_get(
+                    &doc_,
+                    table_name.empty() ? nullptr : table_name.c_str(),
+                    key.c_str()
+                );
+                return val ? std::string(val) : std::string();
+            }
+
+        private:
+            fossil_media_toml_t doc_{};
+        };
 
     } // namespace media
 
