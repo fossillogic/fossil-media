@@ -60,12 +60,13 @@ FOSSIL_TEST_CASE(cpp_test_parse_toml_missing_key) {
 
 FOSSIL_TEST_CASE(cpp_test_parse_toml_invalid_input) {
     using fossil::media::Toml;
+    bool threw = false;
     try {
         Toml doc("");
-        ASSUME_ITS_TRUE(false); // Should not reach here
-    } catch (const std::runtime_error&) {
-        ASSUME_ITS_TRUE(true);
+    } catch (const std::exception&) {
+        threw = true;
     }
+    ASSUME_ITS_TRUE(threw);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * *

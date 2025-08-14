@@ -46,9 +46,15 @@ FOSSIL_TEST_CASE(c_test_parse_simple_toml) {
     int rc = fossil_media_toml_parse(toml, &doc);
     ASSUME_ITS_TRUE(rc == 0);
     const char *title = fossil_media_toml_get(&doc, NULL, "title");
-    ASSUME_ITS_TRUE(title != NULL && strcmp(title, "TOML Example") == 0);
+    ASSUME_ITS_TRUE(title != NULL);
+    if (title != NULL) {
+        ASSUME_ITS_TRUE(strcmp(title, "TOML Example") == 0);
+    }
     const char *owner_name = fossil_media_toml_get(&doc, "owner", "name");
-    ASSUME_ITS_TRUE(owner_name != NULL && strcmp(owner_name, "Tom") == 0);
+    ASSUME_ITS_TRUE(owner_name != NULL);
+    if (owner_name != NULL) {
+        ASSUME_ITS_TRUE(strcmp(owner_name, "Tom") == 0);
+    }
     fossil_media_toml_free(&doc);
 }
 
