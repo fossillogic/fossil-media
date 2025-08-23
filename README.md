@@ -72,6 +72,25 @@ To run the built-in test suite, configure Meson with:
 meson setup builddir -Dwith_test=enabled
 ```
 
+### Tests Double as Samples
+
+The project is designed so that **test cases serve two purposes**:
+
+- ✅ **Unit Tests** – validate the framework’s correctness.  
+- 📖 **Usage Samples** – demonstrate how to use these libraries through test cases.  
+
+This approach keeps the codebase compact and avoids redundant “hello world” style examples.  
+Instead, the same code that proves correctness also teaches usage.  
+
+This mirrors the **Meson build system** itself, which tests its own functionality by using Meson to test Meson.  
+In the same way, Fossil Logic validates itself by demonstrating real-world usage in its own tests via Fossil Test.  
+
+```bash
+meson test -C builddir -v
+```
+
+Running the test suite gives you both verification and practical examples you can learn from.
+
 ## Contributing and Support
 
 For those interested in contributing, reporting issues, or seeking support, please open an issue on the project repository or visit the [Fossil Logic Docs](https://fossillogic.com/docs) for more information. Your feedback and contributions are always welcome.
