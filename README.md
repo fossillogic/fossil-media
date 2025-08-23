@@ -29,38 +29,41 @@
 - **Meson Build System**  
   Fossil Media uses Meson for build configuration. If you don’t have Meson installed, please follow the installation instructions on the official [Meson website](https://mesonbuild.com/Getting-meson.html).
 
-### Adding Fossil Media as a Dependency
+### Adding Dependency
 
-#### Using Meson
+#### Adding via Meson WrapDB
 
-### **Install or Upgrade Meson** (version 1.3 or newer recommended):
+Meson can install packages directly from the WrapDB just like so, newest versions by default.
 
-```sh
-   python -m pip install meson           # Install Meson
-   python -m pip install --upgrade meson # Upgrade Meson
-```
-###	Add the .wrap File
-Place a file named fossil-media.wrap in your subprojects directory with the following content:
-
-```ini
-# ======================
-# Git Wrap package definition
-# ======================
-[wrap-git]
-url = https://github.com/fossillogic/fossil-media.git
-revision = v0.1.0
-
-[provide]
-fossil-media = fossil_media_dep
+```bash
+meson wrap install fossil-media
 ```
 
-###	Integrate in Your meson.build
-Add the dependency by including this line:
+#### Adding via Conan GitHub repository
+
+Conan can install packages directly from a GitHub repository if it contains a valid conanfile.py.
+
+```bash
+conan install git+https://github.com/fossillogic/fossil-media.git#v0.1.1 --name fossil_media --build=missing
+```
+
+#### Adding via Conan Center Index
+    
+Conan can install packages directly from the Conan Center Index if it contains a valid conanfile.py.
+
+```bash
+conan install --require= fossil_media/0.1.1
+```
+
+#### Integrate the Dependency:
+   
+In your `meson.build` file, integrat by adding the following line:
 
 ```meson
-media_dep = dependency('fossil-media')
+dep = dependency('fossil-media')
 ```
 
+**Note**: For the best experience, always use the latest release. Visit the [Releases](https://github.com/fossillogic/fossil-media/releases) page for the latest versions.
 
 ## Build Configuration Options
 
