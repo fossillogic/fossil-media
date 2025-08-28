@@ -33,39 +33,32 @@ To get started, ensure you have the following installed:
 
 ### Adding Dependency
 
-#### Adding via Meson WrapDB
+#### Adding via Meson Git Wrap
 
-Meson can install packages directly from the WrapDB just like so, newest versions by default.
-
-```bash
-meson wrap install fossil-media
-```
+To add a git-wrap, place a `.wrap` file in `subprojects` with the Git repo URL and revision, then use `dependency('fossil-media')` in `meson.build` so Meson can fetch and build it automatically.
 
 #### Adding via Conan GitHub repository
 
-Conan can install packages directly from a GitHub repository if it contains a valid conanfile.py.
+ packages directly from a GitHub repository if it contains a valid `conanfile.py`.
 
 ```bash
 conan install git+https://github.com/fossillogic/fossil-media.git#v0.1.1 --name fossil_media --build=missing
 ```
 
-#### Adding via Conan Center Index
-    
-Conan can install packages directly from the Conan Center Index if it contains a valid conanfile.py.
-
-```bash
-conan install --require= fossil_media/0.1.1
-```
-
 #### Integrate the Dependency:
-   
-In your `meson.build` file, integrat by adding the following line:
 
-```meson
-dep = dependency('fossil-media')
+Add the `fossil-media.wrap` file in your `subprojects` directory and include the following content:
+
+```ini
+[wrap-git]
+url = https://github.com/fossillogic/fossil-media.git
+revision = v0.1.1
+
+[provide]
+dependency_names = fossil-media
 ```
 
-**Note**: For the best experience, always use the latest release. Visit the [Releases](https://github.com/fossillogic/fossil-media/releases) page for the latest versions.
+**Note**: For the best experience, always use the latest releases. Visit the [releases](https://github.com/fossillogic/fossil-media/releases) page for the latest versions.
 
 ## Build Configuration Options
 
