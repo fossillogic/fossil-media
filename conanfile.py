@@ -9,8 +9,8 @@ class FossilMediaConan(ConanFile):
     license = "MPL-2.0"
     author = "Fossil Logic <michaelbrockus@gmail.com>"
     url = "https://github.com/fossillogic/fossil-media"
-    description = "Fossil Media is a lightweight, portable media processing library written in pure C with zero external dependencies."
-    topics = ("json", "xml", "yaml", "meson", "fossillogic")
+    description = "Fossil Media is a lightweight, portable data parsing and processing library written in pure C with zero external dependencies."
+    topics = ("c", "xml", "csv", "json", "cpp", "meson", "conan-recipe", "mesonbuild", "ninja-build")
 
     settings = "os", "compiler", "build_type", "arch"
     options = {"shared": [True, False]}
@@ -34,6 +34,9 @@ class FossilMediaConan(ConanFile):
         meson = Meson(self)
         meson.configure()
         meson.build()
+
+    def source(self):
+        self.run(f"git clone --branch v{self.version} --depth 1 {self.url}")
 
     def package(self):
         """Install headers and libraries into package folder"""
