@@ -17,3 +17,5 @@ fossil_media_lib = library('fossil_media',
 fossil_media_dep = declare_dependency(
     link_with: [fossil_media_lib],
     include_directories: dir)
+
+meson.override_dependency('fossil-media', fossil_media_dep)
