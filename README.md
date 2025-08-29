@@ -24,43 +24,41 @@
 
 ## Getting Started
 
-### Prerequisites
+## ***Prerequisites***
 
-- **Meson Build System**  
-  Fossil Media uses Meson for build configuration. If you don’t have Meson installed, please follow the installation instructions on the official [Meson website](https://mesonbuild.com/Getting-meson.html).
+To get started, ensure you have the following installed:
 
-### Adding Fossil Media as a Dependency
+- **Meson Build System**: If you don’t have Meson `1.8.0` or newer installed, follow the installation instructions on the official [Meson website](https://mesonbuild.com/Getting-meson.html).
+- **Conan Package Manager**: If you prefer using Conan, ensure it is installed by following the instructions on the official [Conan website](https://docs.conan.io/en/latest/installation.html).
 
-#### Using Meson
+### Adding Dependency
 
-### **Install or Upgrade Meson** (version 1.3 or newer recommended):
+#### Adding via Meson Git Wrap
 
-```sh
-   python -m pip install meson           # Install Meson
-   python -m pip install --upgrade meson # Upgrade Meson
+To add a git-wrap, place a `.wrap` file in `subprojects` with the Git repo URL and revision, then use `dependency('fossil-media')` in `meson.build` so Meson can fetch and build it automatically.
+
+#### Adding via Conan GitHub repository
+
+ packages directly from a GitHub repository if it contains a valid `conanfile.py`.
+
+```bash
+conan install git+https://github.com/fossillogic/fossil-media.git#v0.1.1 --name fossil_media --build=missing
 ```
-###	Add the .wrap File
-Place a file named fossil-media.wrap in your subprojects directory with the following content:
+
+#### Integrate the Dependency:
+
+Add the `fossil-media.wrap` file in your `subprojects` directory and include the following content:
 
 ```ini
-# ======================
-# Git Wrap package definition
-# ======================
 [wrap-git]
 url = https://github.com/fossillogic/fossil-media.git
-revision = v0.1.0
+revision = v0.1.1
 
 [provide]
-fossil-media = fossil_media_dep
+dependency_names = fossil-media
 ```
 
-###	Integrate in Your meson.build
-Add the dependency by including this line:
-
-```meson
-media_dep = dependency('fossil-media')
-```
-
+**Note**: For the best experience, always use the latest releases. Visit the [releases](https://github.com/fossillogic/fossil-media/releases) page for the latest versions.
 
 ## Build Configuration Options
 
@@ -71,6 +69,25 @@ To run the built-in test suite, configure Meson with:
 ```sh
 meson setup builddir -Dwith_test=enabled
 ```
+
+### Tests Double as Samples
+
+The project is designed so that **test cases serve two purposes**:
+
+- ✅ **Unit Tests** – validate the framework’s correctness.  
+- 📖 **Usage Samples** – demonstrate how to use these libraries through test cases.  
+
+This approach keeps the codebase compact and avoids redundant “hello world” style examples.  
+Instead, the same code that proves correctness also teaches usage.  
+
+This mirrors the **Meson build system** itself, which tests its own functionality by using Meson to test Meson.  
+In the same way, Fossil Logic validates itself by demonstrating real-world usage in its own tests via Fossil Test.  
+
+```bash
+meson test -C builddir -v
+```
+
+Running the test suite gives you both verification and practical examples you can learn from.
 
 ## Contributing and Support
 

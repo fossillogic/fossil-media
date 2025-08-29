@@ -113,15 +113,36 @@ int fossil_media_ini_load_string(const char *data, fossil_media_ini_t *ini) {
 int fossil_media_ini_load_file(const char *path, fossil_media_ini_t *ini) {
     FILE *f = fopen(path, "rb");
     if (!f) return -1;
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
+
+    if (fseek(f, 0, SEEK_END) != 0) {
+        fclose(f);
+        return -1;
+    }
+
+    long fsize = ftell(f);
+    if (fsize < 0) {
+        fclose(f);
+        return -1;
+    }
     rewind(f);
 
-    char *buf = (char *)malloc(size + 1);
-    if (!buf) { fclose(f); return -1; }
-    fread(buf, 1, size, f);
-    buf[size] = '\0';
+    // use size_t for safety
+    size_t size = (size_t)fsize;
+    char *buf = malloc(size + 1);
+    if (!buf) {
+        fclose(f);
+        return -1;
+    }
+
+    size_t nread = fread(buf, 1, size, f);
     fclose(f);
+
+    if (nread != size) {
+        free(buf);
+        return -1;
+    }
+
+    buf[size] = '\0';
 
     int res = fossil_media_ini_load_string(buf, ini);
     free(buf);
