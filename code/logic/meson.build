@@ -8,7 +8,7 @@ else
     winsock_dep = []
 endif
 
-fossil_media_lib = static_library('fossil-media',
+fossil_media_lib = static_library('fossil_media',
     files('media.c', 'markdown.c', 'yaml.c', 'json.c', 'text.c', 'toml.c', 'xml.c', 'ini.c', 'csv.c'),
     install: true,
     dependencies: [cc.find_library('m', required: false), winsock_dep],
