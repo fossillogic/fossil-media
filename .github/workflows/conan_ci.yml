@@ -27,13 +27,13 @@ jobs:
           python-version: "3.11"
 
       - name: Cache pip
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip
 
       - name: Cache Conan
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.conan
           key: ${{ runner.os }}-conan
@@ -63,4 +63,7 @@ jobs:
         run: meson test -C builddir -v
 
       - name: Package
-        run: conan create . --name=fossil_media --version=0.1.1
+        run: |
+          PKG_NAME=$(echo "${{ github.event.repository.name }}" | tr '-' '_')
+          PKG_VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')  # remove leading 'v'
+          conan create . --name=$PKG_NAME --version=$PKG_VERSION
