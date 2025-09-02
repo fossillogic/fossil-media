@@ -8,7 +8,7 @@ else
     winsock_dep = []
 endif
 
-fossil_media_lib = static_library('fossil-media',
+fossil_media_lib = library('fossil_media',
     files('media.c', 'markdown.c', 'yaml.c', 'json.c', 'text.c', 'toml.c', 'xml.c', 'ini.c', 'csv.c'),
     install: true,
     dependencies: [cc.find_library('m', required: false), winsock_dep],
@@ -17,3 +17,5 @@ fossil_media_lib = static_library('fossil-media',
 fossil_media_dep = declare_dependency(
     link_with: [fossil_media_lib],
     include_directories: dir)
+
+meson.override_dependency('fossil-media', fossil_media_dep)
