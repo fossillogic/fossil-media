@@ -37,14 +37,6 @@ To get started, ensure you have the following installed:
 
 To add a git-wrap, place a `.wrap` file in `subprojects` with the Git repo URL and revision, then use `dependency('fossil-media')` in `meson.build` so Meson can fetch and build it automatically.
 
-#### Adding via Conan GitHub repository
-
- packages directly from a GitHub repository if it contains a valid `conanfile.py`.
-
-```bash
-conan install git+https://github.com/fossillogic/fossil-media.git#v0.1.1 --name fossil_media --build=missing
-```
-
 #### Integrate the Dependency:
 
 Add the `fossil-media.wrap` file in your `subprojects` directory and include the following content:
