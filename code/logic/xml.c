@@ -60,20 +60,28 @@ fossil_media_xml_node_t *fossil_media_xml_new_comment(const char *comment) {
 
 void fossil_media_xml_free(fossil_media_xml_node_t *node) {
     if (!node) return;
-    free(node->name);
-    free(node->content);
+    if (node->name) free(node->name);
+    if (node->content) free(node->content);
 
-    for (size_t i = 0; i < node->child_count; i++) {
-        fossil_media_xml_free(node->children[i]);
+    if (node->children) {
+        for (size_t i = 0; i < node->child_count; i++) {
+            fossil_media_xml_free(node->children[i]);
+        }
+        free(node->children);
     }
-    free(node->children);
 
-    for (size_t i = 0; i < node->attr_count; i++) {
-        free(node->attr_names[i]);
-        free(node->attr_values[i]);
+    if (node->attr_names) {
+        for (size_t i = 0; i < node->attr_count; i++) {
+            if (node->attr_names[i]) free(node->attr_names[i]);
+        }
+        free(node->attr_names);
     }
-    free(node->attr_names);
-    free(node->attr_values);
+    if (node->attr_values) {
+        for (size_t i = 0; i < node->attr_count; i++) {
+            if (node->attr_values[i]) free(node->attr_values[i]);
+        }
+        free(node->attr_values);
+    }
 
     free(node);
 }
