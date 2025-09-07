@@ -845,9 +845,12 @@ fossil_media_json_get_path(const fossil_media_json_value_t *root, const char *pa
     char *tokenized = fossil_media_strdup(path);
     if (!tokenized) return NULL;
 
-    char *saveptr = NULL;
-    char *tok = strtok_r(tokenized, ".", &saveptr);
+    char *tok = tokenized;
     while (tok && cur) {
+        char *next_dot = strchr(tok, '.');
+        if (next_dot) {
+            *next_dot = '\0';
+        }
         if (cur->type == FOSSIL_MEDIA_JSON_OBJECT) {
             cur = fossil_media_json_object_get(cur, tok);
         } else if (cur->type == FOSSIL_MEDIA_JSON_ARRAY) {
@@ -863,7 +866,11 @@ fossil_media_json_get_path(const fossil_media_json_value_t *root, const char *pa
             fm_free(tokenized);
             return NULL;
         }
-        tok = strtok_r(NULL, ".", &saveptr);
+        if (next_dot) {
+            tok = next_dot + 1;
+        } else {
+            tok = NULL;
+        }
     }
     fm_free(tokenized);
     return (fossil_media_json_value_t *)cur;
