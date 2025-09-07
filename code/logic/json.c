@@ -749,7 +749,7 @@ fossil_media_json_parse_file(const char *filename, fossil_media_json_error_t *er
     fclose(f);
 
     fossil_media_json_value_t *v = fossil_media_json_parse(buf, err_out);
-    free(buf);
+    fm_free(buf);
     return v;
 }
 
@@ -767,7 +767,7 @@ int fossil_media_json_write_file(const fossil_media_json_value_t *v,
         return -1;
     }
     fputs(s, f);
-    free(s);
+    fm_free(s);
     fclose(f);
     return 0;
 }
@@ -845,7 +845,8 @@ fossil_media_json_get_path(const fossil_media_json_value_t *root, const char *pa
     char *tokenized = fossil_media_strdup(path);
     if (!tokenized) return NULL;
 
-    char *tok = strtok(tokenized, ".");
+    char *saveptr = NULL;
+    char *tok = strtok_r(tokenized, ".", &saveptr);
     while (tok && cur) {
         if (cur->type == FOSSIL_MEDIA_JSON_OBJECT) {
             cur = fossil_media_json_object_get(cur, tok);
@@ -855,15 +856,15 @@ fossil_media_json_get_path(const fossil_media_json_value_t *root, const char *pa
             if (*end == '\0') {
                 cur = fossil_media_json_array_get(cur, (size_t)idx);
             } else {
-                free(tokenized);
+                fm_free(tokenized);
                 return NULL;
             }
         } else {
-            free(tokenized);
+            fm_free(tokenized);
             return NULL;
         }
-        tok = strtok(NULL, ".");
+        tok = strtok_r(NULL, ".", &saveptr);
     }
-    free(tokenized);
+    fm_free(tokenized);
     return (fossil_media_json_value_t *)cur;
 }
