@@ -18,19 +18,20 @@
 
 char *fossil_media_text_trim(char *str) {
     if (!str) return NULL;
+    char *start = str;
     char *end;
 
     // Skip leading spaces
-    while (isspace((unsigned char)*str)) str++;
+    while (isspace((unsigned char)*start)) start++;
 
-    if (*str == 0) return str; // Empty string
+    if (*start == 0) return start; // Empty string
 
     // Trim trailing spaces
-    end = str + strlen(str) - 1;
-    while (end > str && isspace((unsigned char)*end)) end--;
+    end = start + strlen(start) - 1;
+    while (end > start && isspace((unsigned char)*end)) end--;
 
     *(end + 1) = '\0';
-    return str;
+    return start;
 }
 
 char *fossil_media_text_tolower(char *str) {

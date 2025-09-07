@@ -1,9 +1,6 @@
-# ======================
-# Git Wrap package definition
-# ======================
 [wrap-git]
 url = https://github.com/fossillogic/fossil-test.git
-revision = v1.2.8
+revision = v1.3.0
 
 [provide]
-fossil-test = fossil_test_dep
+dependency_names = fossil-test
