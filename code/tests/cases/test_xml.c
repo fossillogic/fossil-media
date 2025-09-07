@@ -14,7 +14,6 @@
 #include <fossil/pizza/framework.h>
 #include "fossil/media/framework.h"
 
-
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Utilities
 // * * * * * * * * * * * * * * * * * * * * * * * *

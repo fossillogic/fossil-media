@@ -294,3 +294,15 @@ fossil_media_xml_node_t *fossil_media_xml_new_cdata(const char *data) {
     node->content = data ? fossil_media_strdup(data) : NULL;
     return node;
 }
+
+// Provide a stub implementation for fossil_media_xml_type_name if missing
+const char* fossil_media_xml_type_name(int type) {
+    switch (type) {
+        case FOSSIL_MEDIA_XML_ELEMENT: return "element";
+        case FOSSIL_MEDIA_XML_TEXT:    return "text";
+        case FOSSIL_MEDIA_XML_COMMENT: return "comment";
+        case FOSSIL_MEDIA_XML_PI:      return "pi";
+        case FOSSIL_MEDIA_XML_CDATA:   return "cdata";
+        default:                       return "unknown";
+    }
+}
