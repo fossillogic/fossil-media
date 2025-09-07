@@ -589,3 +589,281 @@ const char *fossil_media_json_type_name(fossil_media_json_type_t t) {
         default: return "unknown";
     }
 }
+
+// -----------------------------------------------------------------------------
+// Clone & Equality
+// -----------------------------------------------------------------------------
+
+static fossil_media_json_value_t *fossil_media_json_clone_internal(const fossil_media_json_value_t *src) {
+    if (!src) return NULL;
+
+    fossil_media_json_value_t *copy = NULL;
+    switch (src->type) {
+    case FOSSIL_MEDIA_JSON_NULL:
+        copy = fossil_media_json_new_null();
+        break;
+    case FOSSIL_MEDIA_JSON_BOOL:
+        copy = fossil_media_json_new_bool(src->u.boolean);
+        break;
+    case FOSSIL_MEDIA_JSON_NUMBER:
+        copy = fossil_media_json_new_number(src->u.number);
+        break;
+    case FOSSIL_MEDIA_JSON_STRING:
+        copy = fossil_media_json_new_string(src->u.string);
+        break;
+    case FOSSIL_MEDIA_JSON_ARRAY:
+        copy = fossil_media_json_new_array();
+        if (copy) {
+            for (size_t i = 0; i < src->u.array.count; i++) {
+                fossil_media_json_value_t *child = fossil_media_json_clone_internal(src->u.array.items[i]);
+                if (!child || fossil_media_json_array_append(copy, child) != 0) {
+                    fossil_media_json_free(copy);
+                    return NULL;
+                }
+            }
+        }
+        break;
+    case FOSSIL_MEDIA_JSON_OBJECT:
+        copy = fossil_media_json_new_object();
+        if (copy) {
+            for (size_t i = 0; i < src->u.object.count; i++) {
+                fossil_media_json_value_t *child = fossil_media_json_clone_internal(src->u.object.values[i]);
+                if (!child || fossil_media_json_object_set(copy, src->u.object.keys[i], child) != 0) {
+                    fossil_media_json_free(copy);
+                    return NULL;
+                }
+            }
+        }
+        break;
+    }
+    return copy;
+}
+
+fossil_media_json_value_t *
+fossil_media_json_clone(const fossil_media_json_value_t *src) {
+    return fossil_media_json_clone_internal(src);
+}
+
+int fossil_media_json_equals(const fossil_media_json_value_t *a,
+                             const fossil_media_json_value_t *b) {
+    if (!a || !b) return -1;
+    if (a->type != b->type) return 0;
+
+    switch (a->type) {
+    case FOSSIL_MEDIA_JSON_NULL:
+        return 1;
+    case FOSSIL_MEDIA_JSON_BOOL:
+        return a->u.boolean == b->u.boolean;
+    case FOSSIL_MEDIA_JSON_NUMBER:
+        return a->u.number == b->u.number;
+    case FOSSIL_MEDIA_JSON_STRING:
+        return strcmp(a->u.string, b->u.string) == 0;
+    case FOSSIL_MEDIA_JSON_ARRAY:
+        if (a->u.array.count != b->u.array.count) return 0;
+        for (size_t i = 0; i < a->u.array.count; i++) {
+            if (!fossil_media_json_equals(a->u.array.items[i], b->u.array.items[i]))
+                return 0;
+        }
+        return 1;
+    case FOSSIL_MEDIA_JSON_OBJECT:
+        if (a->u.object.count != b->u.object.count) return 0;
+        for (size_t i = 0; i < a->u.object.count; i++) {
+            fossil_media_json_value_t *val_b = fossil_media_json_object_get(b, a->u.object.keys[i]);
+            if (!val_b || !fossil_media_json_equals(a->u.object.values[i], val_b))
+                return 0;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+// -----------------------------------------------------------------------------
+// Type Helpers
+// -----------------------------------------------------------------------------
+
+int fossil_media_json_is_null(const fossil_media_json_value_t *v) {
+    return v && v->type == FOSSIL_MEDIA_JSON_NULL;
+}
+
+int fossil_media_json_is_array(const fossil_media_json_value_t *v) {
+    return v && v->type == FOSSIL_MEDIA_JSON_ARRAY;
+}
+
+int fossil_media_json_is_object(const fossil_media_json_value_t *v) {
+    return v && v->type == FOSSIL_MEDIA_JSON_OBJECT;
+}
+
+// -----------------------------------------------------------------------------
+// Memory & Capacity
+// -----------------------------------------------------------------------------
+
+int fossil_media_json_array_reserve(fossil_media_json_value_t *arr, size_t capacity) {
+    if (!arr || arr->type != FOSSIL_MEDIA_JSON_ARRAY) return -1;
+    if (capacity <= arr->u.array.capacity) return 0;
+
+    fossil_media_json_value_t **new_items =
+        realloc(arr->u.array.items, capacity * sizeof(*new_items));
+    if (!new_items) return -1;
+
+    arr->u.array.items = new_items;
+    arr->u.array.capacity = capacity;
+    return 0;
+}
+
+int fossil_media_json_object_reserve(fossil_media_json_value_t *obj, size_t capacity) {
+    if (!obj || obj->type != FOSSIL_MEDIA_JSON_OBJECT) return -1;
+    if (capacity <= obj->u.object.capacity) return 0;
+
+    char **new_keys = realloc(obj->u.object.keys, capacity * sizeof(*new_keys));
+    fossil_media_json_value_t **new_vals =
+        realloc(obj->u.object.values, capacity * sizeof(*new_vals));
+    if (!new_keys || !new_vals) return -1;
+
+    obj->u.object.keys = new_keys;
+    obj->u.object.values = new_vals;
+    obj->u.object.capacity = capacity;
+    return 0;
+}
+
+// -----------------------------------------------------------------------------
+// File I/O
+// -----------------------------------------------------------------------------
+
+fossil_media_json_value_t *
+fossil_media_json_parse_file(const char *filename, fossil_media_json_error_t *err_out) {
+    if (!filename) return NULL;
+    FILE *f = fopen(filename, "rb");
+    if (!f) return NULL;
+
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    rewind(f);
+
+    char *buf = (char *)malloc(size + 1);
+    if (!buf) {
+        fclose(f);
+        return NULL;
+    }
+    fread(buf, 1, size, f);
+    buf[size] = '\0';
+    fclose(f);
+
+    fossil_media_json_value_t *v = fossil_media_json_parse(buf, err_out);
+    free(buf);
+    return v;
+}
+
+int fossil_media_json_write_file(const fossil_media_json_value_t *v,
+                                 const char *filename,
+                                 int pretty,
+                                 fossil_media_json_error_t *err_out) {
+    if (!filename || !v) return -1;
+    FILE *f = fopen(filename, "wb");
+    if (!f) return -1;
+
+    char *s = fossil_media_json_stringify(v, pretty, err_out);
+    if (!s) {
+        fclose(f);
+        return -1;
+    }
+    fputs(s, f);
+    free(s);
+    fclose(f);
+    return 0;
+}
+
+// -----------------------------------------------------------------------------
+// Number Handling
+// -----------------------------------------------------------------------------
+
+fossil_media_json_value_t *fossil_media_json_new_int(long long i) {
+    return fossil_media_json_new_number((double)i);
+}
+
+int fossil_media_json_get_int(const fossil_media_json_value_t *v, long long *out) {
+    if (!v || v->type != FOSSIL_MEDIA_JSON_NUMBER || !out) return -1;
+    *out = (long long)v->u.number;
+    return 0;
+}
+
+// -----------------------------------------------------------------------------
+// Debug & Validation
+// -----------------------------------------------------------------------------
+
+void fossil_media_json_debug_dump(const fossil_media_json_value_t *v, int indent) {
+    if (!v) {
+        printf("%*s(null)\n", indent, "");
+        return;
+    }
+    const char *type = fossil_media_json_type_name(v->type);
+    printf("%*sType: %s\n", indent, "", type);
+
+    switch (v->type) {
+    case FOSSIL_MEDIA_JSON_NULL:
+        break;
+    case FOSSIL_MEDIA_JSON_BOOL:
+        printf("%*sValue: %s\n", indent + 2, "", v->u.boolean ? "true" : "false");
+        break;
+    case FOSSIL_MEDIA_JSON_NUMBER:
+        printf("%*sValue: %g\n", indent + 2, "", v->u.number);
+        break;
+    case FOSSIL_MEDIA_JSON_STRING:
+        printf("%*sValue: \"%s\"\n", indent + 2, "", v->u.string);
+        break;
+    case FOSSIL_MEDIA_JSON_ARRAY:
+        for (size_t i = 0; i < v->u.array.count; i++) {
+            printf("%*s[%zu]\n", indent + 2, "", i);
+            fossil_media_json_debug_dump(v->u.array.items[i], indent + 4);
+        }
+        break;
+    case FOSSIL_MEDIA_JSON_OBJECT:
+        for (size_t i = 0; i < v->u.object.count; i++) {
+            printf("%*s\"%s\":\n", indent + 2, "", v->u.object.keys[i]);
+            fossil_media_json_debug_dump(v->u.object.values[i], indent + 4);
+        }
+        break;
+    }
+}
+
+int fossil_media_json_validate(const char *json_text, fossil_media_json_error_t *err_out) {
+    fossil_media_json_value_t *v = fossil_media_json_parse(json_text, err_out);
+    if (!v) return -1;
+    fossil_media_json_free(v);
+    return 0;
+}
+
+// -----------------------------------------------------------------------------
+// Path Access
+// -----------------------------------------------------------------------------
+
+// Very simple dotted path: "foo.bar[2].baz"
+fossil_media_json_value_t *
+fossil_media_json_get_path(const fossil_media_json_value_t *root, const char *path) {
+    if (!root || !path) return NULL;
+
+    const fossil_media_json_value_t *cur = root;
+    char *tokenized = strdup(path);
+    if (!tokenized) return NULL;
+
+    char *tok = strtok(tokenized, ".");
+    while (tok && cur) {
+        if (cur->type == FOSSIL_MEDIA_JSON_OBJECT) {
+            cur = fossil_media_json_object_get(cur, tok);
+        } else if (cur->type == FOSSIL_MEDIA_JSON_ARRAY) {
+            char *end;
+            long idx = strtol(tok, &end, 10);
+            if (*end == '\0') {
+                cur = fossil_media_json_array_get(cur, (size_t)idx);
+            } else {
+                free(tokenized);
+                return NULL;
+            }
+        } else {
+            free(tokenized);
+            return NULL;
+        }
+        tok = strtok(NULL, ".");
+    }
+    free(tokenized);
+    return (fossil_media_json_value_t *)cur;
+}
