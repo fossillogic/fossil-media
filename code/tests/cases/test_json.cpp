@@ -128,7 +128,7 @@ FOSSIL_TEST_CASE(cpp_test_json_array_reserve_and_object_reserve) {
 
 FOSSIL_TEST_CASE(cpp_test_json_new_int_and_get_int) {
     Json j = Json::new_int(123456789);
-    ASSUME_ITS_EQUAL(j.get_int(), 123456789);
+    ASSUME_ITS_EQUAL_I32(j.get_int(), 123456789);
 }
 
 FOSSIL_TEST_CASE(cpp_test_json_validate_valid_and_invalid) {
@@ -141,7 +141,7 @@ FOSSIL_TEST_CASE(cpp_test_json_get_path_simple_and_nested) {
     Json name = j.get_path("user.name");
     ASSUME_ITS_EQUAL_CSTR(name.stringify().c_str(), "\"Bob\"");
     Json id2 = j.get_path("items[1].id");
-    ASSUME_ITS_EQUAL(id2.get_int(), 2);
+    ASSUME_ITS_EQUAL_I32(id2.get_int(), 2);
 }
 
 // Note: parse_file and write_file require filesystem access, so only pseudo-tested here.
