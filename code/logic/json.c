@@ -842,7 +842,7 @@ fossil_media_json_get_path(const fossil_media_json_value_t *root, const char *pa
     if (!root || !path) return NULL;
 
     const fossil_media_json_value_t *cur = root;
-    char *tokenized = strdup(path);
+    char *tokenized = fossil_media_strdup(path);
     if (!tokenized) return NULL;
 
     char *tok = strtok(tokenized, ".");
