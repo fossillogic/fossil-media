@@ -812,7 +812,7 @@ void fossil_media_json_debug_dump(const fossil_media_json_value_t *v, int indent
         break;
     case FOSSIL_MEDIA_JSON_ARRAY:
         for (size_t i = 0; i < v->u.array.count; i++) {
-            printf("%*s[%zu]\n", indent + 2, "", i);
+            printf("%*s[%lu]\n", indent + 2, "", (unsigned long)i);
             fossil_media_json_debug_dump(v->u.array.items[i], indent + 4);
         }
         break;
