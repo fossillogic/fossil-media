@@ -739,7 +739,7 @@ fossil_media_json_parse_file(const char *filename, fossil_media_json_error_t *er
     long size = ftell(f);
     rewind(f);
 
-    char *buf = (char *)malloc(size + 1);
+    char *buf = (char *)fm_malloc(size + 1);
     if (!buf) {
         fclose(f);
         return NULL;
