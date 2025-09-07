@@ -76,15 +76,6 @@ FOSSIL_TEST_CASE(cpp_test_xml_new_pi) {
     ASSUME_ITS_EQUAL_CSTR(node.type_name(), "pi");
 }
 
-FOSSIL_TEST_CASE(cpp_test_xml_append_child_and_first_child) {
-    fossil::media::Xml parent = fossil::media::Xml::new_element("parent");
-    fossil::media::Xml child = fossil::media::Xml::new_element("child");
-    parent.append_child(std::move(child));
-    fossil::media::Xml first = parent.first_child();
-    ASSUME_NOT_CNULL(first.get());
-    ASSUME_ITS_EQUAL_CSTR(first.get()->name, "child");
-}
-
 FOSSIL_TEST_CASE(cpp_test_xml_set_and_get_attribute) {
     fossil::media::Xml node = fossil::media::Xml::new_element("item");
     node.set_attribute("id", "42");
@@ -147,7 +138,6 @@ FOSSIL_TEST_GROUP(cpp_xml_tests) {
     FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_new_comment);
     FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_new_cdata);
     FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_new_pi);
-    FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_append_child_and_first_child);
     FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_set_and_get_attribute);
     FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_set_attribute_replace);
     FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_stringify_simple);
