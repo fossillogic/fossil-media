@@ -45,13 +45,13 @@ using fossil::media::Text;
 FOSSIL_TEST_CASE(cpp_test_text_trim_basic) {
     std::string input = "   hello world   ";
     std::string trimmed = Text::trim(input);
-    ASSUME_ITS_TRUE(trimmed == "hello world");
+    ASSUME_ITS_EQUAL_CSTR(trimmed, "hello world");
 }
 
 FOSSIL_TEST_CASE(cpp_test_text_trim_all_spaces) {
     std::string input = "     ";
     std::string trimmed = Text::trim(input);
-    ASSUME_ITS_TRUE(trimmed == "");
+    ASSUME_ITS_TRUE(trimmed.empty());
 }
 
 FOSSIL_TEST_CASE(cpp_test_text_trim_no_spaces) {
