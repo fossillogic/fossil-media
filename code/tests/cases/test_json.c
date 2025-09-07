@@ -108,6 +108,38 @@ FOSSIL_TEST_CASE(c_test_json_stringify_roundtrip) {
     free(out);
 }
 
+FOSSIL_TEST_CASE(c_test_json_clone_and_equals) {
+    fossil_media_json_error_t err = {0};
+    const char *json = "{\"a\":1,\"b\":[true,null]}";
+    fossil_media_json_value_t *val = fossil_media_json_parse(json, &err);
+    ASSUME_NOT_CNULL(val);
+
+    fossil_media_json_value_t *clone = fossil_media_json_clone(val);
+    ASSUME_NOT_CNULL(clone);
+
+    int eq = fossil_media_json_equals(val, clone);
+    ASSUME_ITS_EQUAL_INT(eq, 1);
+
+    fossil_media_json_free(val);
+    fossil_media_json_free(clone);
+}
+
+FOSSIL_TEST_CASE(c_test_json_equals_not_equal) {
+    fossil_media_json_error_t err = {0};
+    const char *json1 = "{\"x\":42}";
+    const char *json2 = "{\"x\":43}";
+    fossil_media_json_value_t *val1 = fossil_media_json_parse(json1, &err);
+    fossil_media_json_value_t *val2 = fossil_media_json_parse(json2, &err);
+    ASSUME_NOT_CNULL(val1);
+    ASSUME_NOT_CNULL(val2);
+
+    int eq = fossil_media_json_equals(val1, val2);
+    ASSUME_ITS_EQUAL_INT(eq, 0);
+
+    fossil_media_json_free(val1);
+    fossil_media_json_free(val2);
+}
+
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -119,6 +151,8 @@ FOSSIL_TEST_GROUP(c_json_tests) {
     FOSSIL_TEST_ADD(c_json_fixture, c_test_json_parse_array);
     FOSSIL_TEST_ADD(c_json_fixture, c_test_json_parse_object);
     FOSSIL_TEST_ADD(c_json_fixture, c_test_json_stringify_roundtrip);
+    FOSSIL_TEST_ADD(c_json_fixture, c_test_json_clone_and_equals);
+    FOSSIL_TEST_ADD(c_json_fixture, c_test_json_equals_not_equal);
 
     FOSSIL_TEST_REGISTER(c_json_fixture);
 } // end of tests
