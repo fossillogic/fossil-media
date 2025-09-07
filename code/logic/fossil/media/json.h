@@ -250,6 +250,198 @@ char *fossil_media_json_roundtrip(const char *json_text, int pretty, fossil_medi
  */
 const char *fossil_media_json_type_name(fossil_media_json_type_t t);
 
+/** @name Clone & Equality
+ *  @{
+ */
+
+/**
+ * @brief Deep-copy a JSON value.
+ *
+ * Recursively clones the entire JSON value and its children.
+ *
+ * @param src  Source JSON value (must not be NULL).
+ * @return Newly allocated JSON value on success, or NULL on failure.
+ */
+fossil_media_json_value_t *
+fossil_media_json_clone(const fossil_media_json_value_t *src);
+
+/**
+ * @brief Compare two JSON values for equality.
+ *
+ * Performs a deep structural and value comparison.
+ *
+ * @param a  First JSON value.
+ * @param b  Second JSON value.
+ * @return 1 if equal, 0 if not equal, -1 on error.
+ */
+int fossil_media_json_equals(const fossil_media_json_value_t *a,
+                             const fossil_media_json_value_t *b);
+
+/** @} */
+
+/** @name Type Helpers
+ *  @{
+ */
+
+/**
+ * @brief Check if a JSON value is null.
+ *
+ * @param v  JSON value to check.
+ * @return 1 if null, 0 otherwise.
+ */
+int fossil_media_json_is_null(const fossil_media_json_value_t *v);
+
+/**
+ * @brief Check if a JSON value is an array.
+ *
+ * @param v  JSON value to check.
+ * @return 1 if array, 0 otherwise.
+ */
+int fossil_media_json_is_array(const fossil_media_json_value_t *v);
+
+/**
+ * @brief Check if a JSON value is an object.
+ *
+ * @param v  JSON value to check.
+ * @return 1 if object, 0 otherwise.
+ */
+int fossil_media_json_is_object(const fossil_media_json_value_t *v);
+
+/** @} */
+
+/** @name Memory & Capacity
+ *  @{
+ */
+
+/**
+ * @brief Reserve capacity for a JSON array.
+ *
+ * Ensures that the array can hold at least `capacity` items without resizing.
+ *
+ * @param arr      JSON array value (must be of type ARRAY).
+ * @param capacity Desired capacity.
+ * @return 0 on success, nonzero on error.
+ */
+int fossil_media_json_array_reserve(fossil_media_json_value_t *arr, size_t capacity);
+
+/**
+ * @brief Reserve capacity for a JSON object.
+ *
+ * Ensures that the object can hold at least `capacity` key/value pairs.
+ *
+ * @param obj      JSON object value (must be of type OBJECT).
+ * @param capacity Desired capacity.
+ * @return 0 on success, nonzero on error.
+ */
+int fossil_media_json_object_reserve(fossil_media_json_value_t *obj, size_t capacity);
+
+/** @} */
+
+/** @name File I/O
+ *  @{
+ */
+
+/**
+ * @brief Parse a JSON file into a DOM tree.
+ *
+ * Reads the entire file and parses it into an internal DOM structure.
+ *
+ * @param filename Path to JSON file.
+ * @param err_out  Optional pointer to error details.
+ * @return Pointer to the parsed JSON value, or NULL on failure.
+ */
+fossil_media_json_value_t *
+fossil_media_json_parse_file(const char *filename, fossil_media_json_error_t *err_out);
+
+/**
+ * @brief Write a JSON value to a file.
+ *
+ * Serializes the JSON value and writes it to the given file.
+ *
+ * @param v        JSON value to write.
+ * @param filename Path to output file.
+ * @param pretty   Nonzero for human-readable indentation.
+ * @param err_out  Optional pointer to error details.
+ * @return 0 on success, nonzero on error.
+ */
+int fossil_media_json_write_file(const fossil_media_json_value_t *v,
+                                 const char *filename,
+                                 int pretty,
+                                 fossil_media_json_error_t *err_out);
+
+/** @} */
+
+/** @name Number Handling
+ *  @{
+ */
+
+/**
+ * @brief Create a JSON integer value.
+ *
+ * Stores an integer in a JSON number node (lossless if within range).
+ *
+ * @param i  Integer value.
+ * @return Newly allocated JSON number value, or NULL if allocation fails.
+ */
+fossil_media_json_value_t *fossil_media_json_new_int(long long i);
+
+/**
+ * @brief Get an integer from a JSON number.
+ *
+ * @param v    JSON number value.
+ * @param out  Output pointer to receive integer value.
+ * @return 0 on success, nonzero if not a number or out of range.
+ */
+int fossil_media_json_get_int(const fossil_media_json_value_t *v, long long *out);
+
+/** @} */
+
+/** @name Debug & Validation
+ *  @{
+ */
+
+/**
+ * @brief Print a debug dump of a JSON value.
+ *
+ * Dumps the JSON tree in a human-readable indented format for debugging.
+ *
+ * @param v      JSON value to dump.
+ * @param indent Starting indentation level.
+ */
+void fossil_media_json_debug_dump(const fossil_media_json_value_t *v, int indent);
+
+/**
+ * @brief Validate JSON text without building a DOM.
+ *
+ * Parses the text and discards the result, returning only validity status.
+ *
+ * @param json_text  Input JSON text (NUL-terminated).
+ * @param err_out    Optional pointer to error details.
+ * @return 0 if valid, nonzero if invalid.
+ */
+int fossil_media_json_validate(const char *json_text, fossil_media_json_error_t *err_out);
+
+/** @} */
+
+/** @name Path Access
+ *  @{
+ */
+
+/**
+ * @brief Get a JSON value using a dotted path expression.
+ *
+ * Supports object keys and array indices, e.g. "user.name" or "items[2].id".
+ *
+ * @param root  Root JSON value.
+ * @param path  Path string (UTF-8, cannot be NULL).
+ * @return Pointer to the JSON value, or NULL if not found.
+ */
+fossil_media_json_value_t *
+fossil_media_json_get_path(const fossil_media_json_value_t *root, const char *path);
+
+/** @} */
+
+
 #ifdef __cplusplus
 }
 #include <string>
@@ -436,6 +628,163 @@ namespace fossil {
                 std::string result(s);
                 free(s);
                 return result;
+            }
+
+            /**
+             * @brief Deep copy this JSON value.
+             * @return A new Json object that is a clone of this value.
+             * @throws JsonError if cloning fails.
+             */
+            Json clone() const {
+                fossil_media_json_value_t* v = fossil_media_json_clone(value_);
+                if (!v) {
+                    throw JsonError("Failed to clone JSON value");
+                }
+                return Json(v);
+            }
+
+            /**
+             * @brief Compare this JSON value to another for equality.
+             * @param other The other Json object to compare.
+             * @return true if equal, false otherwise.
+             * @throws JsonError if comparison fails.
+             */
+            bool equals(const Json& other) const {
+                int result = fossil_media_json_equals(value_, other.value_);
+                if (result == -1) {
+                    throw JsonError("Failed to compare JSON values");
+                }
+                return result == 1;
+            }
+
+            /**
+             * @brief Check if this value is null.
+             * @return true if null, false otherwise.
+             */
+            bool is_null() const {
+                return fossil_media_json_is_null(value_) == 1;
+            }
+
+            /**
+             * @brief Check if this value is an array.
+             * @return true if array, false otherwise.
+             */
+            bool is_array() const {
+                return fossil_media_json_is_array(value_) == 1;
+            }
+
+            /**
+             * @brief Check if this value is an object.
+             * @return true if object, false otherwise.
+             */
+            bool is_object() const {
+                return fossil_media_json_is_object(value_) == 1;
+            }
+
+            /**
+             * @brief Reserve capacity for a JSON array.
+             * @param capacity Desired capacity.
+             * @throws JsonError if not an array or reserve fails.
+             */
+            void array_reserve(size_t capacity) {
+                if (fossil_media_json_array_reserve(value_, capacity) != 0) {
+                    throw JsonError("Failed to reserve array capacity");
+                }
+            }
+
+            /**
+             * @brief Reserve capacity for a JSON object.
+             * @param capacity Desired capacity.
+             * @throws JsonError if not an object or reserve fails.
+             */
+            void object_reserve(size_t capacity) {
+                if (fossil_media_json_object_reserve(value_, capacity) != 0) {
+                    throw JsonError("Failed to reserve object capacity");
+                }
+            }
+
+            /**
+             * @brief Parse a JSON file into a Json object.
+             * @param filename Path to JSON file.
+             * @return Parsed Json object.
+             * @throws JsonError if parsing fails.
+             */
+            static Json parse_file(const std::string& filename) {
+                fossil_media_json_error_t err{};
+                fossil_media_json_value_t* val = fossil_media_json_parse_file(filename.c_str(), &err);
+                if (!val) {
+                    throw JsonError(std::string("Parse file error: ") + err.message);
+                }
+                return Json(val);
+            }
+
+            /**
+             * @brief Write this JSON value to a file.
+             * @param filename Path to output file.
+             * @param pretty If true, output with indentation.
+             * @throws JsonError if writing fails.
+             */
+            void write_file(const std::string& filename, bool pretty = false) const {
+                fossil_media_json_error_t err{};
+                int rc = fossil_media_json_write_file(value_, filename.c_str(), pretty ? 1 : 0, &err);
+                if (rc != 0) {
+                    throw JsonError(std::string("Write file error: ") + err.message);
+                }
+            }
+
+            /**
+             * @brief Create a JSON integer value.
+             * @param i Integer value.
+             * @return Json object holding an integer.
+             */
+            static Json new_int(long long i) {
+                return Json(fossil_media_json_new_int(i));
+            }
+
+            /**
+             * @brief Get integer value from this JSON number.
+             * @return Integer value.
+             * @throws JsonError if not a number or out of range.
+             */
+            long long get_int() const {
+                long long out = 0;
+                if (fossil_media_json_get_int(value_, &out) != 0) {
+                    throw JsonError("Failed to get integer from JSON value");
+                }
+                return out;
+            }
+
+            /**
+             * @brief Print a debug dump of this JSON value.
+             * @param indent Starting indentation level.
+             */
+            void debug_dump(int indent = 0) const {
+                fossil_media_json_debug_dump(value_, indent);
+            }
+
+            /**
+             * @brief Validate JSON text without building a DOM.
+             * @param text Input JSON text.
+             * @return true if valid, false otherwise.
+             */
+            static bool validate(const std::string& text) {
+                fossil_media_json_error_t err{};
+                return fossil_media_json_validate(text.c_str(), &err) == 0;
+            }
+
+            /**
+             * @brief Get a JSON value using a dotted path expression.
+             * @param path Path string (e.g., "user.name" or "items[2].id").
+             * @return Json object at the path.
+             * @throws JsonError if not found.
+             */
+            Json get_path(const std::string& path) const {
+                fossil_media_json_value_t* v = fossil_media_json_get_path(value_, path.c_str());
+                if (!v) {
+                    // Return a null Json object if path not found
+                    return Json(fossil_media_json_new_null());
+                }
+                return Json(v);
             }
         
         private:
