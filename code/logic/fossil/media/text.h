@@ -102,8 +102,9 @@ namespace fossil {
              */
             static std::string trim(const std::string& str) {
                 std::string s = str;
-                char *buf = new char[s.size() + 1];
-                std::strcpy(buf, s.c_str());
+                char *buf = new char[s.size() + 2](); // +2 for safety and zero-initialize
+                std::strncpy(buf, s.c_str(), s.size());
+                buf[s.size()] = '\0'; // Ensure null-termination
                 fossil_media_text_trim(buf);
                 std::string result(buf);
                 delete[] buf;
