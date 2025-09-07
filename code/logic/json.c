@@ -744,7 +744,11 @@ fossil_media_json_parse_file(const char *filename, fossil_media_json_error_t *er
         fclose(f);
         return NULL;
     }
-    fread(buf, 1, size, f);
+    if (fread(buf, 1, size, f) != (size_t)size) {
+        fm_free(buf);
+        fclose(f);
+        return NULL;
+    }
     buf[size] = '\0';
     fclose(f);
 
