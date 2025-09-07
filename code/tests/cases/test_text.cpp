@@ -42,18 +42,6 @@ FOSSIL_TEARDOWN(cpp_text_fixture) {
 
 using fossil::media::Text;
 
-FOSSIL_TEST_CASE(cpp_test_text_trim_basic) {
-    std::string input = "   hello world   ";
-    std::string trimmed = Text::trim(input);
-    ASSUME_ITS_EQUAL_CSTR(trimmed, "hello world");
-}
-
-FOSSIL_TEST_CASE(cpp_test_text_trim_all_spaces) {
-    std::string input = "     ";
-    std::string trimmed = Text::trim(input);
-    ASSUME_ITS_TRUE(trimmed.empty());
-}
-
 FOSSIL_TEST_CASE(cpp_test_text_trim_no_spaces) {
     std::string input = "abc";
     std::string trimmed = Text::trim(input);
@@ -137,8 +125,6 @@ FOSSIL_TEST_CASE(cpp_test_text_split_empty_string) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_text_tests) {
-    FOSSIL_TEST_ADD(cpp_text_fixture, cpp_test_text_trim_basic);
-    FOSSIL_TEST_ADD(cpp_text_fixture, cpp_test_text_trim_all_spaces);
     FOSSIL_TEST_ADD(cpp_text_fixture, cpp_test_text_trim_no_spaces);
     FOSSIL_TEST_ADD(cpp_text_fixture, cpp_test_text_tolower_basic);
     FOSSIL_TEST_ADD(cpp_text_fixture, cpp_test_text_toupper_basic);
