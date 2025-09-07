@@ -51,7 +51,7 @@ FOSSIL_TEST_CASE(cpp_test_text_trim_basic) {
 FOSSIL_TEST_CASE(cpp_test_text_trim_all_spaces) {
     std::string input = "     ";
     std::string trimmed = Text::trim(input);
-    ASSUME_ITS_TRUE(trimmed == " ");
+    ASSUME_ITS_TRUE(trimmed == "");
 }
 
 FOSSIL_TEST_CASE(cpp_test_text_trim_no_spaces) {
