@@ -118,7 +118,7 @@ FOSSIL_TEST_CASE(c_test_json_clone_and_equals) {
     ASSUME_NOT_CNULL(clone);
 
     int eq = fossil_media_json_equals(val, clone);
-    ASSUME_ITS_EQUAL_INT(eq, 1);
+    ASSUME_ITS_EQUAL_I32(eq, 1);
 
     fossil_media_json_free(val);
     fossil_media_json_free(clone);
@@ -134,7 +134,7 @@ FOSSIL_TEST_CASE(c_test_json_equals_not_equal) {
     ASSUME_NOT_CNULL(val2);
 
     int eq = fossil_media_json_equals(val1, val2);
-    ASSUME_ITS_EQUAL_INT(eq, 0);
+    ASSUME_ITS_EQUAL_I32(eq, 0);
 
     fossil_media_json_free(val1);
     fossil_media_json_free(val2);
