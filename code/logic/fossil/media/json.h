@@ -781,7 +781,8 @@ namespace fossil {
             Json get_path(const std::string& path) const {
                 fossil_media_json_value_t* v = fossil_media_json_get_path(value_, path.c_str());
                 if (!v) {
-                    throw JsonError("Path not found in JSON value");
+                    // Return a null Json object if path not found
+                    return Json(fossil_media_json_new_null());
                 }
                 return Json(v);
             }
