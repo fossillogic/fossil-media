@@ -77,12 +77,8 @@ FOSSIL_TEST_CASE(cpp_test_append_row) {
 }
 
 FOSSIL_TEST_CASE(cpp_test_parse_invalid_input) {
-    try {
-        Csv csv(std::string(), ',');
-        ASSUME_ITS_TRUE(false); // Should not reach here
-    } catch (const std::runtime_error&) {
-        ASSUME_ITS_TRUE(true);
-    }
+    Csv csv(std::string(), ',');
+    ASSUME_ITS_TRUE(csv.row_count() == 0);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * *

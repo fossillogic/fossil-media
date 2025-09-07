@@ -104,28 +104,17 @@ FOSSIL_TEST_CASE(cpp_ini_get_missing) {
 }
 
 FOSSIL_TEST_CASE(cpp_ini_throw_on_bad_file) {
-    bool threw = false;
-    try {
-        Ini ini("no_such_file_123456789.ini");
-    } catch (const std::runtime_error&) {
-        threw = true;
-    }
-    ASSUME_ITS_TRUE(threw);
+    Ini ini;
+    bool loaded = ini.load_file("no_such_file_123456789.ini");
+    ASSUME_ITS_TRUE(!loaded);
 }
 
 FOSSIL_TEST_CASE(cpp_ini_throw_on_bad_string) {
-    bool threw = false;
-    try {
-        Ini ini("[broken");
-    } catch (const std::runtime_error&) {
-        threw = true;
-    }
-    ASSUME_ITS_TRUE(threw);
+    Ini ini;
+    bool ok = ini.load_string("[broken");
+    ASSUME_ITS_TRUE(!ok);
 }
 
-// * * * * * * * * * * * * * * * * * * * * * * * *
-// * Fossil Logic Test Pool
-// * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_ini_tests) {
     FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_default_ctor);
     FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_load_string_ctor);
