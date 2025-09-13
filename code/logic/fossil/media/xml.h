@@ -192,7 +192,7 @@ char *fossil_media_xml_stringify(const fossil_media_xml_node_t *node, int pretty
  * @param t Node type enum value.
  * @return String representation (static).
  */
-const char *fossil_media_xml_type_name(fossil_media_xml_type_t t);
+const char* fossil_media_xml_type_name(int type);
 
 #ifdef __cplusplus
 }
