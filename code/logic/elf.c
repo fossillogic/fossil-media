@@ -26,7 +26,6 @@
 #include "fossil/media/media.h"
 
 #define _POSIX_C_SOURCE 200809L
-#include "fossil_media_elf.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
