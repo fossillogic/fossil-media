@@ -135,16 +135,29 @@ static int parse_html_string(const char *input, fossil_media_html_doc_t **out_do
 /* --- Public API --- */
 
 int fossil_media_html_load_file(const char *path, fossil_media_html_doc_t **out_doc) {
+    if (!path || !out_doc) return FMHTML_ERR_PARSE;
+
     FILE *f = fopen(path, "rb");
     if (!f) return FMHTML_ERR_IO;
-    fseek(f, 0, SEEK_END);
+
+    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return FMHTML_ERR_IO; }
     long sz = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    char *buf = (char*)malloc(sz+1);
+    if (sz < 0) { fclose(f); return FMHTML_ERR_IO; }
+    if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return FMHTML_ERR_IO; }
+
+    char *buf = (char*)malloc(sz + 1);
     if (!buf) { fclose(f); return FMHTML_ERR_NOMEM; }
-    fread(buf, 1, sz, f);
-    buf[sz] = '\0';
+
+    size_t read_bytes = fread(buf, 1, sz, f);
+    if (read_bytes != (size_t)sz) {
+        free(buf);
+        fclose(f);
+        return FMHTML_ERR_IO;  // File read error
+    }
+    buf[sz] = '\0';  // Null-terminate
+
     fclose(f);
+
     int rc = parse_html_string(buf, out_doc);
     free(buf);
     return rc;
