@@ -232,65 +232,48 @@ int fossil_media_html_set_attr(fossil_media_html_node_t *node, const char *attr_
 }
 
 /* Serialization: naive recursive printer */
-static void serialize_node(const fossil_media_html_node_t *node, FILE *out) {
+static void serialize_node(const fossil_media_html_node_t *node, char **buf, size_t *len, size_t *cap) {
     if (!node) return;
     if (node->type == FMHTML_NODE_ELEMENT) {
-        fprintf(out, "<%s>", node->tag);
-        for (const fossil_media_html_node_t *c = node->first_child; c; c = c->next_sibling)
-            serialize_node(c, out);
-        fprintf(out, "</%s>", node->tag);
+        size_t needed = strlen(node->tag) + 4;
+        if (*len + needed >= *cap) {
+            while (*len + needed >= *cap) *cap *= 2;
+            *buf = (char*)realloc(*buf, *cap);
+        }
+        *len += snprintf(*buf + *len, *cap - *len, "<%s>", node->tag);
+
+        for (fossil_media_html_node_t *c = node->first_child; c; c = c->next_sibling)
+            serialize_node(c, buf, len, cap);
+
+        if (*len + strlen(node->tag) + 4 >= *cap) {
+            *cap += strlen(node->tag) + 4;
+            *buf = (char*)realloc(*buf, *cap);
+        }
+        *len += snprintf(*buf + *len, *cap - *len, "</%s>", node->tag);
+
     } else if (node->type == FMHTML_NODE_TEXT) {
-        fputs(node->text, out);
+        size_t tlen = strlen(node->text);
+        if (*len + tlen + 1 >= *cap) {
+            while (*len + tlen + 1 >= *cap) *cap *= 2;
+            *buf = (char*)realloc(*buf, *cap);
+        }
+        memcpy(*buf + *len, node->text, tlen);
+        *len += tlen;
+        (*buf)[*len] = '\0';
     }
 }
 
 char* fossil_media_html_serialize(const fossil_media_html_doc_t *doc) {
     if (!doc || !doc->root) return NULL;
 
-    /* Estimate initial buffer size */
-    size_t cap = 1024;
-    size_t len = 0;
+    size_t cap = 1024, len = 0;
     char *buf = (char*)malloc(cap);
     if (!buf) return NULL;
     buf[0] = '\0';
 
-    /* Recursive serialization helper */
-    void serialize_node(const fossil_media_html_node_t *node) {
-        if (!node) return;
-
-        if (node->type == FMHTML_NODE_ELEMENT) {
-            size_t needed = strlen(node->tag) + 4;
-            if (len + needed >= cap) {
-                cap *= 2;
-                buf = (char*)realloc(buf, cap);
-            }
-            len += snprintf(buf + len, cap - len, "<%s>", node->tag);
-
-            for (fossil_media_html_node_t *c = node->first_child; c; c = c->next_sibling)
-                serialize_node(c);
-
-            if (len + strlen(node->tag) + 4 >= cap) {
-                cap += strlen(node->tag) + 4;
-                buf = (char*)realloc(buf, cap);
-            }
-            len += snprintf(buf + len, cap - len, "</%s>", node->tag);
-
-        } else if (node->type == FMHTML_NODE_TEXT) {
-            size_t tlen = strlen(node->text);
-            if (len + tlen + 1 >= cap) {
-                while (len + tlen + 1 >= cap) cap *= 2;
-                buf = (char*)realloc(buf, cap);
-            }
-            memcpy(buf + len, node->text, tlen);
-            len += tlen;
-            buf[len] = '\0';
-        }
-    }
-
     for (fossil_media_html_node_t *c = doc->root->first_child; c; c = c->next_sibling)
-        serialize_node(c);
+        serialize_node(c, &buf, &len, &cap);
 
-    /* shrink buffer to actual size */
     char *final_buf = (char*)realloc(buf, len + 1);
     return final_buf ? final_buf : buf;
 }
