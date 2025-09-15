@@ -246,17 +246,51 @@ static void serialize_node(const fossil_media_html_node_t *node, FILE *out) {
 
 char* fossil_media_html_serialize(const fossil_media_html_doc_t *doc) {
     if (!doc || !doc->root) return NULL;
-    FILE *mem = open_memstream(NULL, NULL); /* GNU extension */
-    if (!mem) return NULL;
+
+    /* Estimate initial buffer size */
+    size_t cap = 1024;
+    size_t len = 0;
+    char *buf = (char*)malloc(cap);
+    if (!buf) return NULL;
+    buf[0] = '\0';
+
+    /* Recursive serialization helper */
+    void serialize_node(const fossil_media_html_node_t *node) {
+        if (!node) return;
+
+        if (node->type == FMHTML_NODE_ELEMENT) {
+            size_t needed = strlen(node->tag) + 4;
+            if (len + needed >= cap) {
+                cap *= 2;
+                buf = (char*)realloc(buf, cap);
+            }
+            len += snprintf(buf + len, cap - len, "<%s>", node->tag);
+
+            for (fossil_media_html_node_t *c = node->first_child; c; c = c->next_sibling)
+                serialize_node(c);
+
+            if (len + strlen(node->tag) + 4 >= cap) {
+                cap += strlen(node->tag) + 4;
+                buf = (char*)realloc(buf, cap);
+            }
+            len += snprintf(buf + len, cap - len, "</%s>", node->tag);
+
+        } else if (node->type == FMHTML_NODE_TEXT) {
+            size_t tlen = strlen(node->text);
+            if (len + tlen + 1 >= cap) {
+                while (len + tlen + 1 >= cap) cap *= 2;
+                buf = (char*)realloc(buf, cap);
+            }
+            memcpy(buf + len, node->text, tlen);
+            len += tlen;
+            buf[len] = '\0';
+        }
+    }
+
     for (fossil_media_html_node_t *c = doc->root->first_child; c; c = c->next_sibling)
-        serialize_node(c, mem);
-    fflush(mem);
-    long sz = ftell(mem);
-    char *buf = (char*)malloc(sz+1);
-    if (!buf) { fclose(mem); return NULL; }
-    fseek(mem, 0, SEEK_SET);
-    fread(buf, 1, sz, mem);
-    buf[sz] = '\0';
-    fclose(mem);
-    return buf;
+        serialize_node(c);
+
+    /* shrink buffer to actual size */
+    char *final_buf = (char*)realloc(buf, len + 1);
+    return final_buf ? final_buf : buf;
 }
