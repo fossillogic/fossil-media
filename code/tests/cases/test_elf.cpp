@@ -42,34 +42,34 @@ FOSSIL_TEARDOWN(cpp_elf_fixture) {
 // ------------------------------------------------------------
 FOSSIL_TEST_CASE(cpp_test_elf_is_elf_magic) {
     unsigned char elf_magic[4] = {0x7f, 'E', 'L', 'F'};
-    ASSUME_ITS_TRUE(Elf::isElf(elf_magic, 4));
+    ASSUME_ITS_TRUE(Elf::is_elf(elf_magic, 4));
 }
 
 FOSSIL_TEST_CASE(cpp_test_elf_is_elf_non_magic) {
     unsigned char not_elf[4] = {0x00, 0x01, 0x02, 0x03};
-    ASSUME_ITS_FALSE(Elf::isElf(not_elf, 4));
+    ASSUME_ITS_FALSE(Elf::is_elf(not_elf, 4));
 }
 
 FOSSIL_TEST_CASE(cpp_test_elf_is_elf_short_buffer) {
     unsigned char elf_magic[2] = {0x7f, 'E'};
-    ASSUME_ITS_FALSE(Elf::isElf(elf_magic, 2));
+    ASSUME_ITS_FALSE(Elf::is_elf(elf_magic, 2));
 }
 
 FOSSIL_TEST_CASE(cpp_test_elf_load_builtin_blob) {
     Elf elf(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
             FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE);
 
-    ASSUME_ITS_TRUE(elf.isValid());
+    ASSUME_ITS_TRUE(elf.is_valid());
 }
 
 FOSSIL_TEST_CASE(cpp_test_elf_section_lookup) {
     Elf elf(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
             FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE);
 
-    ASSUME_ITS_TRUE(elf.isValid());
-    ASSUME_ITS_TRUE(elf.sectionCount() >= 3);
+    ASSUME_ITS_TRUE(elf.is_valid());
+    ASSUME_ITS_TRUE(elf.section_count() >= 3);
 
-    std::string name = elf.sectionName(2);
+    std::string name = elf.section_name(2);
     ASSUME_ITS_EQUAL_CSTR(name.c_str(), ".text");
 }
 
@@ -77,9 +77,9 @@ FOSSIL_TEST_CASE(cpp_test_elf_section_data) {
     Elf elf(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
             FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE);
 
-    auto section = elf.sectionData(2);
+    auto section = elf.section_data(2);
     ASSUME_ITS_EQUAL_U32(section.size(), 1U);
-    ASSUME_ITS_EQUAL(section[0], 0x90);  // NOP
+    ASSUME_ITS_EQUAL_O32(section[0], 0x90);  // NOP
 }
 
 FOSSIL_TEST_CASE(cpp_test_elf_dump_does_not_crash) {
