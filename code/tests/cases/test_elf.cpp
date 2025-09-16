@@ -24,7 +24,6 @@
  */
 #include <fossil/pizza/framework.hpp>
 #include "fossil/media/framework.hpp"
-#include "fossil/media/elf.hpp"   // C++ Elf class header
 
 using namespace fossil::media;
 
