@@ -217,6 +217,7 @@ int fossil_media_elf_get_section_info(const fossil_media_elf_t *elf,
 #include <string>
 #include <stdexcept>
 #include <utility>
+#include <tuple>
 
 namespace fossil {
 
