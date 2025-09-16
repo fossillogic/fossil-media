@@ -114,7 +114,7 @@ FOSSIL_TEST_CASE(c_test_elf_section_data) {
     ASSUME_NOT_CNULL(sec_data);
 
     const uint8_t *bytes = (const uint8_t *)sec_data;
-    ASSUME_ITS_EQUAL(bytes[0], 0x90);  // single NOP
+    ASSUME_ITS_EQUAL_O32(bytes[0], 0x90);  // single NOP
 
     fossil_media_elf_free(elf);
 }
