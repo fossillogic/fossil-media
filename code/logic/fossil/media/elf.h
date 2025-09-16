@@ -212,6 +212,27 @@ int fossil_media_elf_get_section_info(const fossil_media_elf_t *elf,
                                       const uint8_t **out_ptr,
                                       size_t *out_len);
 
+/**
+ * @brief Dump ELF section table to a FILE* for debugging.
+ *
+ * @param elf ELF handle to dump
+ * @param out FILE stream to print to (stdout, stderr, or file)
+ */
+void fossil_media_elf_dump(const fossil_media_elf_t *elf, FILE *out);
+
+/**
+ * @brief Built-in minimal ELF blob for self-testing and CI.
+ *
+ * This is a very small, valid ELF64 object file with:
+ *  - 3 sections: NULL, .shstrtab, .text
+ *  - A 1-byte .text section (NOP)
+ *
+ * Can be used with fossil_media_elf_load_from_memory() to verify
+ * that the loader works even without disk I/O.
+ */
+extern const uint8_t FOSSIL_MEDIA_ELF_BUILTIN_BLOB[];
+extern const size_t  FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE;
+
 #ifdef __cplusplus
 }
 #include <string>
@@ -414,6 +435,16 @@ namespace fossil {
             static bool is_elf(const unsigned char* data, size_t size) {
                 if (size < 4) return false;
                 return data[0] == 0x7f && data[1] == 'E' && data[2] == 'L' && data[3] == 'F';
+            }
+            
+            /**
+             * @brief Dump ELF section table to a FILE* for debugging.
+             *
+             * @param elf ELF handle to dump
+             * @param out FILE stream to print to (stdout, stderr, or file)
+             */
+            void dump(const fossil_media_elf_t *elf, FILE *out) {
+                fossil_media_elf_dump(elf, out);
             }
         
             /**
