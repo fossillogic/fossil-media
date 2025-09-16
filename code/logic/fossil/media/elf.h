@@ -49,7 +49,7 @@ enum {
 };
 
 /* Opaque handle for loaded ELF */
-typedef struct fossil_media_elf;
+typedef struct {
     uint8_t *buf;              /* malloc'ed buffer if owns_buf=1 */
     const uint8_t *base_ptr;   /* base pointer, valid for both owned and non-owned */
     size_t size;
