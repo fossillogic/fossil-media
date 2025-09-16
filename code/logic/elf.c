@@ -88,36 +88,36 @@ int fossil_media_elf_is_elf(const void *buf, size_t len) {
 /* internal helpers */
 static int read_file_to_buffer(const char *path, uint8_t **out_buf, size_t *out_size) {
     FILE *f = fopen(path, "rb");
-    if (!f) return FMELF_ERR_IO;
-    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return FMELF_ERR_IO; }
+    if (!f) return FOSSIL_MEDIA_ELF_ERR_IO;
+    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return FOSSIL_MEDIA_ELF_ERR_IO; }
     long sz = ftell(f);
-    if (sz < 0) { fclose(f); return FMELF_ERR_IO; }
-    if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return FMELF_ERR_IO; }
+    if (sz < 0) { fclose(f); return FOSSIL_MEDIA_ELF_ERR_IO; }
+    if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return FOSSIL_MEDIA_ELF_ERR_IO; }
     uint8_t *buf = (uint8_t*)malloc((size_t)sz);
-    if (!buf) { fclose(f); return FMELF_ERR_NOMEM; }
+    if (!buf) { fclose(f); return FOSSIL_MEDIA_ELF_ERR_NOMEM; }
     size_t r = fread(buf, 1, (size_t)sz, f);
     fclose(f);
-    if (r != (size_t)sz) { free(buf); return FMELF_ERR_IO; }
+    if (r != (size_t)sz) { free(buf); return FOSSIL_MEDIA_ELF_ERR_IO; }
     *out_buf = buf;
     *out_size = (size_t)sz;
-    return FMELF_OK;
+    return FOSSIL_MEDIA_ELF_OK;
 }
 
 int fossil_media_elf_load_from_file(const char *path, fossil_media_elf_t **out) {
-    if (!path || !out) return FMELF_ERR_BAD_FORMAT;
+    if (!path || !out) return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
     uint8_t *buf = NULL;
     size_t size = 0;
     int rc = read_file_to_buffer(path, &buf, &size);
-    if (rc != FMELF_OK) return rc;
+    if (rc != FOSSIL_MEDIA_ELF_OK) return rc;
 
-    if (size < sizeof(Elf64_Ehdr)) { free(buf); return FMELF_ERR_BAD_FORMAT; }
-    if (!fossil_media_elf_is_elf(buf, size)) { free(buf); return FMELF_ERR_NOT_ELF; }
+    if (size < sizeof(Elf64_Ehdr)) { free(buf); return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT; }
+    if (!fossil_media_elf_is_elf(buf, size)) { free(buf); return FOSSIL_MEDIA_ELF_ERR_NOT_ELF; }
 
     Elf64_Ehdr *ehdr = (Elf64_Ehdr*)buf;
 
     /* Check class and data: only support ELF64 little-endian for now. */
-    if (ehdr->e_ident[EI_CLASS] != ELFCLASS64) { free(buf); return FMELF_ERR_UNSUPPORTED; }
-    if (ehdr->e_ident[EI_DATA] != ELFDATA2LSB) { free(buf); return FMELF_ERR_UNSUPPORTED; }
+    if (ehdr->e_ident[EI_CLASS] != ELFCLASS64) { free(buf); return FOSSIL_MEDIA_ELF_ERR_UNSUPPORTED; }
+    if (ehdr->e_ident[EI_DATA] != ELFDATA2LSB) { free(buf); return FOSSIL_MEDIA_ELF_ERR_UNSUPPORTED; }
 
     /* Basic bounds checks */
     uint64_t shoff = ehdr->e_shoff;
@@ -128,25 +128,25 @@ int fossil_media_elf_load_from_file(const char *path, fossil_media_elf_t **out) 
     if (shoff == 0 || shnum == 0) {
         /* no section table */
         free(buf);
-        return FMELF_ERR_BAD_FORMAT;
+        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
     }
 
     /* Ensure section header table fits */
     if ((uint64_t)shoff + (uint64_t)shentsize * (uint64_t)shnum > size) {
         free(buf);
-        return FMELF_ERR_BAD_FORMAT;
+        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
     }
 
     Elf64_Shdr *shdrs = (Elf64_Shdr*)(buf + shoff);
 
     /* locate section header string table */
-    if (shstrndx >= shnum) { free(buf); return FMELF_ERR_BAD_FORMAT; }
+    if (shstrndx >= shnum) { free(buf); return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT; }
     Elf64_Shdr *shstr_sh = &shdrs[shstrndx];
-    if (shstr_sh->sh_offset + shstr_sh->sh_size > size) { free(buf); return FMELF_ERR_BAD_FORMAT; }
+    if (shstr_sh->sh_offset + shstr_sh->sh_size > size) { free(buf); return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT; }
     const char *shstrtab = (const char*)(buf + shstr_sh->sh_offset);
 
     fossil_media_elf_t *h = (fossil_media_elf_t*)malloc(sizeof(fossil_media_elf_t));
-    if (!h) { free(buf); return FMELF_ERR_NOMEM; }
+    if (!h) { free(buf); return FOSSIL_MEDIA_ELF_ERR_NOMEM; }
     h->buf = buf;
     h->size = size;
     h->ehdr = ehdr;
@@ -154,7 +154,7 @@ int fossil_media_elf_load_from_file(const char *path, fossil_media_elf_t **out) 
     h->shstrtab = shstrtab;
     h->sh_count = shnum;
     *out = h;
-    return FMELF_OK;
+    return FOSSIL_MEDIA_ELF_OK;
 }
 
 void fossil_media_elf_free(fossil_media_elf_t *elf) {
@@ -164,14 +164,14 @@ void fossil_media_elf_free(fossil_media_elf_t *elf) {
 }
 
 int fossil_media_elf_get_section_count(const fossil_media_elf_t *elf, size_t *out_count) {
-    if (!elf || !out_count) return FMELF_ERR_BAD_FORMAT;
+    if (!elf || !out_count) return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
     *out_count = elf->sh_count;
-    return FMELF_OK;
+    return FOSSIL_MEDIA_ELF_OK;
 }
 
 int fossil_media_elf_get_section_header(const fossil_media_elf_t *elf, size_t index, fossil_media_elf_shdr_t *out_shdr) {
-    if (!elf || !out_shdr) return FMELF_ERR_BAD_FORMAT;
-    if (index >= elf->sh_count) return FMELF_ERR_RANGE;
+    if (!elf || !out_shdr) return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
+    if (index >= elf->sh_count) return FOSSIL_MEDIA_ELF_ERR_RANGE;
     Elf64_Shdr *s = &elf->shdrs[index];
     out_shdr->sh_name = s->sh_name;
     out_shdr->sh_type = s->sh_type;
@@ -183,59 +183,140 @@ int fossil_media_elf_get_section_header(const fossil_media_elf_t *elf, size_t in
     out_shdr->sh_info = s->sh_info;
     out_shdr->sh_addralign = s->sh_addralign;
     out_shdr->sh_entsize = s->sh_entsize;
-    return FMELF_OK;
+    return FOSSIL_MEDIA_ELF_OK;
 }
 
 int fossil_media_elf_get_section_name(const fossil_media_elf_t *elf, size_t index, const char **out_name) {
-    if (!elf || !out_name) return FMELF_ERR_BAD_FORMAT;
-    if (index >= elf->sh_count) return FMELF_ERR_RANGE;
+    if (!elf || !out_name) return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
+    if (index >= elf->sh_count) return FOSSIL_MEDIA_ELF_ERR_RANGE;
     Elf64_Shdr *s = &elf->shdrs[index];
     uint32_t off = s->sh_name;
     /* ensure within shstrtab */
     /* find shstrtab bounds */
     uint16_t shstrndx = elf->ehdr->e_shstrndx;
-    if (shstrndx >= elf->sh_count) return FMELF_ERR_BAD_FORMAT;
+    if (shstrndx >= elf->sh_count) return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
     Elf64_Shdr *shstr = &elf->shdrs[shstrndx];
-    if ((uint64_t)off >= shstr->sh_size) return FMELF_ERR_BAD_FORMAT;
+    if ((uint64_t)off >= shstr->sh_size) return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
     *out_name = elf->shstrtab + off;
-    return FMELF_OK;
+    return FOSSIL_MEDIA_ELF_OK;
 }
 
 int fossil_media_elf_get_section_data(const fossil_media_elf_t *elf, size_t index, const uint8_t **out_ptr, size_t *out_len) {
-    if (!elf || !out_ptr || !out_len) return FMELF_ERR_BAD_FORMAT;
-    if (index >= elf->sh_count) return FMELF_ERR_RANGE;
+    if (!elf || !out_ptr || !out_len) return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
+    if (index >= elf->sh_count) return FOSSIL_MEDIA_ELF_ERR_RANGE;
     Elf64_Shdr *s = &elf->shdrs[index];
     uint64_t off = s->sh_offset;
     uint64_t sz = s->sh_size;
-    if (off + sz > elf->size) return FMELF_ERR_BAD_FORMAT;
+    if (off + sz > elf->size) return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
     *out_ptr = elf->buf + off;
     *out_len = (size_t)sz;
-    return FMELF_OK;
+    return FOSSIL_MEDIA_ELF_OK;
 }
 
 int fossil_media_elf_find_section_by_name(const fossil_media_elf_t *elf, const char *name, size_t *out_index) {
-    if (!elf || !name || !out_index) return FMELF_ERR_BAD_FORMAT;
+    if (!elf || !name || !out_index) return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
     for (size_t i = 0; i < elf->sh_count; ++i) {
         const char *sname = NULL;
-        if (fossil_media_elf_get_section_name(elf, i, &sname) != FMELF_OK) continue;
+        if (fossil_media_elf_get_section_name(elf, i, &sname) != FOSSIL_MEDIA_ELF_OK) continue;
         if (sname && strcmp(sname, name) == 0) {
             *out_index = i;
-            return FMELF_OK;
+            return FOSSIL_MEDIA_ELF_OK;
         }
     }
-    return FMELF_ERR_NO_SECTION;
+    return FOSSIL_MEDIA_ELF_ERR_NO_SECTION;
 }
 
 int fossil_media_elf_extract_section_to_file(const fossil_media_elf_t *elf, size_t index, const char *out_path) {
-    if (!elf || !out_path) return FMELF_ERR_BAD_FORMAT;
+    if (!elf || !out_path) return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
     const uint8_t *ptr = NULL;
     size_t len = 0;
     int rc = fossil_media_elf_get_section_data(elf, index, &ptr, &len);
-    if (rc != FMELF_OK) return rc;
+    if (rc != FOSSIL_MEDIA_ELF_OK) return rc;
     FILE *f = fopen(out_path, "wb");
-    if (!f) return FMELF_ERR_IO;
+    if (!f) return FOSSIL_MEDIA_ELF_ERR_IO;
     size_t w = fwrite(ptr, 1, len, f);
     fclose(f);
-    if (w != len) return FMELF_ERR_IO;
-    return FMELF_OK;
+    if (w != len) return FOSSIL_MEDIA_ELF_ERR_IO;
+    return FOSSIL_MEDIA_ELF_OK;
+}
+
+const char* fossil_media_elf_strerror(int err) {
+    switch (err) {
+        case FOSSIL_MEDIA_ELF_OK: return "OK";
+        case FOSSIL_MEDIA_ELF_ERR_IO: return "I/O error";
+        case FOSSIL_MEDIA_ELF_ERR_NOMEM: return "Out of memory";
+        case FOSSIL_MEDIA_ELF_ERR_NOT_ELF: return "Not an ELF file";
+        case FOSSIL_MEDIA_ELF_ERR_UNSUPPORTED: return "Unsupported ELF format";
+        case FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT: return "Malformed ELF file";
+        case FOSSIL_MEDIA_ELF_ERR_RANGE: return "Index out of range";
+        case FOSSIL_MEDIA_ELF_ERR_NO_SECTION: return "Section not found";
+        case FOSSIL_MEDIA_ELF_ERR_INVALID_ARG: return "Invalid argument";
+        default: return "Unknown error";
+    }
+}
+
+int fossil_media_elf_load_from_memory(const void *buf, size_t len, fossil_media_elf_t **out) {
+    if (!buf || !out || len < sizeof(Elf64_Ehdr))
+        return FOSSIL_MEDIA_ELF_ERR_INVALID_ARG;
+    if (!fossil_media_elf_is_elf(buf, len))
+        return FOSSIL_MEDIA_ELF_ERR_NOT_ELF;
+
+    Elf64_Ehdr *ehdr = (Elf64_Ehdr*)buf;
+    if (ehdr->e_ident[EI_CLASS] != ELFCLASS64)
+        return FOSSIL_MEDIA_ELF_ERR_UNSUPPORTED;
+    if (ehdr->e_ident[EI_DATA] != ELFDATA2LSB)
+        return FOSSIL_MEDIA_ELF_ERR_UNSUPPORTED;
+
+    uint64_t shoff = ehdr->e_shoff;
+    uint16_t shentsize = ehdr->e_shentsize;
+    uint16_t shnum = ehdr->e_shnum;
+    uint16_t shstrndx = ehdr->e_shstrndx;
+
+    if (shoff == 0 || shnum == 0)
+        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
+    if ((uint64_t)shoff + (uint64_t)shentsize * (uint64_t)shnum > len)
+        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
+
+    Elf64_Shdr *shdrs = (Elf64_Shdr *)((const uint8_t *)buf + shoff);
+
+    if (shstrndx >= shnum)
+        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
+    Elf64_Shdr *shstr_sh = &shdrs[shstrndx];
+    if (shstr_sh->sh_offset + shstr_sh->sh_size > len)
+        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
+    const char *shstrtab = (const char *)((const uint8_t *)buf + shstr_sh->sh_offset);
+
+    fossil_media_elf_t *h = (fossil_media_elf_t *)malloc(sizeof(fossil_media_elf_t));
+    if (!h)
+        return FOSSIL_MEDIA_ELF_ERR_NOMEM;
+    h->buf = NULL; // Not owned, do not free
+    h->size = len;
+    h->ehdr = ehdr;
+    h->shdrs = shdrs;
+    h->shstrtab = shstrtab;
+    h->sh_count = shnum;
+    *out = h;
+    return FOSSIL_MEDIA_ELF_OK;
+}
+
+int fossil_media_elf_get_section_info(const fossil_media_elf_t *elf,
+                                      size_t index,
+                                      const char **out_name,
+                                      const uint8_t **out_ptr,
+                                      size_t *out_len) {
+    if (!elf)
+        return FOSSIL_MEDIA_ELF_ERR_INVALID_ARG;
+    if (index >= elf->sh_count)
+        return FOSSIL_MEDIA_ELF_ERR_RANGE;
+
+    const Elf64_Shdr *shdr = &elf->shdrs[index];
+
+    if (out_name && elf->shstrtab)
+        *out_name = elf->shstrtab + shdr->sh_name;
+    if (out_ptr)
+        *out_ptr = (const uint8_t *)((const uint8_t *)(elf->ehdr) + shdr->sh_offset);
+    if (out_len)
+        *out_len = (size_t)shdr->sh_size;
+
+    return FOSSIL_MEDIA_ELF_OK;
 }

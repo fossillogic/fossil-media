@@ -35,14 +35,16 @@ extern "C"
 
 /* Error codes (negative) */
 enum {
-    FMELF_OK = 0,
-    FMELF_ERR_IO = -1,
-    FMELF_ERR_NOMEM = -2,
-    FMELF_ERR_NOT_ELF = -3,
-    FMELF_ERR_UNSUPPORTED = -4,
-    FMELF_ERR_BAD_FORMAT = -5,
-    FMELF_ERR_RANGE = -6,
-    FMELF_ERR_NO_SECTION = -7
+    FOSSIL_MEDIA_ELF_OK = 0,
+    FOSSIL_MEDIA_ELF_ERR_IO = -1,
+    FOSSIL_MEDIA_ELF_ERR_NOMEM = -2,
+    FOSSIL_MEDIA_ELF_ERR_NOT_ELF = -3,
+    FOSSIL_MEDIA_ELF_ERR_UNSUPPORTED = -4,
+    FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT = -5,
+    FOSSIL_MEDIA_ELF_ERR_RANGE = -6,
+    FOSSIL_MEDIA_ELF_ERR_NO_SECTION = -7,
+    FOSSIL_MEDIA_ELF_ERR_INVALID_ARG = -8
+
 };
 
 /* Opaque handle for loaded ELF */
@@ -62,34 +64,153 @@ typedef struct {
     uint64_t sh_entsize;
 } fossil_media_elf_shdr_t;
 
-/* Detect if buffer contains an ELF magic (first 4 bytes = 0x7f 'E' 'L' 'F').
-   This is a low-cost check and doesn't validate full header. */
+/**
+ * @brief Check if a buffer contains an ELF magic number.
+ *
+ * This function checks if the first 4 bytes of the provided buffer match the ELF magic
+ * sequence (0x7f 'E' 'L' 'F'). This is a fast, low-cost check and does not validate
+ * the full ELF header.
+ *
+ * @param buf Pointer to the buffer to check.
+ * @param len Length of the buffer in bytes.
+ * @return Non-zero if buffer contains ELF magic, zero otherwise.
+ */
 int fossil_media_elf_is_elf(const void *buf, size_t len);
 
-/* Load ELF file from disk into a fossil_media_elf_t handle.
-   The handle must be released with fossil_media_elf_free(). */
+/**
+ * @brief Load an ELF file from disk into a fossil_media_elf_t handle.
+ *
+ * This function reads the specified ELF file from disk and loads its contents into
+ * a fossil_media_elf_t handle. The returned handle must be released using
+ * fossil_media_elf_free() when no longer needed.
+ *
+ * @param path Path to the ELF file to load.
+ * @param out Pointer to a handle that will receive the loaded ELF object.
+ * @return FOSSIL_MEDIA_ELF_OK on success, or a negative error code on failure.
+ */
 int fossil_media_elf_load_from_file(const char *path, fossil_media_elf_t **out);
 
-/* Free a handle from fossil_media_elf_load_from_file */
+/**
+ * @brief Free a fossil_media_elf_t handle.
+ *
+ * This function releases all resources associated with the specified ELF handle.
+ * After calling this function, the handle must not be used again.
+ *
+ * @param elf Pointer to the ELF handle to free.
+ */
 void fossil_media_elf_free(fossil_media_elf_t *elf);
 
-/* Count of sections */
+/**
+ * @brief Get the number of sections in an ELF file.
+ *
+ * This function retrieves the total number of sections present in the loaded ELF file.
+ *
+ * @param elf Pointer to the loaded ELF handle.
+ * @param out_count Pointer to a variable that will receive the section count.
+ * @return FOSSIL_MEDIA_ELF_OK on success, or a negative error code on failure.
+ */
 int fossil_media_elf_get_section_count(const fossil_media_elf_t *elf, size_t *out_count);
 
-/* Get section header by index (0..count-1); returns FMELF_OK on success */
+/**
+ * @brief Get the section header for a specific section index.
+ *
+ * This function retrieves the section header information for the section at the given
+ * index (0-based). The header is written to the provided output structure.
+ *
+ * @param elf Pointer to the loaded ELF handle.
+ * @param index Index of the section (0..count-1).
+ * @param out_shdr Pointer to a structure that will receive the section header.
+ * @return FOSSIL_MEDIA_ELF_OK on success, or a negative error code on failure.
+ */
 int fossil_media_elf_get_section_header(const fossil_media_elf_t *elf, size_t index, fossil_media_elf_shdr_t *out_shdr);
 
-/* Get section name (writes pointer to internal string, do not free) */
+/**
+ * @brief Get the name of a section by index.
+ *
+ * This function retrieves the name of the section at the specified index. The name is
+ * returned as a pointer to an internal string; do not free this pointer.
+ *
+ * @param elf Pointer to the loaded ELF handle.
+ * @param index Index of the section (0..count-1).
+ * @param out_name Pointer to a variable that will receive the section name.
+ * @return FOSSIL_MEDIA_ELF_OK on success, or a negative error code on failure.
+ */
 int fossil_media_elf_get_section_name(const fossil_media_elf_t *elf, size_t index, const char **out_name);
 
-/* Get pointer to section data in memory (internal buffer), set length in out_len */
+/**
+ * @brief Get a pointer to the section data in memory.
+ *
+ * This function retrieves a pointer to the contents of the section at the specified
+ * index. The pointer references an internal buffer; do not free it. The length of the
+ * section data is written to out_len.
+ *
+ * @param elf Pointer to the loaded ELF handle.
+ * @param index Index of the section (0..count-1).
+ * @param out_ptr Pointer to a variable that will receive the data pointer.
+ * @param out_len Pointer to a variable that will receive the data length.
+ * @return FOSSIL_MEDIA_ELF_OK on success, or a negative error code on failure.
+ */
 int fossil_media_elf_get_section_data(const fossil_media_elf_t *elf, size_t index, const uint8_t **out_ptr, size_t *out_len);
 
-/* Find a section by name; returns index in out_index (0-based) or FMELF_ERR_NO_SECTION */
+/**
+ * @brief Find a section by its name.
+ *
+ * This function searches for a section with the specified name and returns its index
+ * in out_index (0-based). If the section is not found, FOSSIL_MEDIA_ELF_ERR_NO_SECTION is returned.
+ *
+ * @param elf Pointer to the loaded ELF handle.
+ * @param name Name of the section to find.
+ * @param out_index Pointer to a variable that will receive the section index.
+ * @return FOSSIL_MEDIA_ELF_OK on success, FOSSIL_MEDIA_ELF_ERR_NO_SECTION if not found, or another error code.
+ */
 int fossil_media_elf_find_section_by_name(const fossil_media_elf_t *elf, const char *name, size_t *out_index);
 
-/* Extract section contents to a file on disk (path). Overwrites if exists. */
+/**
+ * @brief Extract the contents of a section to a file on disk.
+ *
+ * This function writes the contents of the specified section to a file at the given
+ * path. If the file already exists, it will be overwritten.
+ *
+ * @param elf Pointer to the loaded ELF handle.
+ * @param index Index of the section to extract.
+ * @param out_path Path to the output file.
+ * @return FOSSIL_MEDIA_ELF_OK on success, or a negative error code on failure.
+ */
 int fossil_media_elf_extract_section_to_file(const fossil_media_elf_t *elf, size_t index, const char *out_path);
+
+/**
+ * @brief Get a human-readable string for a given error code.
+ *
+ * @param err Error code returned by other fossil_media_elf_* functions.
+ * @return Static string describing the error.
+ */
+const char* fossil_media_elf_strerror(int err);
+
+/**
+ * @brief Load an ELF file from a memory buffer.
+ *
+ * @param buf Pointer to ELF data in memory.
+ * @param len Length of ELF data in bytes.
+ * @param out Pointer to a handle that will receive the loaded ELF object.
+ * @return FOSSIL_MEDIA_ELF_OK on success, or a negative error code on failure.
+ */
+int fossil_media_elf_load_from_memory(const void *buf, size_t len, fossil_media_elf_t **out);
+
+/**
+ * @brief Retrieve name and data for a section by index.
+ *
+ * @param elf Pointer to ELF handle.
+ * @param index Section index.
+ * @param out_name Pointer to receive section name (optional, may be NULL).
+ * @param out_ptr Pointer to receive section data pointer (optional, may be NULL).
+ * @param out_len Pointer to receive section data length (optional, may be NULL).
+ * @return FOSSIL_MEDIA_ELF_OK on success or negative error code.
+ */
+int fossil_media_elf_get_section_info(const fossil_media_elf_t *elf,
+                                      size_t index,
+                                      const char **out_name,
+                                      const uint8_t **out_ptr,
+                                      size_t *out_len);
 
 #ifdef __cplusplus
 }
@@ -122,7 +243,7 @@ namespace fossil {
              */
             explicit Elf(const std::string& path)
             : elf_(nullptr) {
-                if (fossil_media_elf_load_from_file(path.c_str(), &elf_) != FMELF_OK) {
+                if (fossil_media_elf_load_from_file(path.c_str(), &elf_) != FOSSIL_MEDIA_ELF_OK) {
                     throw std::runtime_error("Failed to load ELF file: " + path);
                 }
             }
@@ -165,7 +286,18 @@ namespace fossil {
              */
             bool load_file(const std::string& path) {
                 free_();
-                return fossil_media_elf_load_from_file(path.c_str(), &elf_) == FMELF_OK;
+                return fossil_media_elf_load_from_file(path.c_str(), &elf_) == FOSSIL_MEDIA_ELF_OK;
+            }
+
+            /**
+             * @brief Load an ELF file from a memory buffer (replaces any previously loaded ELF).
+             * @param buf Pointer to ELF data in memory.
+             * @param len Length of ELF data in bytes.
+             * @return true on success, false on failure.
+             */
+            bool load_memory(const void* buf, size_t len) {
+                free_();
+                return fossil_media_elf_load_from_memory(buf, len, &elf_) == FOSSIL_MEDIA_ELF_OK;
             }
         
             /**
@@ -182,7 +314,7 @@ namespace fossil {
             size_t section_count() const {
                 if (!elf_) return 0;
                 size_t count = 0;
-                if (fossil_media_elf_get_section_count(elf_, &count) != FMELF_OK)
+                if (fossil_media_elf_get_section_count(elf_, &count) != FOSSIL_MEDIA_ELF_OK)
                     return 0;
                 return count;
             }
@@ -196,7 +328,7 @@ namespace fossil {
             std::string section_name(size_t index) const {
                 if (!elf_) throw std::runtime_error("No ELF loaded");
                 const char* name = nullptr;
-                if (fossil_media_elf_get_section_name(elf_, index, &name) != FMELF_OK)
+                if (fossil_media_elf_get_section_name(elf_, index, &name) != FOSSIL_MEDIA_ELF_OK)
                     throw std::out_of_range("Invalid section index");
                 return std::string(name);
             }
@@ -211,7 +343,7 @@ namespace fossil {
                 if (!elf_) throw std::runtime_error("No ELF loaded");
                 size_t idx = 0;
                 int rc = fossil_media_elf_find_section_by_name(elf_, name.c_str(), &idx);
-                if (rc != FMELF_OK)
+                if (rc != FOSSIL_MEDIA_ELF_OK)
                     throw std::runtime_error("Section not found: " + name);
                 return idx;
             }
@@ -224,7 +356,63 @@ namespace fossil {
              */
             bool extract_section_to_file(size_t index, const std::string& path) const {
                 if (!elf_) return false;
-                return fossil_media_elf_extract_section_to_file(elf_, index, path.c_str()) == FMELF_OK;
+                return fossil_media_elf_extract_section_to_file(elf_, index, path.c_str()) == FOSSIL_MEDIA_ELF_OK;
+            }
+
+            /**
+             * @brief Get the section header for a specific section index.
+             * @param index Section index.
+             * @return fossil_media_elf_shdr_t structure.
+             * @throw std::out_of_range if index is invalid.
+             */
+            fossil_media_elf_shdr_t section_header(size_t index) const {
+                if (!elf_) throw std::runtime_error("No ELF loaded");
+                fossil_media_elf_shdr_t shdr;
+                if (fossil_media_elf_get_section_header(elf_, index, &shdr) != FOSSIL_MEDIA_ELF_OK)
+                    throw std::out_of_range("Invalid section index");
+                return shdr;
+            }
+
+            /**
+             * @brief Get a pointer to the section data in memory.
+             * @param index Section index.
+             * @return std::pair<const uint8_t*, size_t> (pointer and length).
+             * @throw std::out_of_range if index is invalid.
+             */
+            std::pair<const uint8_t*, size_t> section_data(size_t index) const {
+                if (!elf_) throw std::runtime_error("No ELF loaded");
+                const uint8_t* ptr = nullptr;
+                size_t len = 0;
+                if (fossil_media_elf_get_section_data(elf_, index, &ptr, &len) != FOSSIL_MEDIA_ELF_OK)
+                    throw std::out_of_range("Invalid section index");
+                return std::make_pair(ptr, len);
+            }
+
+            /**
+             * @brief Retrieve name and data for a section by index.
+             * @param index Section index.
+             * @return std::tuple<std::string, const uint8_t*, size_t>
+             * @throw std::out_of_range if index is invalid.
+             */
+            std::tuple<std::string, const uint8_t*, size_t> section_info(size_t index) const {
+                if (!elf_) throw std::runtime_error("No ELF loaded");
+                const char* name = nullptr;
+                const uint8_t* ptr = nullptr;
+                size_t len = 0;
+                if (fossil_media_elf_get_section_info(elf_, index, &name, &ptr, &len) != FOSSIL_MEDIA_ELF_OK)
+                    throw std::out_of_range("Invalid section index");
+                return std::make_tuple(std::string(name), ptr, len);
+            }
+
+            /**
+             * @brief Check if a buffer contains an ELF magic number.
+             * @param data Pointer to the buffer to check.
+             * @param size Length of the buffer in bytes.
+             * @return true if buffer contains ELF magic, false otherwise.
+             */
+            static bool is_elf(const unsigned char* data, size_t size) {
+                if (size < 4) return false;
+                return data[0] == 0x7f && data[1] == 'E' && data[2] == 'L' && data[3] == 'F';
             }
         
             /**
