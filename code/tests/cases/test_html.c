@@ -62,6 +62,11 @@ FOSSIL_TEST_CASE(c_test_html_load_string_and_root) {
     ASSUME_NOT_CNULL(root);
     ASSUME_ITS_EQUAL_I32(fossil_media_html_node_type(root), FOSSIL_MEDIA_HTML_NODE_DOCUMENT);
 
+    // Check that the first child is a comment node for DOCTYPE
+    fossil_media_html_node_t *doctype = fossil_media_html_first_child(root);
+    ASSUME_NOT_CNULL(doctype);
+    ASSUME_ITS_EQUAL_I32(fossil_media_html_node_type(doctype), FOSSIL_MEDIA_HTML_NODE_DOCTYPE);
+
     fossil_media_html_free(doc);
 }
 
