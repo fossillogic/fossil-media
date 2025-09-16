@@ -104,7 +104,7 @@ static int parse_html_string(const char *input, fossil_media_html_doc_t **out_do
                     continue;
                 }
                 // Handle DOCTYPE <!DOCTYPE ...>
-                if (strncasecmp(p+2, "DOCTYPE", 7) == 0) {
+                if (fossil_media_strncasecmp(p+2, "DOCTYPE", 7) == 0) {
                     const char *end = strchr(p, '>');
                     if (!end) break;
                     size_t len = (size_t)(end - (p+2));
