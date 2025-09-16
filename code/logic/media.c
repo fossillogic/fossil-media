@@ -28,6 +28,32 @@
 #include <string.h>
 #include <ctype.h>
 
+
+/**
+ * @brief Case-insensitive string comparison up to n characters.
+ *
+ * Compares two strings ignoring case, up to n characters.
+ *
+ * @param s1 First string.
+ * @param s2 Second string.
+ * @param n  Maximum number of characters to compare.
+ * @return 0 if equal, <0 if s1 < s2, >0 if s1 > s2.
+ */
+int fossil_media_strncasecmp(const char *s1, const char *s2, size_t n) {
+    size_t i;
+    for (i = 0; i < n; i++) {
+        unsigned char c1 = (unsigned char)s1[i];
+        unsigned char c2 = (unsigned char)s2[i];
+        if (c1 == '\0' || c2 == '\0') {
+            return c1 - c2;
+        }
+        if (tolower(c1) != tolower(c2)) {
+            return tolower(c1) - tolower(c2);
+        }
+    }
+    return 0;
+}
+
 /* -------------------------------------------------------------
  *  fossil_media_strdup
  * -------------------------------------------------------------
