@@ -41,7 +41,7 @@
 #endif
 
 /* Minimal ELF64 file with a single .text section (does nothing) */
-static const uint8_t FOSSIL_MEDIA_ELF_BUILTIN_BLOB[] = {
+const uint8_t FOSSIL_MEDIA_ELF_BUILTIN_BLOB[] = {
     /* ELF Header */
     0x7f,'E','L','F',  /* Magic */
     2,     /* EI_CLASS = 64-bit */
