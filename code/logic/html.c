@@ -213,6 +213,17 @@ static int parse_html_string(const char *input, fossil_media_html_doc_t **out_do
     return FOSSIL_MEDIA_HTML_OK;
 }
 
+fossil_media_html_node_t* fossil_media_html_find_by_tag(fossil_media_html_node_t *node, const char *tag) {
+    if (!node || !tag) return NULL;
+    if (node->type == FOSSIL_MEDIA_HTML_NODE_ELEMENT && node->tag && strcmp(node->tag, tag) == 0)
+        return node;
+    for (fossil_media_html_node_t *c = node->first_child; c; c = c->next_sibling) {
+        fossil_media_html_node_t *res = fossil_media_html_find_by_tag(c, tag);
+        if (res) return res;
+    }
+    return NULL;
+}
+
 /* --- Public API --- */
 
 int fossil_media_html_load_file(const char *path, fossil_media_html_doc_t **out_doc) {
