@@ -74,11 +74,12 @@ typedef struct {
 
 /* Opaque handle */
 struct fossil_media_elf {
-    uint8_t *buf;         /* file bytes (malloc) or NULL if non-owned memory load */
-    size_t   size;        /* file size */
-    Elf64_Ehdr_on_disk ehdr; /* local copy (converted from buffer) */
-    Elf64_Shdr_on_disk *shdrs;    /* local array (copied from buffer, host-endian) */
-    const char *shstrtab; /* pointer into buf (section header string table) -- only valid if buf owned or original memory still alive */
+    uint8_t *buf;         /* malloc'ed buffer if owns_buf=1 */
+    const uint8_t *base_ptr; /* base pointer into memory, valid even if non-owning */
+    size_t   size;
+    Elf64_Ehdr_on_disk ehdr;
+    Elf64_Shdr_on_disk *shdrs;
+    const char *shstrtab;
     size_t sh_count;
     int owns_buf;
 };
@@ -215,9 +216,9 @@ static int parse_elf_from_buffer(uint8_t *buf, size_t len, fossil_media_elf_t **
     if (!h) return FOSSIL_MEDIA_ELF_ERR_NOMEM;
     memset(h, 0, sizeof(*h));
 
-    /* fill handle */
     h->owns_buf = buf_owned;
-    h->buf = buf_owned ? buf : NULL; /* if not owned, we don't remember original ptr for free() */
+    h->buf = buf_owned ? buf : NULL;
+    h->base_ptr = buf;  /* <--- store pointer even if non-owning */
     h->size = len;
 
     /* copy the e_ident into our local ehdr_on_disk and also copy the rest of the header bytes for completeness */
@@ -346,27 +347,23 @@ int fossil_media_elf_get_section_name(const fossil_media_elf_t *elf, size_t inde
     return FOSSIL_MEDIA_ELF_OK;
 }
 
-int fossil_media_elf_get_section_data(const fossil_media_elf_t *elf, size_t index, const uint8_t **out_ptr, size_t *out_len) {
-    if (!elf || !out_ptr || !out_len) return FOSSIL_MEDIA_ELF_ERR_INVALID_ARG;
-    if (index >= elf->sh_count) return FOSSIL_MEDIA_ELF_ERR_RANGE;
+int fossil_media_elf_get_section_data(const fossil_media_elf_t *elf, size_t index,
+                                      const uint8_t **out_ptr, size_t *out_len) {
+    if (!elf || !out_ptr || !out_len)
+        return FOSSIL_MEDIA_ELF_ERR_INVALID_ARG;
+    if (index >= elf->sh_count)
+        return FOSSIL_MEDIA_ELF_ERR_RANGE;
+
     Elf64_Shdr_on_disk *s = &elf->shdrs[index];
+
     /* bounds check */
-    if ((size_t)s->sh_offset + (size_t)s->sh_size > elf->size) return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
-    /* the data sits inside the owned buffer only if we own it or memory-load mode where caller's buffer is still valid */
-    if (elf->owns_buf) {
-        *out_ptr = elf->buf + s->sh_offset;
-    } else {
-        /* if non-owning memory load, we didn't store buffer pointer; but we can reconstruct pointer:
-           recall in parse_elf_from_buffer we passed the original buffer pointer as parameter but didn't store when non-owning.
-           In this implementation we rely on caller to have kept the buffer alive; we must store pointer for non-owning too.
-           To be safe, modify: store the original buf pointer into a non-owning field. */
-        /* For now: if non-owning, we stored shstrtab which points into the original buffer, so we can compute base */
-        const char *shstr = elf->shstrtab;
-        if (!shstr) return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
-        /* compute buffer base by subtracting the known shstr offset (we don't have that value here),
-           so best practice is to store a non-owning base pointer in the handle. */
+    if ((size_t)s->sh_offset + (size_t)s->sh_size > elf->size)
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
-    }
+
+    if (!elf->base_ptr)
+        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT; /* should never happen now */
+
+    *out_ptr = elf->base_ptr + s->sh_offset;
     *out_len = (size_t)s->sh_size;
     return FOSSIL_MEDIA_ELF_OK;
 }
