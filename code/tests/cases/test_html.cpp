@@ -177,6 +177,9 @@ FOSSIL_TEST_CASE(cpp_test_html_serialize_roundtrip) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_html_tests) {
+    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_cpp_wrapper_load_and_root);
+    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_cpp_wrapper_serialize_roundtrip);
+    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_cpp_wrapper_move_semantics);
     FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_load_string_and_root);
     FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_find_by_tag);
     FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_get_and_set_attr);
