@@ -79,8 +79,8 @@ static int parse_html_string(const char *input, fossil_media_html_doc_t **out_do
                     strncpy(txt, p+4, len);
                     txt[len] = '\0';
 
-                    fossil_media_html_node_t *n = alloc_node(FOSSIL_MEDIA_HTML_NODE_TEXT);
-                    if (!n) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                    fossil_media_html_node_t *n = alloc_node(FOSSIL_MEDIA_HTML_NODE_COMMENT);
+                    if (!n) { free(txt); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
                     n->text = txt;
 
                     if (!current->first_child)
@@ -108,6 +108,7 @@ static int parse_html_string(const char *input, fossil_media_html_doc_t **out_do
                 int self_closing = (end > p && *(end-1) == '/');
                 size_t len = (size_t)(end - (p+1));
                 char *tagbuf = (char*)malloc(len+1);
+                if (!tagbuf) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
                 strncpy(tagbuf, p+1, len);
                 tagbuf[len] = '\0';
 
@@ -133,8 +134,10 @@ static int parse_html_string(const char *input, fossil_media_html_doc_t **out_do
                         if (!*attrstr) break;
                         char *eq = strchr(attrstr, '=');
                         if (!eq) break;
+                        // Find key length (before '=')
                         size_t klen = (size_t)(eq - attrstr);
                         char *key = (char*)malloc(klen+1);
+                        if (!key) break;
                         strncpy(key, attrstr, klen);
                         key[klen] = '\0';
 
@@ -146,6 +149,7 @@ static int parse_html_string(const char *input, fossil_media_html_doc_t **out_do
                             if (!valend) { free(key); break; }
                             size_t vlen = (size_t)(valend - valstart);
                             char *value = (char*)malloc(vlen+1);
+                            if (!value) { free(key); break; }
                             strncpy(value, valstart, vlen);
                             value[vlen] = '\0';
                             fossil_media_html_set_attr(n, key, value);
@@ -153,16 +157,16 @@ static int parse_html_string(const char *input, fossil_media_html_doc_t **out_do
                             free(value);
                             attrstr = valend+1;
                         } else {
-                            // Unquoted value
-                            char *valend = attrstr + klen + 1;
+                            // Unquoted value: ends at space or end of string
+                            char *valend = attrstr;
                             while (*valend && *valend != ' ' && *valend != '>') valend++;
                             size_t vlen = (size_t)(valend - (eq+1));
                             char *value = (char*)malloc(vlen+1);
+                            if (!value) { free(key); break; }
                             strncpy(value, eq+1, vlen);
                             value[vlen] = '\0';
                             fossil_media_html_set_attr(n, key, value);
                             free(key);
-                            free(value);
                             attrstr = valend;
                         }
                     }
@@ -184,16 +188,17 @@ static int parse_html_string(const char *input, fossil_media_html_doc_t **out_do
                 continue;
             }
         } else {
-            // text node
-            const char *end = strchr(p, '<');
-            size_t len = end ? (size_t)(end - p) : strlen(p);
+            // Find next '<' or end of string
+            const char *next = strchr(p, '<');
+            size_t len = next ? (size_t)(next - p) : strlen(p);
             if (len > 0) {
                 char *txt = (char*)malloc(len+1);
+                if (!txt) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
                 strncpy(txt, p, len);
                 txt[len] = '\0';
 
                 fossil_media_html_node_t *n = alloc_node(FOSSIL_MEDIA_HTML_NODE_TEXT);
-                if (!n) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                if (!n) { free(txt); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
                 n->text = txt;
 
                 if (!current->first_child)
@@ -234,7 +239,7 @@ int fossil_media_html_load_file(const char *path, fossil_media_html_doc_t **out_
 
     if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return FOSSIL_MEDIA_HTML_ERR_IO; }
     long sz = ftell(f);
-    if (sz < 0) { fclose(f); return FOSSIL_MEDIA_HTML_ERR_IO; }
+    if (sz <= 0) { fclose(f); return FOSSIL_MEDIA_HTML_ERR_IO; }
     if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return FOSSIL_MEDIA_HTML_ERR_IO; }
 
     char *buf = (char*)malloc(sz + 1);
@@ -261,9 +266,14 @@ int fossil_media_html_load_string(const char *data, fossil_media_html_doc_t **ou
 
 void fossil_media_html_free(fossil_media_html_doc_t *doc) {
     if (!doc) return;
-    /* recursively free nodes */
-    fossil_media_html_node_t *stack[256]; /* simple stack */
+    /* recursively free nodes using a dynamic stack */
+    size_t stack_cap = 256;
     size_t sp = 0;
+    fossil_media_html_node_t **stack = (fossil_media_html_node_t**)malloc(stack_cap * sizeof(fossil_media_html_node_t*));
+    if (!stack) {
+        free(doc);
+        return;
+    }
     if (doc->root) stack[sp++] = doc->root;
     while (sp > 0) {
         fossil_media_html_node_t *n = stack[--sp];
@@ -275,10 +285,18 @@ void fossil_media_html_free(fossil_media_html_doc_t *doc) {
         }
         free(n->attrs.keys);
         free(n->attrs.values);
-        for (fossil_media_html_node_t *c = n->first_child; c; c = c->next_sibling)
+        for (fossil_media_html_node_t *c = n->first_child; c; c = c->next_sibling) {
+            if (sp >= stack_cap) {
+                stack_cap *= 2;
+                fossil_media_html_node_t **new_stack = (fossil_media_html_node_t**)realloc(stack, stack_cap * sizeof(fossil_media_html_node_t*));
+                if (!new_stack) break;
+                stack = new_stack;
+            }
             stack[sp++] = c;
+        }
         free(n);
     }
+    free(stack);
     free(doc);
 }
 
