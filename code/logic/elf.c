@@ -115,21 +115,6 @@ typedef struct {
     uint64_t   sh_entsize;
 } Elf64_Shdr_on_disk;
 
-/* Opaque handle */
-struct fossil_media_elf {
-    uint8_t *buf;              /* malloc'ed buffer if owns_buf=1 */
-    const uint8_t *base_ptr;   /* base pointer, valid for both owned and non-owned */
-    size_t size;
-
-    Elf64_Ehdr_on_disk ehdr;
-    Elf64_Shdr_on_disk *shdrs;
-    const char *shstrtab;
-    size_t shstrtab_size;      /* <--- NEW: store size for safe name lookups */
-    size_t sh_count;
-
-    int owns_buf;
-};
-
 /* ELF constants */
 static const unsigned char ELF_MAGIC[4] = {0x7f, 'E', 'L', 'F'};
 #define EI_CLASS 4
