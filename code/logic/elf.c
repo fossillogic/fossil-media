@@ -74,13 +74,16 @@ typedef struct {
 
 /* Opaque handle */
 struct fossil_media_elf {
-    uint8_t *buf;         /* malloc'ed buffer if owns_buf=1 */
-    const uint8_t *base_ptr; /* base pointer into memory, valid even if non-owning */
-    size_t   size;
+    uint8_t *buf;              /* malloc'ed buffer if owns_buf=1 */
+    const uint8_t *base_ptr;   /* base pointer, valid for both owned and non-owned */
+    size_t size;
+
     Elf64_Ehdr_on_disk ehdr;
     Elf64_Shdr_on_disk *shdrs;
     const char *shstrtab;
+    size_t shstrtab_size;      /* <--- NEW: store size for safe name lookups */
     size_t sh_count;
+
     int owns_buf;
 };
 
@@ -265,15 +268,12 @@ static int parse_elf_from_buffer(uint8_t *buf, size_t len, fossil_media_elf_t **
         free(h);
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
     }
-    Elf64_Shdr_on_disk *shstr = &h->shdrs[e_shstrndx];
-    if ((size_t)shstr->sh_offset + (size_t)shstr->sh_size > len) {
-        free(h->shdrs);
-        if (h->owns_buf && h->buf) free(h->buf);
-        free(h);
+    Elf64_Shdr_on_disk *shstr = &h->shdrs[h->ehdr.e_shstrndx];
+    if ((size_t)shstr->sh_offset + (size_t)shstr->sh_size > len)
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
-    }
-    /* note: shstrtab points into buf; if load from memory where buf isn't owned, caller must keep memory alive */
-    h->shstrtab = (const char*)(buf + shstr->sh_offset);
+
+    h->shstrtab = (const char *)(h->base_ptr + shstr->sh_offset);
+    h->shstrtab_size = (size_t)shstr->sh_size;
 
     *out = h;
     return FOSSIL_MEDIA_ELF_OK;
@@ -333,17 +333,25 @@ int fossil_media_elf_get_section_header(const fossil_media_elf_t *elf, size_t in
     return FOSSIL_MEDIA_ELF_OK;
 }
 
-int fossil_media_elf_get_section_name(const fossil_media_elf_t *elf, size_t index, const char **out_name) {
-    if (!elf || !out_name) return FOSSIL_MEDIA_ELF_ERR_INVALID_ARG;
-    if (index >= elf->sh_count) return FOSSIL_MEDIA_ELF_ERR_RANGE;
+int fossil_media_elf_get_section_name(const fossil_media_elf_t *elf, size_t index,
+                                      const char **out_name) {
+    if (!elf || !out_name)
+        return FOSSIL_MEDIA_ELF_ERR_INVALID_ARG;
+    if (index >= elf->sh_count)
+        return FOSSIL_MEDIA_ELF_ERR_RANGE;
+
     Elf64_Shdr_on_disk *s = &elf->shdrs[index];
-    /* ensure shstrtab present and offset in-range */
-    if (!elf->shstrtab) return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
-    if ((size_t)s->sh_name >= strlen(elf->shstrtab) + 1) {
-        /* cheap boundary check: we don't have length of shstrtab here; caller could pass malformed but we validated earlier */
-        /* still, return name pointer trusting earlier validation */
-    }
-    *out_name = elf->shstrtab + s->sh_name;
+    if ((size_t)s->sh_name >= elf->shstrtab_size)
+        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT; /* out of range */
+
+    const char *name = elf->shstrtab + s->sh_name;
+
+    /* Ensure it's NUL-terminated within the table */
+    size_t max_len = elf->shstrtab_size - (size_t)s->sh_name;
+    if (memchr(name, '\0', max_len) == NULL)
+        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
+
+    *out_name = name;
     return FOSSIL_MEDIA_ELF_OK;
 }
 
