@@ -469,7 +469,7 @@ void fossil_media_elf_dump(const fossil_media_elf_t *elf, FILE *out) {
     size_t count = 0;
     if (fossil_media_elf_get_section_count(elf, &count) != FOSSIL_MEDIA_ELF_OK) {
         fprintf(out, "ELF dump: failed to get section count\n");
-        return;f
+        return;
     }
 
     fprintf(out, "ELF Section Table (%zu sections):\n", count);
