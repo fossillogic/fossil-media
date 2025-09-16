@@ -103,15 +103,14 @@ FOSSIL_TEST_CASE(c_test_elf_section_data) {
         &elf);
     ASSUME_ITS_EQUAL_I32(rc, FOSSIL_MEDIA_ELF_OK);
 
-    const void *sec_data = NULL;
+    const uint8_t *sec_data = NULL;
     size_t sec_size = 0;
     rc = fossil_media_elf_get_section_data(elf, 2, &sec_data, &sec_size);
     ASSUME_ITS_EQUAL_I32(rc, FOSSIL_MEDIA_ELF_OK);
     ASSUME_ITS_EQUAL_U32(sec_size, 1U);
     ASSUME_NOT_CNULL(sec_data);
 
-    const uint8_t *bytes = (const uint8_t *)sec_data;
-    ASSUME_ITS_EQUAL_O32(bytes[0], 0x90);  // single NOP
+    ASSUME_ITS_EQUAL_O32(sec_data[0], 0x90);  // single NOP
 
     fossil_media_elf_free(elf);
 }
