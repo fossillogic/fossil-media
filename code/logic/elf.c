@@ -40,6 +40,49 @@
   #include <unistd.h>
 #endif
 
+/* Minimal ELF64 file with a single .text section (does nothing) */
+static const uint8_t FOSSIL_MEDIA_ELF_BUILTIN_BLOB[] = {
+    /* ELF Header */
+    0x7f,'E','L','F',  /* Magic */
+    2,     /* EI_CLASS = 64-bit */
+    1,     /* EI_DATA = little endian */
+    1,     /* EI_VERSION = current */
+    0,     /* EI_OSABI = System V */
+    0,0,0,0,0,0,0, /* EI_PAD */
+    /* e_type=ET_REL (1), e_machine=EM_X86_64 (0x3E), e_version=1 */
+    0x01,0x00, 0x3e,0x00, 0x01,0x00,0x00,0x00,
+    /* e_entry=0, e_phoff=0, e_shoff=0x40 (start after header) */
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x40,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    /* e_flags=0, e_ehsize=64, e_phentsize=0, e_phnum=0 */
+    0x00,0x00,0x00,0x00, 0x40,0x00, 0x00,0x00, 0x00,0x00,
+    /* e_shentsize=64, e_shnum=3, e_shstrndx=1 */
+    0x40,0x00, 0x03,0x00, 0x01,0x00,
+    /* Section headers (3 total): NULL, .shstrtab, .text */
+    /* NULL */
+    0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+    /* .shstrtab (name=1) */
+    0x01,0x00,0x00,0x00, 0x03,0x00,0x00,0x00, 0,0,0,0,0,0,0,0,
+    0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  /* offset=0x80 */
+    0x11,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  /* size=17 */
+    0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+    /* .text (name=11) */
+    0x0b,0x00,0x00,0x00, 0x01,0x00,0x00,0x00, 0,0,0,0,0,0,0,0,
+    0x91,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  /* offset=0x91 */
+    0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  /* size=1 byte */
+    0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+    /* Section header string table (.shstrtab data @ 0x80) */
+    0x00, '.','s','h','s','t','r','t','a','b',0,
+           '.','t','e','x','t',0,
+    /* .text section data (1 byte NOP) */
+    0x90
+};
+
+const size_t FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE =
+    sizeof(FOSSIL_MEDIA_ELF_BUILTIN_BLOB);
+
 /* Minimal on-disk ELF64 structures (packed-like representation).
    We'll never assume host layout/align — we memcpy into these. */
 typedef struct {
@@ -418,5 +461,30 @@ const char* fossil_media_elf_strerror(int err) {
         case FOSSIL_MEDIA_ELF_ERR_NO_SECTION: return "Section not found";
         case FOSSIL_MEDIA_ELF_ERR_INVALID_ARG: return "Invalid argument";
         default: return "Unknown error";
+    }
+}
+
+void fossil_media_elf_dump(const fossil_media_elf_t *elf, FILE *out) {
+    if (!elf || !out) return;
+    size_t count = 0;
+    if (fossil_media_elf_get_section_count(elf, &count) != FOSSIL_MEDIA_ELF_OK) {
+        fprintf(out, "ELF dump: failed to get section count\n");
+        return;f
+    }
+
+    fprintf(out, "ELF Section Table (%zu sections):\n", count);
+    for (size_t i = 0; i < count; ++i) {
+        const char *name = NULL;
+        const uint8_t *ptr = NULL;
+        size_t len = 0;
+
+        int rc_name = fossil_media_elf_get_section_name(elf, i, &name);
+        fossil_media_elf_get_section_data(elf, i, &ptr, &len);
+
+        fprintf(out, "  [%02zu] %-20s size=%zu%s\n",
+                i,
+                (rc_name == FOSSIL_MEDIA_ELF_OK ? name : "<invalid>"),
+                len,
+                (ptr ? "" : " (no data)"));
     }
 }
