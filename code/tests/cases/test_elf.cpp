@@ -22,8 +22,8 @@
  * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.hpp>
-#include "fossil/media/framework.hpp"
+#include <fossil/pizza/framework.h>
+#include "fossil/media/framework.h"
 
 using namespace fossil::media;
 
@@ -56,17 +56,17 @@ FOSSIL_TEST_CASE(cpp_test_elf_is_elf_short_buffer) {
 }
 
 FOSSIL_TEST_CASE(cpp_test_elf_load_builtin_blob) {
-    Elf elf(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
-            FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE);
-
-    ASSUME_ITS_TRUE(elf.is_valid());
+    Elf elf;
+    ASSUME_ITS_TRUE(elf.load_memory(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
+                                    FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE));
+    ASSUME_ITS_TRUE(elf.is_loaded());
 }
 
 FOSSIL_TEST_CASE(cpp_test_elf_section_lookup) {
-    Elf elf(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
-            FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE);
-
-    ASSUME_ITS_TRUE(elf.is_valid());
+    Elf elf;
+    ASSUME_ITS_TRUE(elf.load_memory(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
+                                    FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE));
+    ASSUME_ITS_TRUE(elf.is_loaded());
     ASSUME_ITS_TRUE(elf.section_count() >= 3);
 
     std::string name = elf.section_name(2);
@@ -74,20 +74,20 @@ FOSSIL_TEST_CASE(cpp_test_elf_section_lookup) {
 }
 
 FOSSIL_TEST_CASE(cpp_test_elf_section_data) {
-    Elf elf(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
-            FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE);
-
+    Elf elf;
+    ASSUME_ITS_TRUE(elf.load_memory(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
+                                    FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE));
     auto section = elf.section_data(2);
-    ASSUME_ITS_EQUAL_U32(section.size(), 1U);
-    ASSUME_ITS_EQUAL_O32(section[0], 0x90);  // NOP
+    ASSUME_ITS_EQUAL_U32(section.second, 1U);
+    ASSUME_ITS_EQUAL_O32(section.first[0], 0x90);  // NOP
 }
 
 FOSSIL_TEST_CASE(cpp_test_elf_dump_does_not_crash) {
-    Elf elf(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
-            FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE);
-
+    Elf elf;
+    ASSUME_ITS_TRUE(elf.load_memory(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
+                                    FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE));
     // Should print to stdout safely
-    elf.dump(std::cout);
+    elf.dump(elf.c_struct(), stdout);
 }
 
 // ------------------------------------------------------------

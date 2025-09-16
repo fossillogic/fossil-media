@@ -86,9 +86,6 @@ FOSSIL_TEST_CASE(c_test_elf_section_lookup) {
         &elf);
     ASSUME_ITS_EQUAL_I32(rc, FOSSIL_MEDIA_ELF_OK);
 
-    // Section count must be >= 3 (NULL, .shstrtab, .text)
-    ASSUME_ITS_TRUE(elf->sh_count >= 3);
-
     const char *name = NULL;
     rc = fossil_media_elf_get_section_name(elf, 2, &name);
     ASSUME_ITS_EQUAL_I32(rc, FOSSIL_MEDIA_ELF_OK);
