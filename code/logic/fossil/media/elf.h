@@ -25,8 +25,9 @@
 #ifndef FOSSIL_MEDIA_ELF_H
 #define FOSSIL_MEDIA_ELF_H
 
-#include <stddef.h>
+#include <stdio.h>
 #include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C"
