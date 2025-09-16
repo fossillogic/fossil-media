@@ -66,6 +66,73 @@ FOSSIL_TEST_CASE(c_test_elf_is_elf_short_buffer) {
 }
 
 
+FOSSIL_TEST_CASE(c_test_elf_load_builtin_blob) {
+    fossil_media_elf_t *elf = NULL;
+    int rc = fossil_media_elf_load_from_memory(
+        FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
+        FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE,
+        &elf);
+    ASSUME_ITS_EQUAL_I32(rc, FOSSIL_MEDIA_ELF_OK);
+    ASSUME_NOT_CNULL(elf);
+
+    fossil_media_elf_free(elf);
+}
+
+FOSSIL_TEST_CASE(c_test_elf_section_lookup) {
+    fossil_media_elf_t *elf = NULL;
+    int rc = fossil_media_elf_load_from_memory(
+        FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
+        FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE,
+        &elf);
+    ASSUME_ITS_EQUAL_I32(rc, FOSSIL_MEDIA_ELF_OK);
+
+    // Section count must be >= 3 (NULL, .shstrtab, .text)
+    ASSUME_ITS_TRUE(elf->sh_count >= 3);
+
+    const char *name = NULL;
+    rc = fossil_media_elf_get_section_name(elf, 2, &name);
+    ASSUME_ITS_EQUAL_I32(rc, FOSSIL_MEDIA_ELF_OK);
+    ASSUME_NOT_CNULL(name);
+    ASSUME_ITS_EQUAL_CSTR(name, ".text");
+
+    fossil_media_elf_free(elf);
+}
+
+FOSSIL_TEST_CASE(c_test_elf_section_data) {
+    fossil_media_elf_t *elf = NULL;
+    int rc = fossil_media_elf_load_from_memory(
+        FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
+        FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE,
+        &elf);
+    ASSUME_ITS_EQUAL_I32(rc, FOSSIL_MEDIA_ELF_OK);
+
+    const void *sec_data = NULL;
+    size_t sec_size = 0;
+    rc = fossil_media_elf_get_section_data(elf, 2, &sec_data, &sec_size);
+    ASSUME_ITS_EQUAL_I32(rc, FOSSIL_MEDIA_ELF_OK);
+    ASSUME_ITS_EQUAL_U32(sec_size, 1U);
+    ASSUME_NOT_CNULL(sec_data);
+
+    const uint8_t *bytes = (const uint8_t *)sec_data;
+    ASSUME_ITS_EQUAL(bytes[0], 0x90);  // single NOP
+
+    fossil_media_elf_free(elf);
+}
+
+FOSSIL_TEST_CASE(c_test_elf_dump_does_not_crash) {
+    fossil_media_elf_t *elf = NULL;
+    int rc = fossil_media_elf_load_from_memory(
+        FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
+        FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE,
+        &elf);
+    ASSUME_ITS_EQUAL_I32(rc, FOSSIL_MEDIA_ELF_OK);
+
+    // This should just print and not crash
+    fossil_media_elf_dump(elf, stdout);
+
+    fossil_media_elf_free(elf);
+}
+
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -74,5 +141,10 @@ FOSSIL_TEST_GROUP(c_elf_tests) {
     FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_is_elf_non_magic);
     FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_is_elf_short_buffer);
 
+    FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_load_builtin_blob);
+    FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_section_lookup);
+    FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_section_data);
+    FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_dump_does_not_crash);
+
     FOSSIL_TEST_REGISTER(c_elf_fixture);
-} // end of tests
+}
