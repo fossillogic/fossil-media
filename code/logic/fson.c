@@ -28,7 +28,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-
+#include <limits.h>
 
 /**
  * Minimal FSON parser for the extended format:
