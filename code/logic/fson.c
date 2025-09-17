@@ -141,6 +141,7 @@ static void lexer_next(lexer_t *lex) {
         lex->current.start = &lex->src[start];
         lex->current.len = lex->pos - start;
         if (lex->pos < lex->len) lex->pos++; // skip closing quote
+        lex->current.suffix[0] = 0;
     } else if (isdigit(c) || c == '-' || c == '+') {
         size_t start = p;
         while (lex->pos < lex->len && (isdigit(lex->src[lex->pos]) || lex->src[lex->pos] == '.' || lex->src[lex->pos] == 'e' || lex->src[lex->pos] == 'E' || lex->src[lex->pos] == '-' || lex->src[lex->pos] == '+'))
@@ -269,6 +270,157 @@ static int parse_array(lexer_t *lex, fson_internal_node_t *node) {
 }
 
 static int parse_value(lexer_t *lex, fson_internal_node_t *node) {
+    // Support "name:type : value" pattern
+    if ((lex->current.type == TOK_STRING || lex->current.type == TOK_IDENT) && lexer_peek(lex) == ':') {
+        // Parse key
+        char *key = strndup_local(lex->current.start, lex->current.len);
+        lexer_next(lex); // consume key
+
+        // Parse type
+        if (lex->current.type != TOK_IDENT)
+            return FOSSIL_MEDIA_FSON_ERR_PARSE;
+        char type_str[16] = {0};
+        size_t type_len = lex->current.len < sizeof(type_str)-1 ? lex->current.len : sizeof(type_str)-1;
+        memcpy(type_str, lex->current.start, type_len);
+        type_str[type_len] = 0;
+        lexer_next(lex); // consume type
+
+        // Expect colon
+        if (lex->current.type != TOK_COLON) {
+            free(key);
+            return FOSSIL_MEDIA_FSON_ERR_PARSE;
+        }
+        lexer_next(lex); // consume ':'
+
+        // Parse value
+        node->key = key;
+        // Set type and parse value according to type_str
+        if (strcmp(type_str, "null") == 0) {
+            if (lex->current.type == TOK_IDENT && lex->current.len == 4 && strncmp(lex->current.start, "null", 4) == 0) {
+                node->type = FSON_TYPE_NULL;
+                lexer_next(lex);
+            } else {
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            }
+        } else if (strcmp(type_str, "bool") == 0) {
+            if (lex->current.type == TOK_IDENT && lex->current.len == 4 && strncmp(lex->current.start, "true", 4) == 0) {
+                node->type = FSON_TYPE_BOOL;
+                node->value.i64 = 1;
+                lexer_next(lex);
+            } else if (lex->current.type == TOK_IDENT && lex->current.len == 5 && strncmp(lex->current.start, "false", 5) == 0) {
+                node->type = FSON_TYPE_BOOL;
+                node->value.i64 = 0;
+                lexer_next(lex);
+            } else {
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            }
+        } else if (strcmp(type_str, "i8") == 0) {
+            if (lex->current.type != TOK_NUMBER)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_I8;
+            node->value.i64 = (int8_t)strtol(lex->current.start, NULL, 10);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "i16") == 0) {
+            if (lex->current.type != TOK_NUMBER)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_I16;
+            node->value.i64 = (int16_t)strtol(lex->current.start, NULL, 10);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "i32") == 0) {
+            if (lex->current.type != TOK_NUMBER)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_I32;
+            node->value.i64 = (int32_t)strtol(lex->current.start, NULL, 10);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "i64") == 0) {
+            if (lex->current.type != TOK_NUMBER)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_I64;
+            node->value.i64 = strtoll(lex->current.start, NULL, 10);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "u8") == 0) {
+            if (lex->current.type != TOK_NUMBER)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_U8;
+            node->value.u64 = (uint8_t)strtoul(lex->current.start, NULL, 10);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "u16") == 0) {
+            if (lex->current.type != TOK_NUMBER)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_U16;
+            node->value.u64 = (uint16_t)strtoul(lex->current.start, NULL, 10);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "u32") == 0) {
+            if (lex->current.type != TOK_NUMBER)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_U32;
+            node->value.u64 = (uint32_t)strtoul(lex->current.start, NULL, 10);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "u64") == 0) {
+            if (lex->current.type != TOK_NUMBER)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_U64;
+            node->value.u64 = strtoull(lex->current.start, NULL, 10);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "f32") == 0) {
+            if (lex->current.type != TOK_NUMBER)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_F32;
+            node->value.f32 = strtof(lex->current.start, NULL);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "f64") == 0) {
+            if (lex->current.type != TOK_NUMBER)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_F64;
+            node->value.f64 = strtod(lex->current.start, NULL);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "oct") == 0) {
+            if (lex->current.type != TOK_NUMBER)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_OCT;
+            node->value.u64 = strtoull(lex->current.start, NULL, 8);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "hex") == 0) {
+            if (lex->current.type != TOK_NUMBER)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_HEX;
+            node->value.u64 = strtoull(lex->current.start, NULL, 16);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "bin") == 0) {
+            if (lex->current.type != TOK_NUMBER)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_BIN;
+            node->value.u64 = strtoull(lex->current.start, NULL, 2);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "char") == 0) {
+            if (lex->current.type != TOK_NUMBER)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_CHAR;
+            node->value.c = (char)strtol(lex->current.start, NULL, 10);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "cstr") == 0) {
+            if (lex->current.type != TOK_STRING)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            node->type = FSON_TYPE_CSTR;
+            node->value.str = strndup_local(lex->current.start, lex->current.len);
+            lexer_next(lex);
+        } else if (strcmp(type_str, "array") == 0) {
+            if (lex->current.type != TOK_LBRACKET)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            return parse_array(lex, node);
+        } else if (strcmp(type_str, "object") == 0) {
+            if (lex->current.type != TOK_LBRACE)
+                return FOSSIL_MEDIA_FSON_ERR_PARSE;
+            return parse_object(lex, node);
+        } else {
+            // Unknown type
+            free(key);
+            return FOSSIL_MEDIA_FSON_ERR_PARSE;
+        }
+        return FOSSIL_MEDIA_FSON_OK;
+    }
+
+    // Legacy FSON/JSON pattern
     if (lex->current.type == TOK_STRING) {
         node->type = FSON_TYPE_CSTR;
         node->value.str = strndup_local(lex->current.start, lex->current.len);

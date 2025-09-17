@@ -233,7 +233,7 @@ namespace fossil {
             FSON& operator=(FSON&& other) noexcept {
                 if (this != &other) {
                     if (handle_) {
-                    fossil_media_fson_free(handle_);
+                        fossil_media_fson_free(handle_);
                     }
                     handle_ = other.handle_;
                     other.handle_ = nullptr;
@@ -247,6 +247,26 @@ namespace fossil {
              */
             const fossil_media_fson_node_t* root() const {
                 return fossil_media_fson_root(handle_);
+            }
+
+            /**
+             * @brief Get a child node by key from an object node.
+             * @param node Parent node (must be FSON_TYPE_OBJECT).
+             * @param key Key to search for.
+             * @return Pointer to matching child node or nullptr if not found.
+             */
+            static const fossil_media_fson_node_t* get(const fossil_media_fson_node_t* node, const std::string& key) {
+                return fossil_media_fson_get(node, key.c_str());
+            }
+
+            /**
+             * @brief Get an element by index from an array node.
+             * @param node Parent node (must be FSON_TYPE_ARRAY).
+             * @param index Zero-based index.
+             * @return Pointer to element node or nullptr if out of range.
+             */
+            static const fossil_media_fson_node_t* at(const fossil_media_fson_node_t* node, size_t index) {
+                return fossil_media_fson_at(node, index);
             }
 
             /**
