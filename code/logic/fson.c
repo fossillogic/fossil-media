@@ -23,646 +23,1452 @@
  * -----------------------------------------------------------------------------
  */
 #include "fossil/media/fson.h"
+#include "fossil/media/media.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 
-/* Internal representation of a node in the parsed tree */
-typedef struct fson_internal_node {
-    char *key;
-    fossil_media_fson_type_t type;
-    union {
-        int64_t i64;
-        uint64_t u64;
-        float f32;
-        double f64;
-        char c;
-        char *str;
-    } value;
-    size_t child_count;
-    struct fson_internal_node *children;
-} fson_internal_node_t;
 
-struct fossil_media_fson {
-    fson_internal_node_t root;
-    char *buffer;  /* holds original text, for string reuse */
-};
-
-/* --- Forward declarations --- */
-static int parse_document(const char *text, fson_internal_node_t *root);
-static void free_node(fson_internal_node_t *node);
-static void serialize_node(const fson_internal_node_t *node, FILE *fp, int indent);
-
-/* --- Lexer --- */
-typedef enum {
-    TOK_EOF, TOK_LBRACE, TOK_RBRACE, TOK_LBRACKET, TOK_RBRACKET,
-    TOK_COLON, TOK_COMMA, TOK_STRING, TOK_NUMBER, TOK_IDENT
-} token_type_t;
-
-typedef struct {
-    token_type_t type;
-    const char *start;
-    size_t len;
-    char suffix[8]; // for type suffixes like i32, f64
-} token_t;
-
-typedef struct {
-    const char *src;
-    size_t pos;
-    size_t len;
-    token_t current;
-} lexer_t;
-
-static void lexer_init(lexer_t *lex, const char *src) {
-    lex->src = src;
-    lex->pos = 0;
-    lex->len = strlen(src);
-    lex->current.type = TOK_EOF;
-}
-
-static void lexer_skip_ws(lexer_t *lex) {
-    while (lex->pos < lex->len && isspace(lex->src[lex->pos]))
-        lex->pos++;
-}
-
-static int lexer_peek(lexer_t *lex) {
-    return lex->pos < lex->len ? lex->src[lex->pos] : 0;
-}
-
-static void lexer_next(lexer_t *lex) {
-    lexer_skip_ws(lex);
-    size_t p = lex->pos;
-    if (p >= lex->len) {
-        lex->current.type = TOK_EOF;
-        return;
-    }
-    char c = lex->src[p];
-    if (c == '{') {
-        lex->current.type = TOK_LBRACE;
-        lex->current.start = &lex->src[p];
-        lex->current.len = 1;
-        lex->pos++;
-    } else if (c == '}') {
-        lex->current.type = TOK_RBRACE;
-        lex->current.start = &lex->src[p];
-        lex->current.len = 1;
-        lex->pos++;
-    } else if (c == '[') {
-        lex->current.type = TOK_LBRACKET;
-        lex->current.start = &lex->src[p];
-        lex->current.len = 1;
-        lex->pos++;
-    } else if (c == ']') {
-        lex->current.type = TOK_RBRACKET;
-        lex->current.start = &lex->src[p];
-        lex->current.len = 1;
-        lex->pos++;
-    } else if (c == ':') {
-        lex->current.type = TOK_COLON;
-        lex->current.start = &lex->src[p];
-        lex->current.len = 1;
-        lex->pos++;
-    } else if (c == ',') {
-        lex->current.type = TOK_COMMA;
-        lex->current.start = &lex->src[p];
-        lex->current.len = 1;
-        lex->pos++;
-    } else if (c == '"') {
-        lex->pos++;
-        size_t start = lex->pos;
-        while (lex->pos < lex->len && lex->src[lex->pos] != '"') {
-            if (lex->src[lex->pos] == '\\' && lex->pos + 1 < lex->len)
-                lex->pos += 2;
-            else
-                lex->pos++;
+/**
+ * Minimal FSON parser for the extended format:
+ * Supports: { "key":type : value, ... }, arrays, objects, numbers, bool, null, char, oct, hex, bin, cstr, etc.
+ * Only parses a subset of the FSON format for demonstration.
+ */
+fossil_media_fson_value_t *fossil_media_fson_parse(const char *json_text, fossil_media_fson_error_t *err_out) {
+    if (json_text == NULL) {
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Input text is NULL");
         }
-        lex->current.type = TOK_STRING;
-        lex->current.start = &lex->src[start];
-        lex->current.len = lex->pos - start;
-        if (lex->pos < lex->len) lex->pos++; // skip closing quote
-        lex->current.suffix[0] = 0;
-    } else if (isdigit(c) || c == '-' || c == '+') {
-        size_t start = p;
-        while (lex->pos < lex->len && (isdigit(lex->src[lex->pos]) || lex->src[lex->pos] == '.' || lex->src[lex->pos] == 'e' || lex->src[lex->pos] == 'E' || lex->src[lex->pos] == '-' || lex->src[lex->pos] == '+'))
-            lex->pos++;
-        size_t num_len = lex->pos - start;
-        size_t suf_start = lex->pos;
-        size_t suf_len = 0;
-        while (lex->pos < lex->len && isalpha(lex->src[lex->pos]) && suf_len < sizeof(lex->current.suffix) - 1) {
-            lex->current.suffix[suf_len++] = lex->src[lex->pos++];
-        }
-        lex->current.suffix[suf_len] = 0;
-        lex->current.type = TOK_NUMBER;
-        lex->current.start = &lex->src[start];
-        lex->current.len = num_len;
-    } else if (isalpha(c) || c == '_') {
-        size_t start = p;
-        while (lex->pos < lex->len && (isalnum(lex->src[lex->pos]) || lex->src[lex->pos] == '_'))
-            lex->pos++;
-        lex->current.type = TOK_IDENT;
-        lex->current.start = &lex->src[start];
-        lex->current.len = lex->pos - start;
-        lex->current.suffix[0] = 0;
-    } else {
-        lex->current.type = TOK_EOF;
-        lex->pos++;
-    }
-}
-
-/* --- Parser --- */
-static char *strndup_local(const char *s, size_t n) {
-    char *out = (char *)malloc(n + 1);
-    if (!out) return NULL;
-    memcpy(out, s, n);
-    out[n] = 0;
-    return out;
-}
-
-/* --- Parser --- */
-static int parse_value(lexer_t *lex, fson_internal_node_t *node);
-
-static int parse_object(lexer_t *lex, fson_internal_node_t *node) {
-    node->type = FSON_TYPE_OBJECT;
-    node->key = NULL;
-    node->child_count = 0;
-    node->children = NULL;
-
-    lexer_next(lex); /* consume '{' */
-    size_t cap = 4;
-    node->children = (fson_internal_node_t *)calloc(cap, sizeof(fson_internal_node_t));
-    if (!node->children) return FOSSIL_MEDIA_FSON_ERR_NOMEM;
-
-    while (lex->current.type != TOK_RBRACE && lex->current.type != TOK_EOF) {
-        if (lex->current.type != TOK_STRING && lex->current.type != TOK_IDENT)
-            return FOSSIL_MEDIA_FSON_ERR_PARSE;
-
-        char *key = strndup_local(lex->current.start, lex->current.len);
-        lexer_next(lex);
-        if (lex->current.type != TOK_COLON) {
-            free(key);
-            return FOSSIL_MEDIA_FSON_ERR_PARSE;
-        }
-        lexer_next(lex); /* consume ':' */
-
-        if (node->child_count == cap) {
-            cap *= 2;
-            fson_internal_node_t *tmp = realloc(node->children, cap * sizeof(fson_internal_node_t));
-            if (!tmp) {
-                free(key);
-                return FOSSIL_MEDIA_FSON_ERR_NOMEM;
-            }
-            node->children = tmp;
-        }
-
-        fson_internal_node_t *child = &node->children[node->child_count++];
-        memset(child, 0, sizeof(*child));
-        child->key = key;
-
-        int rc = parse_value(lex, child);
-        if (rc != FOSSIL_MEDIA_FSON_OK) return rc;
-
-        if (lex->current.type == TOK_COMMA)
-            lexer_next(lex);
-    }
-
-    if (lex->current.type != TOK_RBRACE)
-        return FOSSIL_MEDIA_FSON_ERR_PARSE;
-
-    lexer_next(lex); /* consume '}' */
-    return FOSSIL_MEDIA_FSON_OK;
-}
-
-static int parse_array(lexer_t *lex, fson_internal_node_t *node) {
-    node->type = FSON_TYPE_ARRAY;
-    node->key = NULL;
-    node->child_count = 0;
-    node->children = NULL;
-
-    lexer_next(lex); /* consume '[' */
-    size_t cap = 4;
-    node->children = (fson_internal_node_t *)calloc(cap, sizeof(fson_internal_node_t));
-    if (!node->children) return FOSSIL_MEDIA_FSON_ERR_NOMEM;
-
-    while (lex->current.type != TOK_RBRACKET && lex->current.type != TOK_EOF) {
-        if (node->child_count == cap) {
-            cap *= 2;
-            fson_internal_node_t *tmp = realloc(node->children, cap * sizeof(fson_internal_node_t));
-            if (!tmp) return FOSSIL_MEDIA_FSON_ERR_NOMEM;
-            node->children = tmp;
-        }
-
-        fson_internal_node_t *child = &node->children[node->child_count++];
-        memset(child, 0, sizeof(*child));
-
-        int rc = parse_value(lex, child);
-        if (rc != FOSSIL_MEDIA_FSON_OK) return rc;
-
-        if (lex->current.type == TOK_COMMA)
-            lexer_next(lex);
-    }
-
-    if (lex->current.type != TOK_RBRACKET)
-        return FOSSIL_MEDIA_FSON_ERR_PARSE;
-
-    lexer_next(lex); /* consume ']' */
-    return FOSSIL_MEDIA_FSON_OK;
-}
-
-static int parse_value(lexer_t *lex, fson_internal_node_t *node) {
-    // Support "name:type : value" pattern
-    if ((lex->current.type == TOK_STRING || lex->current.type == TOK_IDENT) && lexer_peek(lex) == ':') {
-        // Parse key
-        char *key = strndup_local(lex->current.start, lex->current.len);
-        lexer_next(lex); // consume key
-
-        // Parse type
-        if (lex->current.type != TOK_IDENT)
-            return FOSSIL_MEDIA_FSON_ERR_PARSE;
-        char type_str[16] = {0};
-        size_t type_len = lex->current.len < sizeof(type_str)-1 ? lex->current.len : sizeof(type_str)-1;
-        memcpy(type_str, lex->current.start, type_len);
-        type_str[type_len] = 0;
-        lexer_next(lex); // consume type
-
-        // Expect colon
-        if (lex->current.type != TOK_COLON) {
-            free(key);
-            return FOSSIL_MEDIA_FSON_ERR_PARSE;
-        }
-        lexer_next(lex); // consume ':'
-
-        // Parse value
-        node->key = key;
-        // Set type and parse value according to type_str
-        if (strcmp(type_str, "null") == 0) {
-            if (lex->current.type == TOK_IDENT && lex->current.len == 4 && strncmp(lex->current.start, "null", 4) == 0) {
-                node->type = FSON_TYPE_NULL;
-                lexer_next(lex);
-            } else {
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            }
-        } else if (strcmp(type_str, "bool") == 0) {
-            if (lex->current.type == TOK_IDENT && lex->current.len == 4 && strncmp(lex->current.start, "true", 4) == 0) {
-                node->type = FSON_TYPE_BOOL;
-                node->value.i64 = 1;
-                lexer_next(lex);
-            } else if (lex->current.type == TOK_IDENT && lex->current.len == 5 && strncmp(lex->current.start, "false", 5) == 0) {
-                node->type = FSON_TYPE_BOOL;
-                node->value.i64 = 0;
-                lexer_next(lex);
-            } else {
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            }
-        } else if (strcmp(type_str, "i8") == 0) {
-            if (lex->current.type != TOK_NUMBER)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_I8;
-            node->value.i64 = (int8_t)strtol(lex->current.start, NULL, 10);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "i16") == 0) {
-            if (lex->current.type != TOK_NUMBER)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_I16;
-            node->value.i64 = (int16_t)strtol(lex->current.start, NULL, 10);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "i32") == 0) {
-            if (lex->current.type != TOK_NUMBER)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_I32;
-            node->value.i64 = (int32_t)strtol(lex->current.start, NULL, 10);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "i64") == 0) {
-            if (lex->current.type != TOK_NUMBER)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_I64;
-            node->value.i64 = strtoll(lex->current.start, NULL, 10);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "u8") == 0) {
-            if (lex->current.type != TOK_NUMBER)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_U8;
-            node->value.u64 = (uint8_t)strtoul(lex->current.start, NULL, 10);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "u16") == 0) {
-            if (lex->current.type != TOK_NUMBER)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_U16;
-            node->value.u64 = (uint16_t)strtoul(lex->current.start, NULL, 10);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "u32") == 0) {
-            if (lex->current.type != TOK_NUMBER)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_U32;
-            node->value.u64 = (uint32_t)strtoul(lex->current.start, NULL, 10);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "u64") == 0) {
-            if (lex->current.type != TOK_NUMBER)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_U64;
-            node->value.u64 = strtoull(lex->current.start, NULL, 10);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "f32") == 0) {
-            if (lex->current.type != TOK_NUMBER)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_F32;
-            node->value.f32 = strtof(lex->current.start, NULL);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "f64") == 0) {
-            if (lex->current.type != TOK_NUMBER)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_F64;
-            node->value.f64 = strtod(lex->current.start, NULL);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "oct") == 0) {
-            if (lex->current.type != TOK_NUMBER)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_OCT;
-            node->value.u64 = strtoull(lex->current.start, NULL, 8);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "hex") == 0) {
-            if (lex->current.type != TOK_NUMBER)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_HEX;
-            node->value.u64 = strtoull(lex->current.start, NULL, 16);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "bin") == 0) {
-            if (lex->current.type != TOK_NUMBER)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_BIN;
-            node->value.u64 = strtoull(lex->current.start, NULL, 2);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "char") == 0) {
-            if (lex->current.type != TOK_NUMBER)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_CHAR;
-            node->value.c = (char)strtol(lex->current.start, NULL, 10);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "cstr") == 0) {
-            if (lex->current.type != TOK_STRING)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            node->type = FSON_TYPE_CSTR;
-            node->value.str = strndup_local(lex->current.start, lex->current.len);
-            lexer_next(lex);
-        } else if (strcmp(type_str, "array") == 0) {
-            if (lex->current.type != TOK_LBRACKET)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            return parse_array(lex, node);
-        } else if (strcmp(type_str, "object") == 0) {
-            if (lex->current.type != TOK_LBRACE)
-                return FOSSIL_MEDIA_FSON_ERR_PARSE;
-            return parse_object(lex, node);
-        } else {
-            // Unknown type
-            free(key);
-            return FOSSIL_MEDIA_FSON_ERR_PARSE;
-        }
-        return FOSSIL_MEDIA_FSON_OK;
-    }
-
-    // Legacy FSON/JSON pattern
-    if (lex->current.type == TOK_STRING) {
-        node->type = FSON_TYPE_CSTR;
-        node->value.str = strndup_local(lex->current.start, lex->current.len);
-        lexer_next(lex);
-        return FOSSIL_MEDIA_FSON_OK;
-    }
-    else if (lex->current.type == TOK_NUMBER) {
-        const char *numstr = lex->current.start;
-        int base = 10;
-
-        /* Type suffix dispatch */
-        if (strcmp(lex->current.suffix, "i8") == 0) {
-            node->type = FSON_TYPE_I8;
-            node->value.i64 = (int8_t)strtol(numstr, NULL, base);
-        } else if (strcmp(lex->current.suffix, "i16") == 0) {
-            node->type = FSON_TYPE_I16;
-            node->value.i64 = (int16_t)strtol(numstr, NULL, base);
-        } else if (strcmp(lex->current.suffix, "i32") == 0) {
-            node->type = FSON_TYPE_I32;
-            node->value.i64 = (int32_t)strtol(numstr, NULL, base);
-        } else if (strcmp(lex->current.suffix, "i64") == 0) {
-            node->type = FSON_TYPE_I64;
-            node->value.i64 = strtoll(numstr, NULL, base);
-        } else if (strcmp(lex->current.suffix, "u8") == 0) {
-            node->type = FSON_TYPE_U8;
-            node->value.u64 = (uint8_t)strtoul(numstr, NULL, base);
-        } else if (strcmp(lex->current.suffix, "u16") == 0) {
-            node->type = FSON_TYPE_U16;
-            node->value.u64 = (uint16_t)strtoul(numstr, NULL, base);
-        } else if (strcmp(lex->current.suffix, "u32") == 0) {
-            node->type = FSON_TYPE_U32;
-            node->value.u64 = (uint32_t)strtoul(numstr, NULL, base);
-        } else if (strcmp(lex->current.suffix, "u64") == 0) {
-            node->type = FSON_TYPE_U64;
-            node->value.u64 = strtoull(numstr, NULL, base);
-        } else if (strcmp(lex->current.suffix, "f32") == 0) {
-            node->type = FSON_TYPE_F32;
-            node->value.f32 = strtof(numstr, NULL);
-        } else if (strcmp(lex->current.suffix, "f64") == 0) {
-            node->type = FSON_TYPE_F64;
-            node->value.f64 = strtod(numstr, NULL);
-        } else if (strcmp(lex->current.suffix, "oct") == 0) {
-            node->type = FSON_TYPE_OCT;
-            node->value.u64 = strtoull(numstr, NULL, 8);
-        } else if (strcmp(lex->current.suffix, "hex") == 0) {
-            node->type = FSON_TYPE_HEX;
-            node->value.u64 = strtoull(numstr, NULL, 16);
-        } else if (strcmp(lex->current.suffix, "bin") == 0) {
-            node->type = FSON_TYPE_BIN;
-            node->value.u64 = strtoull(numstr, NULL, 2);
-        } else if (strcmp(lex->current.suffix, "c") == 0) {
-            node->type = FSON_TYPE_CHAR;
-            node->value.c = (char)strtol(numstr, NULL, base);
-        } else {
-            /* Default: assume signed 64-bit integer */
-            node->type = FSON_TYPE_I64;
-            node->value.i64 = strtoll(numstr, NULL, base);
-        }
-
-        lexer_next(lex);
-        return FOSSIL_MEDIA_FSON_OK;
-    }
-    else if (lex->current.type == TOK_LBRACE) {
-        return parse_object(lex, node);
-    }
-    else if (lex->current.type == TOK_LBRACKET) {
-        return parse_array(lex, node);
-    }
-    else if (lex->current.type == TOK_IDENT) {
-        if (lex->current.len == 4 && strncmp(lex->current.start, "true", 4) == 0) {
-            node->type = FSON_TYPE_BOOL;
-            node->value.i64 = 1;
-        } else if (lex->current.len == 5 && strncmp(lex->current.start, "false", 5) == 0) {
-            node->type = FSON_TYPE_BOOL;
-            node->value.i64 = 0;
-        } else if (lex->current.len == 4 && strncmp(lex->current.start, "null", 4) == 0) {
-            node->type = FSON_TYPE_NULL;
-        } else {
-            return FOSSIL_MEDIA_FSON_ERR_PARSE;
-        }
-        lexer_next(lex);
-        return FOSSIL_MEDIA_FSON_OK;
-    }
-    return FOSSIL_MEDIA_FSON_ERR_PARSE;
-}
-
-static int parse_document(const char *text, fson_internal_node_t *root) {
-    lexer_t lex;
-    lexer_init(&lex, text);
-    lexer_next(&lex);
-
-    int rc = parse_value(&lex, root);
-    if (rc != FOSSIL_MEDIA_FSON_OK)
-        return rc;
-
-    if (lex.current.type != TOK_EOF)
-        return FOSSIL_MEDIA_FSON_ERR_PARSE;
-
-    return FOSSIL_MEDIA_FSON_OK;
-}
-
-/* --- API Implementation --- */
-
-int fossil_media_fson_load_file(const char *path, fossil_media_fson_t **out) {
-    if (!path || !out)
-        return FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
-
-    FILE *fp = fopen(path, "rb");
-    if (!fp)
-        return FOSSIL_MEDIA_FSON_ERR_IO;
-
-    fseek(fp, 0, SEEK_END);
-    long len = ftell(fp);
-    rewind(fp);
-
-    char *buf = (char *)malloc(len + 1);
-    if (!buf) {
-        fclose(fp);
-        return FOSSIL_MEDIA_FSON_ERR_NOMEM;
-    }
-    fread(buf, 1, len, fp);
-    buf[len] = '\0';
-    fclose(fp);
-
-    fossil_media_fson_t *fson = (fossil_media_fson_t *)calloc(1, sizeof(*fson));
-    if (!fson) {
-        free(buf);
-        return FOSSIL_MEDIA_FSON_ERR_NOMEM;
-    }
-
-    fson->buffer = buf;
-    int rc = parse_document(buf, &fson->root);
-    if (rc != FOSSIL_MEDIA_FSON_OK) {
-        fossil_media_fson_free(fson);
-        return rc;
-    }
-
-    *out = fson;
-    return FOSSIL_MEDIA_FSON_OK;
-}
-
-int fossil_media_fson_load_memory(const void *buf, size_t len, fossil_media_fson_t **out) {
-    if (!buf || !out)
-        return FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
-
-    char *copy = (char *)malloc(len + 1);
-    if (!copy)
-        return FOSSIL_MEDIA_FSON_ERR_NOMEM;
-
-    memcpy(copy, buf, len);
-    copy[len] = '\0';
-
-    fossil_media_fson_t *fson = (fossil_media_fson_t *)calloc(1, sizeof(*fson));
-    if (!fson) {
-        free(copy);
-        return FOSSIL_MEDIA_FSON_ERR_NOMEM;
-    }
-
-    fson->buffer = copy;
-    int rc = parse_document(copy, &fson->root);
-    if (rc != FOSSIL_MEDIA_FSON_OK) {
-        fossil_media_fson_free(fson);
-        return rc;
-    }
-
-    *out = fson;
-    return FOSSIL_MEDIA_FSON_OK;
-}
-
-void fossil_media_fson_free(fossil_media_fson_t *fson) {
-    if (!fson)
-        return;
-    free_node(&fson->root);
-    free(fson->buffer);
-    free(fson);
-}
-
-const fossil_media_fson_node_t *fossil_media_fson_root(const fossil_media_fson_t *fson) {
-    return fson ? (const fossil_media_fson_node_t *)&fson->root : NULL;
-}
-
-const fossil_media_fson_node_t *fossil_media_fson_get(const fossil_media_fson_node_t *node, const char *key) {
-    if (!node || node->type != FSON_TYPE_OBJECT)
         return NULL;
-    const fson_internal_node_t *internal = (const fson_internal_node_t *)node;
-    for (size_t i = 0; i < internal->child_count; ++i) {
-        if (internal->children[i].key && strcmp(internal->children[i].key, key) == 0)
-            return (const fossil_media_fson_node_t *)&internal->children[i];
+    }
+
+    // Skip whitespace
+    while (isspace((unsigned char)*json_text)) json_text++;
+
+    // Parse object
+    if (*json_text == '{') {
+        fossil_media_fson_value_t *obj = fossil_media_fson_new_object();
+        json_text++;
+        while (*json_text) {
+            while (isspace((unsigned char)*json_text)) json_text++;
+            if (*json_text == '}') {
+                json_text++;
+                break;
+            }
+            // Parse key
+            if (*json_text != '"') {
+                if (err_out) {
+                    err_out->code = FOSSIL_MEDIA_FSON_ERR_PARSE;
+                    err_out->position = (int)(json_text - json_text);
+                    snprintf(err_out->message, sizeof(err_out->message), "Expected '\"' for key");
+                }
+                fossil_media_fson_free(obj);
+                return NULL;
+            }
+            json_text++;
+            const char *key_start = json_text;
+            while (*json_text && *json_text != '"') json_text++;
+            if (*json_text != '"') {
+                if (err_out) {
+                    err_out->code = FOSSIL_MEDIA_FSON_ERR_PARSE;
+                    err_out->position = (int)(json_text - json_text);
+                    snprintf(err_out->message, sizeof(err_out->message), "Unterminated key string");
+                }
+                fossil_media_fson_free(obj);
+                return NULL;
+            }
+            size_t key_len = json_text - key_start;
+            char *key = (char *)malloc(key_len + 1);
+            strncpy(key, key_start, key_len);
+            key[key_len] = '\0';
+            json_text++; // skip closing quote
+
+            while (isspace((unsigned char)*json_text)) json_text++;
+            if (*json_text != ':') {
+                free(key);
+                fossil_media_fson_free(obj);
+                if (err_out) {
+                    err_out->code = FOSSIL_MEDIA_FSON_ERR_PARSE;
+                    err_out->position = (int)(json_text - json_text);
+                    snprintf(err_out->message, sizeof(err_out->message), "Expected ':' after key");
+                }
+                return NULL;
+            }
+            json_text++; // skip ':'
+
+            // Parse type
+            while (isspace((unsigned char)*json_text)) json_text++;
+            const char *type_start = json_text;
+            while (*json_text && *json_text != ':') json_text++;
+            if (*json_text != ':') {
+                free(key);
+                fossil_media_fson_free(obj);
+                if (err_out) {
+                    err_out->code = FOSSIL_MEDIA_FSON_ERR_PARSE;
+                    err_out->position = (int)(json_text - json_text);
+                    snprintf(err_out->message, sizeof(err_out->message), "Expected ':' after type");
+                }
+                return NULL;
+            }
+            size_t type_len = json_text - type_start;
+            char *type = (char *)malloc(type_len + 1);
+            strncpy(type, type_start, type_len);
+            type[type_len] = '\0';
+            json_text++; // skip ':'
+
+            while (isspace((unsigned char)*json_text)) json_text++;
+
+            // Parse value
+            fossil_media_fson_value_t *val = NULL;
+            if (strcmp(type, "null") == 0) {
+                val = fossil_media_fson_new_null();
+                json_text += 4;
+            } else if (strcmp(type, "bool") == 0) {
+                if (strncmp(json_text, "true", 4) == 0) {
+                    val = fossil_media_fson_new_bool(1);
+                    json_text += 4;
+                } else if (strncmp(json_text, "false", 5) == 0) {
+                    val = fossil_media_fson_new_bool(0);
+                    json_text += 5;
+                }
+            } else if (strcmp(type, "cstr") == 0) {
+                if (*json_text == '"') {
+                    json_text++;
+                    const char *str_start = json_text;
+                    while (*json_text && *json_text != '"') json_text++;
+                    size_t str_len = json_text - str_start;
+                    char *str = (char *)malloc(str_len + 1);
+                    strncpy(str, str_start, str_len);
+                    str[str_len] = '\0';
+                    val = fossil_media_fson_new_string(str);
+                    free(str);
+                    if (*json_text == '"') json_text++;
+                }
+            } else if (strcmp(type, "char") == 0) {
+                // Parse char as integer
+                char *endptr;
+                long ch = strtol(json_text, &endptr, 10);
+                val = fossil_media_fson_new_char((char)ch);
+                json_text = endptr;
+            } else if (strcmp(type, "i32") == 0) {
+                char *endptr;
+                int32_t num = (int32_t)strtol(json_text, &endptr, 10);
+                val = fossil_media_fson_new_i32(num);
+                json_text = endptr;
+            } else if (strcmp(type, "i64") == 0) {
+                char *endptr;
+                int64_t num = (int64_t)strtoll(json_text, &endptr, 10);
+                val = fossil_media_fson_new_i64(num);
+                json_text = endptr;
+            } else if (strcmp(type, "u8") == 0) {
+                char *endptr;
+                uint8_t num = (uint8_t)strtoul(json_text, &endptr, 10);
+                val = fossil_media_fson_new_u8(num);
+                json_text = endptr;
+            } else if (strcmp(type, "u16") == 0) {
+                char *endptr;
+                uint16_t num = (uint16_t)strtoul(json_text, &endptr, 10);
+                val = fossil_media_fson_new_u16(num);
+                json_text = endptr;
+            } else if (strcmp(type, "u32") == 0) {
+                char *endptr;
+                uint32_t num = (uint32_t)strtoul(json_text, &endptr, 10);
+                val = fossil_media_fson_new_u32(num);
+                json_text = endptr;
+            } else if (strcmp(type, "u64") == 0) {
+                char *endptr;
+                uint64_t num = (uint64_t)strtoull(json_text, &endptr, 10);
+                val = fossil_media_fson_new_u64(num);
+                json_text = endptr;
+            } else if (strcmp(type, "f32") == 0) {
+                char *endptr;
+                float num = strtof(json_text, &endptr);
+                val = fossil_media_fson_new_f32(num);
+                json_text = endptr;
+            } else if (strcmp(type, "f64") == 0) {
+                char *endptr;
+                double num = strtod(json_text, &endptr);
+                val = fossil_media_fson_new_f64(num);
+                json_text = endptr;
+            } else if (strcmp(type, "oct") == 0) {
+                char *endptr;
+                uint64_t num = strtoull(json_text, &endptr, 8);
+                val = fossil_media_fson_new_oct(num);
+                json_text = endptr;
+            } else if (strcmp(type, "hex") == 0) {
+                char *endptr;
+                uint64_t num = strtoull(json_text, &endptr, 16);
+                val = fossil_media_fson_new_hex(num);
+                json_text = endptr;
+            } else if (strcmp(type, "bin") == 0) {
+                // Parse binary as decimal (for demo)
+                char *endptr;
+                uint64_t num = strtoull(json_text, &endptr, 10);
+                val = fossil_media_fson_new_bin(num);
+                json_text = endptr;
+            } else if (strcmp(type, "array") == 0) {
+                while (isspace((unsigned char)*json_text)) json_text++;
+                if (*json_text == '[') {
+                    json_text++;
+                    val = fossil_media_fson_new_array();
+                    while (*json_text) {
+                        while (isspace((unsigned char)*json_text)) json_text++;
+                        if (*json_text == ']') {
+                            json_text++;
+                            break;
+                        }
+                        if (*json_text == '{') {
+                            fossil_media_fson_value_t *item = fossil_media_fson_parse(json_text, NULL);
+                            if (item) {
+                                fossil_media_fson_array_append(val, item);
+                            }
+                            // Move to next item
+                            int brace = 1;
+                            json_text++;
+                            while (*json_text && brace > 0) {
+                                if (*json_text == '{') brace++;
+                                else if (*json_text == '}') brace--;
+                                json_text++;
+                            }
+                        }
+                        while (isspace((unsigned char)*json_text)) json_text++;
+                        if (*json_text == ',') json_text++;
+                    }
+                }
+            } else if (strcmp(type, "object") == 0) {
+                while (isspace((unsigned char)*json_text)) json_text++;
+                if (*json_text == '{') {
+                    val = fossil_media_fson_parse(json_text, NULL);
+                    // Move to end of object
+                    int brace = 1;
+                    json_text++;
+                    while (*json_text && brace > 0) {
+                        if (*json_text == '{') brace++;
+                        else if (*json_text == '}') brace--;
+                        json_text++;
+                    }
+                }
+            } else {
+                // Unknown type
+                free(key);
+                free(type);
+                fossil_media_fson_free(obj);
+                if (err_out) {
+                    err_out->code = FOSSIL_MEDIA_FSON_ERR_PARSE;
+                    err_out->position = (int)(json_text - json_text);
+                    snprintf(err_out->message, sizeof(err_out->message), "Unknown type: %s", type);
+                }
+                return NULL;
+            }
+
+            if (val) {
+                fossil_media_fson_object_set(obj, key, val);
+            }
+            free(key);
+            free(type);
+
+            while (isspace((unsigned char)*json_text)) json_text++;
+            if (*json_text == ',') json_text++;
+        }
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_OK;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Parsed object");
+        }
+        return obj;
+    }
+
+    // Parse array
+    if (*json_text == '[') {
+        fossil_media_fson_value_t *arr = fossil_media_fson_new_array();
+        json_text++;
+        while (*json_text) {
+            while (isspace((unsigned char)*json_text)) json_text++;
+            if (*json_text == ']') {
+                json_text++;
+                break;
+            }
+            if (*json_text == '{') {
+                fossil_media_fson_value_t *item = fossil_media_fson_parse(json_text, NULL);
+                if (item) {
+                    fossil_media_fson_array_append(arr, item);
+                }
+                // Move to next item
+                int brace = 1;
+                json_text++;
+                while (*json_text && brace > 0) {
+                    if (*json_text == '{') brace++;
+                    else if (*json_text == '}') brace--;
+                    json_text++;
+                }
+            }
+            while (isspace((unsigned char)*json_text)) json_text++;
+            if (*json_text == ',') json_text++;
+        }
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_OK;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Parsed array");
+        }
+        return arr;
+    }
+
+    // Fallback to simple values
+    while (isspace((unsigned char)*json_text)) json_text++;
+    if (strncmp(json_text, "null", 4) == 0) {
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_OK;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Parsed null");
+        }
+        return fossil_media_fson_new_null();
+    }
+    if (strncmp(json_text, "true", 4) == 0) {
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_OK;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Parsed true");
+        }
+        return fossil_media_fson_new_bool(1);
+    }
+    if (strncmp(json_text, "false", 5) == 0) {
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_OK;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Parsed false");
+        }
+        return fossil_media_fson_new_bool(0);
+    }
+    if (*json_text == '"') {
+        const char *end = json_text + 1;
+        while (*end && *end != '"') {
+            if (*end == '\\' && *(end + 1)) end++;
+            end++;
+        }
+        if (*end != '"') {
+            if (err_out) {
+                err_out->code = FOSSIL_MEDIA_FSON_ERR_PARSE;
+                err_out->position = (int)(end - json_text);
+                snprintf(err_out->message, sizeof(err_out->message), "Unterminated string");
+            }
+            return NULL;
+        }
+        size_t len = end - (json_text + 1);
+        char *str = (char *)malloc(len + 1);
+        strncpy(str, json_text + 1, len);
+        str[len] = '\0';
+        fossil_media_fson_value_t *v = fossil_media_fson_new_string(str);
+        free(str);
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_OK;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Parsed string");
+        }
+        return v;
+    }
+    // Try to parse a number (int or float)
+    char *endptr;
+    double num = strtod(json_text, &endptr);
+    if (endptr != json_text) {
+        // Check if it's integer or float
+        if (strchr(json_text, '.') || strchr(json_text, 'e') || strchr(json_text, 'E')) {
+            fossil_media_fson_value_t *v = fossil_media_fson_new_f64(num);
+            if (err_out) {
+                err_out->code = FOSSIL_MEDIA_FSON_OK;
+                err_out->position = 0;
+                snprintf(err_out->message, sizeof(err_out->message), "Parsed float");
+            }
+            return v;
+        } else {
+            fossil_media_fson_value_t *v = fossil_media_fson_new_i64((int64_t)num);
+            if (err_out) {
+                err_out->code = FOSSIL_MEDIA_FSON_OK;
+                err_out->position = 0;
+                snprintf(err_out->message, sizeof(err_out->message), "Parsed integer");
+            }
+            return v;
+        }
+    }
+
+    // Not recognized, return error
+    if (err_out) {
+        err_out->code = FOSSIL_MEDIA_FSON_ERR_PARSE;
+        err_out->position = 0;
+        snprintf(err_out->message, sizeof(err_out->message), "Unrecognized value");
     }
     return NULL;
 }
 
-const fossil_media_fson_node_t *fossil_media_fson_at(const fossil_media_fson_node_t *node, size_t index) {
-    if (!node || node->type != FSON_TYPE_ARRAY)
-        return NULL;
-    const fson_internal_node_t *internal = (const fson_internal_node_t *)node;
-    if (index >= internal->child_count)
-        return NULL;
-    return (const fossil_media_fson_node_t *)&internal->children[index];
-}
-
-int fossil_media_fson_serialize(const fossil_media_fson_t *fson, char **out_text, size_t *out_len) {
-    if (!fson || !out_text)
-        return FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
-
-    /* Serialize to a memory stream */
-    FILE *mem = open_memstream(out_text, out_len);
-    if (!mem)
-        return FOSSIL_MEDIA_FSON_ERR_IO;
-
-    serialize_node(&fson->root, mem, 0);
-    fclose(mem);
-    return FOSSIL_MEDIA_FSON_OK;
-}
-
-int fossil_media_fson_validate(const fossil_media_fson_t *fson) {
-    if (!fson)
-        return FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
-
-    /* Minimal validation: check type consistency recursively */
-    /* For now, assume parse_document enforces correctness */
-    return FOSSIL_MEDIA_FSON_OK;
-}
-
-/* --- Internal Functions --- */
-
-static void free_node(fson_internal_node_t *node) {
-    if (!node) return;
-    for (size_t i = 0; i < node->child_count; ++i)
-        free_node(&node->children[i]);
-    free(node->children);
-    free(node->key);
-    if (node->type == FSON_TYPE_CSTR && node->value.str)
-        free(node->value.str);
-}
-
-/* Dummy serializer: just print "{}" for now */
-static void serialize_node(const fson_internal_node_t *node, FILE *fp, int indent) {
-    (void)indent;
-    if (node->type == FSON_TYPE_OBJECT) {
-        fprintf(fp, "{}");
-    } else if (node->type == FSON_TYPE_ARRAY) {
-        fprintf(fp, "[]");
+void fossil_media_fson_free(fossil_media_fson_value_t *v) {
+    if (v == NULL) {
+        return;
     }
+
+    switch (v->type) {
+        case FSON_TYPE_CSTR:
+            free(v->u.cstr);
+            break;
+        case FSON_TYPE_ARRAY:
+            for (size_t i = 0; i < v->u.array.count; i++) {
+                fossil_media_fson_free(v->u.array.items[i]);
+            }
+            free(v->u.array.items);
+            break;
+        case FSON_TYPE_OBJECT:
+            for (size_t i = 0; i < v->u.object.count; i++) {
+                free(v->u.object.keys[i]);
+                fossil_media_fson_free(v->u.object.values[i]);
+            }
+            free(v->u.object.keys);
+            free(v->u.object.values);
+            break;
+        default:
+            // Other types have no dynamically allocated members
+            break;
+    }
+
+    free(v);
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_null(void) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_NULL;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_bool(int b) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_BOOL;
+    v->u.boolean = (b != 0) ? 1 : 0;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_i8(int8_t value) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_I8;
+    v->u.i8 = value;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_i16(int16_t value) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_I16;
+    v->u.i16 = value;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_i32(int32_t value) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_I32;
+    v->u.i32 = value;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_i64(int64_t value) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_I64;
+    v->u.i64 = value;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_u8(uint8_t value) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_U8;
+    v->u.u8 = value;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_u16(uint16_t value) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_U16;
+    v->u.u16 = value;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_u32(uint32_t value) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_U32;
+    v->u.u32 = value;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_u64(uint64_t value) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_U64;
+    v->u.u64 = value;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_f32(float value) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_F32;
+    v->u.f32 = value;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_f64(double value) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_F64;
+    v->u.f64 = value;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_oct(uint64_t value) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_OCT;
+    v->u.oct = value;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_hex(uint64_t value) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_HEX;
+    v->u.hex = value;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_bin(uint64_t value) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_BIN;
+    v->u.bin = value;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_char(char value) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_CHAR;
+    v->u.character = value;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_string(const char *s) {
+    if (s == NULL) {
+        return NULL;
+    }
+
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+
+    v->type = FSON_TYPE_CSTR;
+    v->u.cstr = fossil_media_strdup(s);
+    if (!v->u.cstr) {
+        free(v);
+        return NULL;
+    }
+
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_array(void) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_ARRAY;
+    v->u.array.items = NULL;
+    v->u.array.count = 0;
+    v->u.array.capacity = 0;
+    return v;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_new_object(void) {
+    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!v) {
+        return NULL;
+    }
+    v->type = FSON_TYPE_OBJECT;
+    v->u.object.keys = NULL;
+    v->u.object.values = NULL;
+    v->u.object.count = 0;
+    v->u.object.capacity = 0;
+    return v;
+}
+
+int fossil_media_fson_object_set(fossil_media_fson_value_t *obj, const char *key, fossil_media_fson_value_t *val) {
+    if (obj == NULL || obj->type != FSON_TYPE_OBJECT || key == NULL || val == NULL) {
+        return FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
+    }
+
+    // Check if key already exists
+    for (size_t i = 0; i < obj->u.object.count; i++) {
+        if (strcmp(obj->u.object.keys[i], key) == 0) {
+            // Key exists, replace value
+            fossil_media_fson_free(obj->u.object.values[i]);
+            obj->u.object.values[i] = val;
+            return FOSSIL_MEDIA_FSON_OK;
+        }
+    }
+
+    // Key does not exist, add new key/value pair
+    if (obj->u.object.count >= obj->u.object.capacity) {
+        size_t new_capacity = (obj->u.object.capacity == 0) ? 4 : obj->u.object.capacity * 2;
+        char **new_keys = (char **)realloc(obj->u.object.keys, new_capacity * sizeof(char *));
+        if (!new_keys) {
+            return FOSSIL_MEDIA_FSON_ERR_NOMEM;
+        }
+        fossil_media_fson_value_t **new_values = (fossil_media_fson_value_t **)realloc(obj->u.object.values, new_capacity * sizeof(fossil_media_fson_value_t *));
+        if (!new_values) {
+            free(new_keys);
+            return FOSSIL_MEDIA_FSON_ERR_NOMEM;
+        }
+        obj->u.object.keys = new_keys;
+        obj->u.object.values = new_values;
+        obj->u.object.capacity = new_capacity;
+    }
+
+    obj->u.object.keys[obj->u.object.count] = fossil_media_strdup(key);
+    if (!obj->u.object.keys[obj->u.object.count]) {
+        return FOSSIL_MEDIA_FSON_ERR_NOMEM;
+    }
+    obj->u.object.values[obj->u.object.count] = val;
+    obj->u.object.count++;
+
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_object_get(const fossil_media_fson_value_t *obj, const char *key) {
+    if (obj == NULL || obj->type != FSON_TYPE_OBJECT || key == NULL) {
+        return NULL;
+    }
+
+    for (size_t i = 0; i < obj->u.object.count; i++) {
+        if (strcmp(obj->u.object.keys[i], key) == 0) {
+            return obj->u.object.values[i];
+        }
+    }
+
+    return NULL; // Not found
+}
+
+fossil_media_fson_value_t *fossil_media_fson_object_remove(fossil_media_fson_value_t *obj, const char *key) {
+    if (obj == NULL || obj->type != FSON_TYPE_OBJECT || key == NULL) {
+        return NULL;
+    }
+
+    for (size_t i = 0; i < obj->u.object.count; i++) {
+        if (strcmp(obj->u.object.keys[i], key) == 0) {
+            // Found the key, remove it
+            fossil_media_fson_value_t *removed_value = obj->u.object.values[i];
+            free(obj->u.object.keys[i]);
+
+            // Shift remaining elements
+            for (size_t j = i; j < obj->u.object.count - 1; j++) {
+                obj->u.object.keys[j] = obj->u.object.keys[j + 1];
+                obj->u.object.values[j] = obj->u.object.values[j + 1];
+            }
+            obj->u.object.count--;
+
+            return removed_value; // Caller must free this
+        }
+    }
+
+    return NULL; // Not found
+}
+
+int fossil_media_fson_array_append(fossil_media_fson_value_t *arr, fossil_media_fson_value_t *val) {
+    if (arr == NULL || arr->type != FSON_TYPE_ARRAY || val == NULL) {
+        return FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
+    }
+
+    if (arr->u.array.count >= arr->u.array.capacity) {
+        size_t new_capacity = (arr->u.array.capacity == 0) ? 4 : arr->u.array.capacity * 2;
+        fossil_media_fson_value_t **new_items = (fossil_media_fson_value_t **)realloc(arr->u.array.items, new_capacity * sizeof(fossil_media_fson_value_t *));
+        if (!new_items) {
+            return FOSSIL_MEDIA_FSON_ERR_NOMEM;
+        }
+        arr->u.array.items = new_items;
+        arr->u.array.capacity = new_capacity;
+    }
+
+    arr->u.array.items[arr->u.array.count] = val;
+    arr->u.array.count++;
+
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_array_get(const fossil_media_fson_value_t *arr, size_t index) {
+    if (arr == NULL || arr->type != FSON_TYPE_ARRAY || index >= arr->u.array.count) {
+        return NULL;
+    }
+    return arr->u.array.items[index];
+}
+
+size_t fossil_media_fson_array_size(const fossil_media_fson_value_t *arr) {
+    if (arr == NULL || arr->type != FSON_TYPE_ARRAY) {
+        return 0;
+    }
+    return arr->u.array.count;
+}
+
+char *fossil_media_fson_stringify(const fossil_media_fson_value_t *v, int pretty, fossil_media_fson_error_t *err_out) {
+    // Placeholder implementation
+    if (v == NULL) {
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Input value is NULL");
+        }
+        return NULL;
+    }
+
+    // For demonstration, we will just return a fixed string
+    char *result = fossil_media_strdup("FSON_STRINGIFIED_VALUE");
+    if (!result) {
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_ERR_NOMEM;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Memory allocation failed");
+        }
+        return NULL;
+    }
+
+    if (err_out) {
+        err_out->code = FOSSIL_MEDIA_FSON_OK;
+        err_out->position = 0;
+        snprintf(err_out->message, sizeof(err_out->message), "Stringified successfully");
+    }
+    return result;
+}
+
+char *fossil_media_fson_roundtrip(const char *json_text, int pretty, fossil_media_fson_error_t *err_out) {
+    fossil_media_fson_error_t parse_err;
+    fossil_media_fson_value_t *value = fossil_media_fson_parse(json_text, &parse_err);
+    if (!value) {
+        if (err_out) {
+            *err_out = parse_err;
+        }
+        return NULL;
+    }
+
+    char *result = fossil_media_fson_stringify(value, pretty, err_out);
+    fossil_media_fson_free(value);
+    return result;
+}
+
+const char *fossil_media_fson_type_name(fossil_media_fson_type_t t) {
+    switch (t) {
+        case FSON_TYPE_NULL: return "null";
+        case FSON_TYPE_BOOL: return "bool";
+        case FSON_TYPE_I8: return "i8";
+        case FSON_TYPE_I16: return "i16";
+        case FSON_TYPE_I32: return "i32";
+        case FSON_TYPE_I64: return "i64";
+        case FSON_TYPE_U8: return "u8";
+        case FSON_TYPE_U16: return "u16";
+        case FSON_TYPE_U32: return "u32";
+        case FSON_TYPE_U64: return "u64";
+        case FSON_TYPE_F32: return "f32";
+        case FSON_TYPE_F64: return "f64";
+        case FSON_TYPE_OCT: return "oct";
+        case FSON_TYPE_HEX: return "hex";
+        case FSON_TYPE_BIN: return "bin";
+        case FSON_TYPE_CHAR: return "char";
+        case FSON_TYPE_CSTR: return "cstr";
+        case FSON_TYPE_ARRAY: return "array";
+        case FSON_TYPE_OBJECT: return "object";
+        default: return "unknown";
+    }
+}
+
+fossil_media_fson_value_t * fossil_media_fson_clone(const fossil_media_fson_value_t *src) {
+    if (src == NULL) {
+        return NULL;
+    }
+
+    fossil_media_fson_value_t *copy = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
+    if (!copy) {
+        return NULL;
+    }
+
+    copy->type = src->type;
+
+    switch (src->type) {
+        case FSON_TYPE_NULL:
+            // No value to copy
+            break;
+        case FSON_TYPE_BOOL:
+            copy->u.boolean = src->u.boolean;
+            break;
+        case FSON_TYPE_I8:
+            copy->u.i8 = src->u.i8;
+            break;
+        case FSON_TYPE_I16:
+            copy->u.i16 = src->u.i16;
+            break;
+        case FSON_TYPE_I32:
+            copy->u.i32 = src->u.i32;
+            break;
+        case FSON_TYPE_I64:
+            copy->u.i64 = src->u.i64;
+            break;
+        case FSON_TYPE_U8:
+            copy->u.u8 = src->u.u8;
+            break;
+        case FSON_TYPE_U16:
+            copy->u.u16 = src->u.u16;
+            break;
+        case FSON_TYPE_U32:
+            copy->u.u32 = src->u.u32;
+            break;
+        case FSON_TYPE_U64:
+            copy->u.u64 = src->u.u64;
+            break;
+        case FSON_TYPE_F32:
+            copy->u.f32 = src->u.f32;
+            break;
+        case FSON_TYPE_F64:
+            copy->u.f64 = src->u.f64;
+            break;
+        case FSON_TYPE_OCT:
+            copy->u.oct = src->u.oct;
+            break;
+        case FSON_TYPE_HEX:
+            copy->u.hex = src->u.hex;
+            break;
+        case FSON_TYPE_BIN:
+            copy->u.bin = src->u.bin;
+            break;
+        case FSON_TYPE_CHAR:
+            copy->u.character = src->u.character;
+            break;
+        case FSON_TYPE_CSTR:
+            if (src->u.cstr) {
+                copy->u.cstr = fossil_media_strdup(src->u.cstr);
+                if (!copy->u.cstr) {
+                    free(copy);
+                    return NULL;
+                }
+            } else {
+                copy->u.cstr = NULL;
+            }
+            break;
+    }
+
+    return copy;
+}
+
+int fossil_media_fson_equals(const fossil_media_fson_value_t *a, const fossil_media_fson_value_t *b) {
+    if (a == NULL || b == NULL) {
+        return -1; // Error
+    }
+    if (a->type != b->type) {
+        return 0; // Not equal
+    }
+
+    switch (a->type) {
+        case FSON_TYPE_NULL:
+            return 1; // Both are null
+        case FSON_TYPE_BOOL:
+            return (a->u.boolean == b->u.boolean) ? 1 : 0;
+        case FSON_TYPE_I8:
+            return (a->u.i8 == b->u.i8) ? 1 : 0;
+        case FSON_TYPE_I16:
+            return (a->u.i16 == b->u.i16) ? 1 : 0;
+        case FSON_TYPE_I32:
+            return (a->u.i32 == b->u.i32) ? 1 : 0;
+        case FSON_TYPE_I64:
+            return (a->u.i64 == b->u.i64) ? 1 : 0;
+        case FSON_TYPE_U8:
+            return (a->u.u8 == b->u.u8) ? 1 : 0;
+        case FSON_TYPE_U16:
+            return (a->u.u16 == b->u.u16) ? 1 : 0;
+        case FSON_TYPE_U32:
+            return (a->u.u32 == b->u.u32) ? 1 : 0;
+        case FSON_TYPE_U64:
+            return (a->u.u64 == b->u.u64) ? 1 : 0;
+        case FSON_TYPE_F32:
+            return (a->u.f32 == b->u.f32) ? 1 : 0;
+        case FSON_TYPE_F64:
+            return (a->u.f64 == b->u.f64) ? 1 : 0;
+        case FSON_TYPE_OCT:
+            return (a->u.oct == b->u.oct) ? 1 : 0;
+        case FSON_TYPE_HEX:
+            return (a->u.hex == b->u.hex) ? 1 : 0;
+        case FSON_TYPE_BIN:
+            return (a->u.bin == b->u.bin) ? 1 : 0;
+        case FSON_TYPE_CHAR:
+            return (a->u.character == b->u.character) ? 1 : 0;
+        case FSON_TYPE_CSTR:
+            if (a->u.cstr == NULL && b->u.cstr == NULL) {
+                return 1; // Both NULL
+            }
+            if (a->u.cstr == NULL || b->u.cstr == NULL) {
+                return 0; // One is NULL, the other is not
+            }
+            return (strcmp(a->u.cstr, b->u.cstr) == 0) ? 1 : 0;
+        case FSON_TYPE_ARRAY:
+            if (a->u.array.count != b->u.array.count) {
+                return 0; // Different sizes
+            }
+            for (size_t i = 0; i < a->u.array.count; i++) {
+                int eq = fossil_media_fson_equals(a->u.array.items[i], b->u.array.items[i]);
+                if (eq != 1) {
+                    return eq; // Not equal or error
+                }
+            }
+            return 1; // All items equal
+        case FSON_TYPE_OBJECT:
+            if (a->u.object.count != b->u.object.count) {
+                return 0; // Different sizes
+            }
+            for (size_t i = 0; i < a->u.object.count; i++) {
+                const char *key = a->u.object.keys[i];
+                fossil_media_fson_value_t *val_a = a->u.object.values[i];
+                fossil_media_fson_value_t *val_b = fossil_media_fson_object_get(b, key);
+                if (val_b == NULL) {
+                    return 0; // Key not found in b
+                }
+                int eq = fossil_media_fson_equals(val_a, val_b);
+                if (eq != 1) {
+                    return eq; // Not equal or error
+                }
+            }
+            return 1; // All key/value pairs equal
+        default:
+            return -1; // Unknown type, error
+    }
+}
+
+
+int fossil_media_fson_is_null(const fossil_media_fson_value_t *v) {
+    return (v != NULL && v->type == FSON_TYPE_NULL) ? 1 : 0;
+}
+
+int fossil_media_fson_is_array(const fossil_media_fson_value_t *v) {
+    return (v != NULL && v->type == FSON_TYPE_ARRAY) ? 1 : 0;
+}
+
+int fossil_media_fson_is_object(const fossil_media_fson_value_t *v) {
+    return (v != NULL && v->type == FSON_TYPE_OBJECT) ? 1 : 0;
+}
+
+int fossil_media_fson_array_reserve(fossil_media_fson_value_t *arr, size_t capacity) {
+    if (arr == NULL || arr->type != FSON_TYPE_ARRAY) {
+        return FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
+    }
+
+    if (capacity <= arr->u.array.capacity) {
+        return FOSSIL_MEDIA_FSON_OK; // Already has enough capacity
+    }
+
+    fossil_media_fson_value_t **new_items = (fossil_media_fson_value_t **)realloc(arr->u.array.items, capacity * sizeof(fossil_media_fson_value_t *));
+    if (!new_items) {
+        return FOSSIL_MEDIA_FSON_ERR_NOMEM;
+    }
+
+    arr->u.array.items = new_items;
+    arr->u.array.capacity = capacity;
+
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_object_reserve(fossil_media_fson_value_t *obj, size_t capacity) {
+    if (obj == NULL || obj->type != FSON_TYPE_OBJECT) {
+        return FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
+    }
+
+    if (capacity <= obj->u.object.capacity) {
+        return FOSSIL_MEDIA_FSON_OK; // Already has enough capacity
+    }
+
+    char **new_keys = (char **)realloc(obj->u.object.keys, capacity * sizeof(char *));
+    if (!new_keys) {
+        return FOSSIL_MEDIA_FSON_ERR_NOMEM;
+    }
+    fossil_media_fson_value_t **new_values = (fossil_media_fson_value_t **)realloc(obj->u.object.values, capacity * sizeof(fossil_media_fson_value_t *));
+    if (!new_values) {
+        free(new_keys);
+        return FOSSIL_MEDIA_FSON_ERR_NOMEM;
+    }
+
+    obj->u.object.keys = new_keys;
+    obj->u.object.values = new_values;
+    obj->u.object.capacity = capacity;
+
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+fossil_media_fson_value_t *fossil_media_fson_parse_file(const char *filename, fossil_media_fson_error_t *err_out) {
+    if (filename == NULL) {
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Filename is NULL");
+        }
+        return NULL;
+    }
+
+    FILE *file = fopen(filename, "rb");
+    if (!file) {
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_ERR_IO;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Failed to open file: %s", filename);
+        }
+        return NULL;
+    }
+
+    fseek(file, 0, SEEK_END);
+    long file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    if (file_size < 0) {
+        fclose(file);
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_ERR_IO;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Failed to determine file size: %s", filename);
+        }
+        return NULL;
+    }
+
+    char *buffer = (char *)malloc(file_size + 1);
+    if (!buffer) {
+        fclose(file);
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_ERR_NOMEM;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Memory allocation failed");
+        }
+        return NULL;
+    }
+
+    size_t read_size = fread(buffer, 1, file_size, file);
+    fclose(file);
+
+    if (read_size != (size_t)file_size) {
+        free(buffer);
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_ERR_IO;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Failed to read entire file: %s", filename);
+        }
+        return NULL;
+    }
+
+    buffer[file_size] = '\0'; // Null-terminate
+
+    fossil_media_fson_value_t *value = fossil_media_fson_parse(buffer, err_out);
+    free(buffer);
+    return value;
+}
+
+int fossil_media_fson_write_file(const fossil_media_fson_value_t *v, const char *filename, int pretty, fossil_media_fson_error_t *err_out) {
+    if (v == NULL || filename == NULL) {
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Invalid argument");
+        }
+        return FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
+    }
+
+    char *json_text = fossil_media_fson_stringify(v, pretty, err_out);
+    if (!json_text) {
+        return err_out ? err_out->code : FOSSIL_MEDIA_FSON_ERR_NOMEM;
+    }
+
+    FILE *file = fopen(filename, "wb");
+    if (!file) {
+        free(json_text);
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_ERR_IO;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Failed to open file: %s", filename);
+        }
+        return FOSSIL_MEDIA_FSON_ERR_IO;
+    }
+
+    size_t write_size = fwrite(json_text, 1, strlen(json_text), file);
+    fclose(file);
+    free(json_text);
+
+    if (write_size != strlen(json_text)) {
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_ERR_IO;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Failed to write entire file: %s", filename);
+        }
+        return FOSSIL_MEDIA_FSON_ERR_IO;
+    }
+
+    if (err_out) {
+        err_out->code = FOSSIL_MEDIA_FSON_OK;
+        err_out->position = 0;
+        snprintf(err_out->message, sizeof(err_out->message), "File written successfully");
+    }
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_int(const fossil_media_fson_value_t *v, long long *out) {
+    if (v == NULL || out == NULL) {
+        return FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
+    }
+    if (v->type != FSON_TYPE_I8 && v->type != FSON_TYPE_I16 && v->type != FSON_TYPE_I32 && v->type != FSON_TYPE_I64 &&
+        v->type != FSON_TYPE_U8 && v->type != FSON_TYPE_U16 && v->type != FSON_TYPE_U32 && v->type != FSON_TYPE_U64 &&
+        v->type != FSON_TYPE_F32 && v->type != FSON_TYPE_F64) {
+        return FOSSIL_MEDIA_FSON_ERR_TYPE; // Not a number
+    }
+
+    switch (v->type) {
+        case FSON_TYPE_I8:
+            *out = (long long)v->u.i8;
+            break;
+        case FSON_TYPE_I16:
+            *out = (long long)v->u.i16;
+            break;
+        case FSON_TYPE_I32:
+            *out = (long long)v->u.i32;
+            break;
+        case FSON_TYPE_I64:
+            *out = v->u.i64;
+            break;
+        case FSON_TYPE_U8:
+            *out = (long long)v->u.u8;
+            break;
+        case FSON_TYPE_U16:
+            *out = (long long)v->u.u16;
+            break;
+        case FSON_TYPE_U32:
+            *out = (long long)v->u.u32;
+            break;
+        case FSON_TYPE_U64:
+            if (v->u.u64 > LLONG_MAX) {
+                return FOSSIL_MEDIA_FSON_ERR_RANGE; // Out of range
+            }
+            *out = (long long)v->u.u64;
+            break;
+        case FSON_TYPE_F32:
+            if (v->u.f32 < LLONG_MIN || v->u.f32 > LLONG_MAX) {
+                return FOSSIL_MEDIA_FSON_ERR_RANGE; // Out of range
+            }
+            *out = (long long)v->u.f32;
+            break;
+        case FSON_TYPE_F64:
+            if (v->u.f64 < LLONG_MIN || v->u.f64 > LLONG_MAX) {
+                return FOSSIL_MEDIA_FSON_ERR_RANGE; // Out of range
+            }
+            *out = (long long)v->u.f64;
+            break;
+        default:
+            return FOSSIL_MEDIA_FSON_ERR_TYPE; // Should not reach here
+    }
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_i8(const fossil_media_fson_value_t *v, int8_t *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_I8) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.i8;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_i16(const fossil_media_fson_value_t *v, int16_t *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_I16) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.i16;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_i32(const fossil_media_fson_value_t *v, int32_t *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_I32) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.i32;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_i64(const fossil_media_fson_value_t *v, int64_t *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_I64) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.i64;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_u8(const fossil_media_fson_value_t *v, uint8_t *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_U8) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.u8;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_u16(const fossil_media_fson_value_t *v, uint16_t *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_U16) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.u16;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_u32(const fossil_media_fson_value_t *v, uint32_t *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_U32) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.u32;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_u64(const fossil_media_fson_value_t *v, uint64_t *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_U64) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.u64;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_f32(const fossil_media_fson_value_t *v, float *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_F32) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.f32;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_f64(const fossil_media_fson_value_t *v, double *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_F64) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.f64;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_oct(const fossil_media_fson_value_t *v, uint64_t *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_OCT) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.oct;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_hex(const fossil_media_fson_value_t *v, uint64_t *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_HEX) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.hex;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_bin(const fossil_media_fson_value_t *v, uint64_t *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_BIN) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.bin;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_char(const fossil_media_fson_value_t *v, char *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_CHAR) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.character;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_bool(const fossil_media_fson_value_t *v, int *out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_BOOL) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.boolean;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+int fossil_media_fson_get_cstr(const fossil_media_fson_value_t *v, char **out) {
+    if (v == NULL || out == NULL || v->type != FSON_TYPE_CSTR) return FOSSIL_MEDIA_FSON_ERR_TYPE;
+    *out = v->u.cstr;
+    return FOSSIL_MEDIA_FSON_OK;
+}
+
+void fossil_media_fson_debug_dump(const fossil_media_fson_value_t *v, int indent) {
+    if (v == NULL) {
+        printf("%*s<null>\n", indent, "");
+        return;
+    }
+
+    switch (v->type) {
+        case FSON_TYPE_NULL:
+            printf("%*snull\n", indent, "");
+            break;
+        case FSON_TYPE_BOOL:
+            printf("%*sbool: %s\n", indent, "", v->u.boolean ? "true" : "false");
+            break;
+        case FSON_TYPE_I8:
+            printf("%*si8: %d\n", indent, "", v->u.i8);
+            break;
+        case FSON_TYPE_I16:
+            printf("%*si16: %d\n", indent, "", v->u.i16);
+            break;
+        case FSON_TYPE_I32:
+            printf("%*si32: %d\n", indent, "", v->u.i32);
+            break;
+        case FSON_TYPE_I64:
+            printf("%*si64: %lld\n", indent, "", (long long)v->u.i64);
+            break;
+        case FSON_TYPE_U8:
+            printf("%*su8: %u\n", indent, "", v->u.u8);
+            break;
+        case FSON_TYPE_U16:
+            printf("%*su16: %u\n", indent, "", v->u.u16);
+            break;
+        case FSON_TYPE_U32:
+            printf("%*su32: %u\n", indent, "", v->u.u32);
+            break;
+        case FSON_TYPE_U64:
+            printf("%*su64: %llu\n", indent, "", (unsigned long long)v->u.u64);
+            break;
+        case FSON_TYPE_F32:
+            printf("%*sf32: %f\n", indent, "", v->u.f32);
+            break;
+        case FSON_TYPE_F64:
+            printf("%*sf64: %f\n", indent, "", v->u.f64);
+            break;
+        case FSON_TYPE_OCT:
+            printf("%*soct: 0%llo\n", indent, "", (unsigned long long)v->u.oct);
+            break;
+        case FSON_TYPE_HEX:
+            printf("%*shex: 0x%llx\n", indent, "", (unsigned long long)v->u.hex);
+            break;
+        case FSON_TYPE_BIN:
+            printf("%*sbin: %llu (binary as decimal)\n", indent, "", (unsigned long long)v->u.bin);
+            break;
+        case FSON_TYPE_CHAR:
+            printf("%*schar: '%c' (%d)\n", indent, "", v->u.character, v->u.character);
+            break;
+        case FSON_TYPE_CSTR:
+            printf("%*scstr: \"%s\"\n", indent, "", v->u.cstr ? v->u.cstr : "(null)");
+            break;
+        case FSON_TYPE_ARRAY:
+            printf("%*sarray: [\n", indent, "");
+            for (size_t i = 0; i < v->u.array.count; i++) {
+                fossil_media_fson_debug_dump(v->u.array.items[i], indent + 2);
+            }
+            printf("%*s]\n", indent, "");
+            break;
+        case FSON_TYPE_OBJECT:
+            printf("%*sobject: {\n", indent, "");
+            for (size_t i = 0; i < v->u.object.count; i++) {
+                printf("%*s\"%s\": ", indent + 2, "", v->u.object.keys[i]);
+                fossil_media_fson_debug_dump(v->u.object.values[i], indent + 2);
+            }
+            printf("%*s}\n", indent, "");
+            break;
+        default:
+            printf("%*s<unknown type>\n", indent, "");
+            break;
+    }
+}
+
+int fossil_media_fson_validate(const char *json_text, fossil_media_fson_error_t *err_out) {
+    fossil_media_fson_error_t parse_err;
+    fossil_media_fson_value_t *value = fossil_media_fson_parse(json_text, &parse_err);
+    if (value) {
+        fossil_media_fson_free(value);
+        if (err_out) {
+            err_out->code = FOSSIL_MEDIA_FSON_OK;
+            err_out->position = 0;
+            snprintf(err_out->message, sizeof(err_out->message), "Valid FSON");
+        }
+        return 0; // Valid
+    } else {
+        if (err_out) {
+            *err_out = parse_err;
+        }
+        return parse_err.code != FOSSIL_MEDIA_FSON_OK ? parse_err.code : -1; // Invalid
+    }
+}
+
+fossil_media_fson_value_t * fossil_media_fson_get_path(const fossil_media_fson_value_t *root, const char *path) {
+    if (root == NULL || path == NULL) {
+        return NULL;
+    }
+
+    const fossil_media_fson_value_t *current = root;
+    const char *p = path;
+
+    while (*p) {
+        // Skip whitespace
+        while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') {
+            p++;
+        }
+
+        // Handle object key
+        if (*p != '.' && *p != '[' && *p != '\0') {
+            const char *key_start = p;
+            while (*p && *p != '.' && *p != '[') {
+                p++;
+            }
+            size_t key_len = p - key_start;
+            char *key = (char *)malloc(key_len + 1);
+            if (!key) {
+                return NULL; // Memory allocation failure
+            }
+            strncpy(key, key_start, key_len);
+            key[key_len] = '\0';
+
+            if (current->type != FSON_TYPE_OBJECT) {
+                free(key);
+                return NULL; // Not an object
+            }
+
+            current = fossil_media_fson_object_get(current, key);
+            free(key);
+            if (current == NULL) {
+                return NULL; // Key not found
+            }
+        }
+
+        // Handle array index
+        if (*p == '[') {
+            p++; // Skip '['
+            char *endptr;
+            long index = strtol(p, &endptr, 10);
+            if (endptr == p || *endptr != ']') {
+                return NULL; // Invalid index
+            }
+            p = endptr + 1; // Skip ']'
+
+            if (current->type != FSON_TYPE_ARRAY) {
+                return NULL; // Not an array
+            }
+
+            if (index < 0 || (size_t)index >= current->u.array.count) {
+                return NULL; // Index out of bounds
+            }
+
+            current = current->u.array.items[index];
+        }
+
+        // Skip dot
+        if (*p == '.') {
+            p++;
+        }
+    }
+
+    return (fossil_media_fson_value_t *)current; // Cast away constness for return type
 }
