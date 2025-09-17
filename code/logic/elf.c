@@ -80,8 +80,7 @@ const uint8_t FOSSIL_MEDIA_ELF_BUILTIN_BLOB[] = {
     0x90
 };
 
-const size_t FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE =
-    sizeof(FOSSIL_MEDIA_ELF_BUILTIN_BLOB);
+const size_t FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE = sizeof(FOSSIL_MEDIA_ELF_BUILTIN_BLOB);
 
 /* Minimal on-disk ELF64 structures (packed-like representation).
    We'll never assume host layout/align — we memcpy into these. */
