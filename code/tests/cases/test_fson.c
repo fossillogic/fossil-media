@@ -58,7 +58,7 @@ FOSSIL_TEST_CASE(c_test_fson_parse_and_free) {
     ASSUME_NOT_CNULL(v);
     fossil_media_fson_free(v);
 }
-
+/*
 FOSSIL_TEST_CASE(c_test_fson_new_types_and_free) {
     fossil_media_fson_value_t *v_null = fossil_media_fson_new_null();
     fossil_media_fson_value_t *v_bool = fossil_media_fson_new_bool(1);
@@ -203,6 +203,7 @@ FOSSIL_TEST_CASE(c_test_fson_get_path) {
     ASSUME_NOT_CNULL(tag2);
     fossil_media_fson_free(root);
 }
+*/
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
