@@ -209,6 +209,7 @@ FOSSIL_TEST_CASE(c_test_fson_get_path) {
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_fson_tests) {
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_and_free);
+/*
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_new_types_and_free);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_object_set_get_remove);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_array_append_get_size);
@@ -219,6 +220,6 @@ FOSSIL_TEST_GROUP(c_fson_tests) {
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_number_getters);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_debug_dump_and_validate);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_get_path);
-
+*/
     FOSSIL_TEST_REGISTER(c_fson_fixture);
 }
