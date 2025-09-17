@@ -895,6 +895,70 @@ fossil_media_fson_value_t * fossil_media_fson_clone(const fossil_media_fson_valu
                 copy->u.cstr = NULL;
             }
             break;
+        case FSON_TYPE_ARRAY:
+            copy->u.array.count = src->u.array.count;
+            copy->u.array.values = NULL;
+
+            if (src->u.array.count > 0) {
+                copy->u.array.values = malloc(sizeof(fossil_media_fson_value_t*) * src->u.array.count);
+                if (!copy->u.array.values) {
+                    free(copy);
+                    return NULL;
+                }
+
+                for (size_t i = 0; i < src->u.array.count; i++) {
+                    copy->u.array.values[i] = fossil_media_fson_clone(src->u.array.values[i]);
+                    if (!copy->u.array.values[i]) {
+                        // Rollback on failure
+                        for (size_t j = 0; j < i; j++) {
+                            fossil_media_fson_free(copy->u.array.values[j]);
+                        }
+                        free(copy->u.array.values);
+                        free(copy);
+                        return NULL;
+                    }
+                }
+            }
+            break;
+
+        case FSON_TYPE_OBJECT:
+            copy->u.object.count = src->u.object.count;
+            copy->u.object.entries = NULL;
+
+            if (src->u.object.count > 0) {
+                copy->u.object.entries = malloc(sizeof(fson_object_entry_t) * src->u.object.count);
+                if (!copy->u.object.entries) {
+                    free(copy);
+                    return NULL;
+                }
+
+                for (size_t i = 0; i < src->u.object.count; i++) {
+                    copy->u.object.entries[i].key = fossil_media_strdup(src->u.object.entries[i].key);
+                    if (!copy->u.object.entries[i].key) {
+                        // Rollback on failure
+                        for (size_t j = 0; j < i; j++) {
+                            free(copy->u.object.entries[j].key);
+                            fossil_media_fson_free(copy->u.object.entries[j].value);
+                        }
+                        free(copy->u.object.entries);
+                        free(copy);
+                        return NULL;
+                    }
+
+                    copy->u.object.entries[i].value = fossil_media_fson_clone(src->u.object.entries[i].value);
+                    if (!copy->u.object.entries[i].value) {
+                        free(copy->u.object.entries[i].key);
+                        for (size_t j = 0; j < i; j++) {
+                            free(copy->u.object.entries[j].key);
+                            fossil_media_fson_free(copy->u.object.entries[j].value);
+                        }
+                        free(copy->u.object.entries);
+                        free(copy);
+                        return NULL;
+                    }
+                }
+            }
+            break;
     }
 
     return copy;
