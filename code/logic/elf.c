@@ -340,7 +340,7 @@ int fossil_media_elf_load_from_file(const char *path, fossil_media_elf_t **out) 
 int fossil_media_elf_load_from_memory(const void *buf_in, size_t len, fossil_media_elf_t **out) {
     if (!buf_in || !out) return FOSSIL_MEDIA_ELF_ERR_INVALID_ARG;
     /* make a non-owning mutable pointer to pass into parse routine (we won't free) */
-    uint8_t *buf = (uint8_t*)(uintptr_t)buf_in;
+    uint8_t *buf = (uint8_t *)buf_in;
     return parse_elf_from_buffer(buf, len, out, 0);
 }
 
@@ -353,7 +353,11 @@ void fossil_media_elf_free(fossil_media_elf_t *elf) {
 
 /* API helpers: these read from our host-endian shdr array */
 int fossil_media_elf_get_section_count(const fossil_media_elf_t *elf, size_t *out_count) {
-    if (!elf || !out_count) return FOSSIL_MEDIA_ELF_ERR_INVALID_ARG;
+    if (!out_count) return FOSSIL_MEDIA_ELF_ERR_INVALID_ARG;
+    if (!elf) {
+        *out_count = 0;
+        return FOSSIL_MEDIA_ELF_ERR_INVALID_ARG;
+    }
     *out_count = elf->sh_count;
     return FOSSIL_MEDIA_ELF_OK;
 }
@@ -386,6 +390,10 @@ int fossil_media_elf_get_section_name(const fossil_media_elf_t *elf, size_t inde
     if ((size_t)s->sh_name >= elf->shstrtab_size)
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT; /* out of range */
 
+    /* Additional bounds check: s->sh_name must not exceed shstrtab_size - 1 */
+    if (elf->shstrtab == NULL || s->sh_name > elf->shstrtab_size - 1)
+        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
+
     const char *name = elf->shstrtab + s->sh_name;
 
     /* Ensure it's NUL-terminated within the table */
@@ -406,8 +414,12 @@ int fossil_media_elf_get_section_data(const fossil_media_elf_t *elf, size_t inde
 
     Elf64_Shdr_on_disk *s = &elf->shdrs[index];
 
-    /* bounds check */
-    if ((size_t)s->sh_offset + (size_t)s->sh_size > elf->size)
+    /* bounds check with overflow protection */
+    size_t section_end;
+    if (s->sh_size != 0 && s->sh_offset > SIZE_MAX - s->sh_size)
+        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
+    section_end = (size_t)s->sh_offset + (size_t)s->sh_size;
+    if (section_end > elf->size)
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
 
     if (!elf->base_ptr)
@@ -423,8 +435,9 @@ int fossil_media_elf_find_section_by_name(const fossil_media_elf_t *elf, const c
     if (!elf || !name || !out_index) return FOSSIL_MEDIA_ELF_ERR_INVALID_ARG;
     for (size_t i = 0; i < elf->sh_count; ++i) {
         const char *sname = NULL;
-        if (fossil_media_elf_get_section_name(elf, i, &sname) != FOSSIL_MEDIA_ELF_OK) continue;
-        if (sname && strcmp(sname, name) == 0) {
+        int rc = fossil_media_elf_get_section_name(elf, i, &sname);
+        if (rc != FOSSIL_MEDIA_ELF_OK || !sname) continue;
+        if (strcmp(sname, name) == 0) {
             *out_index = i;
             return FOSSIL_MEDIA_ELF_OK;
         }
@@ -443,7 +456,12 @@ int fossil_media_elf_extract_section_to_file(const fossil_media_elf_t *elf, size
     if (!f) return FOSSIL_MEDIA_ELF_ERR_IO;
     size_t w = fwrite(ptr, 1, len, f);
     fclose(f);
-    if (w != len) return FOSSIL_MEDIA_ELF_ERR_IO;
+    f = NULL;
+    if (w != len) {
+        /* Optionally remove incomplete file */
+        remove(out_path);
+        return FOSSIL_MEDIA_ELF_ERR_IO;
+    }
     return FOSSIL_MEDIA_ELF_OK;
 }
 
@@ -478,12 +496,12 @@ void fossil_media_elf_dump(const fossil_media_elf_t *elf, FILE *out) {
         size_t len = 0;
 
         int rc_name = fossil_media_elf_get_section_name(elf, i, &name);
-        fossil_media_elf_get_section_data(elf, i, &ptr, &len);
+        int rc_data = fossil_media_elf_get_section_data(elf, i, &ptr, &len);
 
         fprintf(out, "  [%02zu] %-20s size=%zu%s\n",
                 i,
                 (rc_name == FOSSIL_MEDIA_ELF_OK ? name : "<invalid>"),
-                len,
-                (ptr ? "" : " (no data)"));
+                (rc_data == FOSSIL_MEDIA_ELF_OK ? len : 0),
+                (rc_data == FOSSIL_MEDIA_ELF_OK ? "" : " (no data)"));
     }
 }
