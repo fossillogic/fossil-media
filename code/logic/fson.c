@@ -254,7 +254,6 @@ fossil_media_fson_value_t *fossil_media_fson_parse(const char *json_text, fossil
             } else {
                 // Unknown type
                 free(key);
-                free(type);
                 fossil_media_fson_free(obj);
                 if (err_out) {
                     err_out->code = FOSSIL_MEDIA_FSON_ERR_PARSE;
