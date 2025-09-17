@@ -57,6 +57,7 @@ FOSSIL_TEST_CASE(cpp_test_elf_is_elf_short_buffer) {
 
 FOSSIL_TEST_CASE(cpp_test_elf_load_builtin_blob) {
     Elf elf;
+    // Should successfully load a minimal ELF64 file with .text section
     ASSUME_ITS_TRUE(elf.load_memory(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
                                     FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE));
     ASSUME_ITS_TRUE(elf.is_loaded());
