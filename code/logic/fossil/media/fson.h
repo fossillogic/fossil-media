@@ -158,19 +158,102 @@ fossil_media_fson_value_t *fossil_media_fson_new_null(void);
  */
 fossil_media_fson_value_t *fossil_media_fson_new_bool(int b);
 
+/**
+ * @brief Create a FSON int8 value.
+ * @param value int8_t value.
+ * @return Newly allocated FSON int8 value, or NULL if allocation fails.
+ */
 fossil_media_fson_value_t *fossil_media_fson_new_i8(int8_t value);
+
+/**
+ * @brief Create a FSON int16 value.
+ * @param value int16_t value.
+ * @return Newly allocated FSON int16 value, or NULL if allocation fails.
+ */
 fossil_media_fson_value_t *fossil_media_fson_new_i16(int16_t value);
+
+/**
+ * @brief Create a FSON int32 value.
+ * @param value int32_t value.
+ * @return Newly allocated FSON int32 value, or NULL if allocation fails.
+ */
 fossil_media_fson_value_t *fossil_media_fson_new_i32(int32_t value);
+
+/**
+ * @brief Create a FSON int64 value.
+ * @param value int64_t value.
+ * @return Newly allocated FSON int64 value, or NULL if allocation fails.
+ */
 fossil_media_fson_value_t *fossil_media_fson_new_i64(int64_t value);
+
+/**
+ * @brief Create a FSON uint8 value.
+ * @param value uint8_t value.
+ * @return Newly allocated FSON uint8 value, or NULL if allocation fails.
+ */
 fossil_media_fson_value_t *fossil_media_fson_new_u8(uint8_t value);
+
+/**
+ * @brief Create a FSON uint16 value.
+ * @param value uint16_t value.
+ * @return Newly allocated FSON uint16 value, or NULL if allocation fails.
+ */
 fossil_media_fson_value_t *fossil_media_fson_new_u16(uint16_t value);
+
+/**
+ * @brief Create a FSON uint32 value.
+ * @param value uint32_t value.
+ * @return Newly allocated FSON uint32 value, or NULL if allocation fails.
+ */
 fossil_media_fson_value_t *fossil_media_fson_new_u32(uint32_t value);
+
+/**
+ * @brief Create a FSON uint64 value.
+ * @param value uint64_t value.
+ * @return Newly allocated FSON uint64 value, or NULL if allocation fails.
+ */
 fossil_media_fson_value_t *fossil_media_fson_new_u64(uint64_t value);
+
+/**
+ * @brief Create a FSON float32 value.
+ * @param value float value.
+ * @return Newly allocated FSON float32 value, or NULL if allocation fails.
+ */
 fossil_media_fson_value_t *fossil_media_fson_new_f32(float value);
+
+/**
+ * @brief Create a FSON float64 value.
+ * @param value double value.
+ * @return Newly allocated FSON float64 value, or NULL if allocation fails.
+ */
 fossil_media_fson_value_t *fossil_media_fson_new_f64(double value);
+
+/**
+ * @brief Create a FSON octal value.
+ * @param value uint64_t value.
+ * @return Newly allocated FSON octal value, or NULL if allocation fails.
+ */
 fossil_media_fson_value_t *fossil_media_fson_new_oct(uint64_t value);
+
+/**
+ * @brief Create a FSON hexadecimal value.
+ * @param value uint64_t value.
+ * @return Newly allocated FSON hexadecimal value, or NULL if allocation fails.
+ */
 fossil_media_fson_value_t *fossil_media_fson_new_hex(uint64_t value);
+
+/**
+ * @brief Create a FSON binary value.
+ * @param value uint64_t value.
+ * @return Newly allocated FSON binary value, or NULL if allocation fails.
+ */
 fossil_media_fson_value_t *fossil_media_fson_new_bin(uint64_t value);
+
+/**
+ * @brief Create a FSON char value.
+ * @param value char value.
+ * @return Newly allocated FSON char value, or NULL if allocation fails.
+ */
 fossil_media_fson_value_t *fossil_media_fson_new_char(char value);
 
 /**
