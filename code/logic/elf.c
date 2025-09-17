@@ -40,46 +40,56 @@
   #include <unistd.h>
 #endif
 
-/* Minimal ELF64 file with a single .text section (does nothing) */
-const uint8_t FOSSIL_MEDIA_ELF_BUILTIN_BLOB[] = {
-    /* ELF Header */
-    0x7f,'E','L','F',  /* Magic */
-    2,     /* EI_CLASS = 64-bit */
-    1,     /* EI_DATA = little endian */
-    1,     /* EI_VERSION = current */
-    0,     /* EI_OSABI = System V */
-    0,0,0,0,0,0,0, /* EI_PAD */
-    /* e_type=ET_REL (1), e_machine=EM_X86_64 (0x3E), e_version=1 */
-    0x01,0x00, 0x3e,0x00, 0x01,0x00,0x00,0x00,
-    /* e_entry=0, e_phoff=0, e_shoff=0x40 (start after header) */
-    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-    0x40,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-    /* e_flags=0, e_ehsize=64, e_phentsize=0, e_phnum=0 */
-    0x00,0x00,0x00,0x00, 0x40,0x00, 0x00,0x00, 0x00,0x00,
-    /* e_shentsize=64, e_shnum=3, e_shstrndx=1 */
-    0x40,0x00, 0x03,0x00, 0x01,0x00,
-    /* Section headers (3 total): NULL, .shstrtab, .text */
-    /* NULL */
-    0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0,0,0,0,0,0,0,0,
-    0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
-    /* .shstrtab (name=1) */
-    0x01,0x00,0x00,0x00, 0x03,0x00,0x00,0x00, 0,0,0,0,0,0,0,0,
-    0xC0,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  /* offset=0xC0 */
-    0x11,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  /* size=17 */
-    0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
-    /* .text (name=11) */
-    0x0b,0x00,0x00,0x00, 0x01,0x00,0x00,0x00, 0,0,0,0,0,0,0,0,
-    0xD1,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  /* offset=0xD1 */
-    0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  /* size=1 byte */
-    0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
-    /* Section header string table (.shstrtab data @ 0xC0) */
-    0x00, '.','s','h','s','t','r','t','a','b',0,
-           '.','t','e','x','t',0,
-    /* .text section data (1 byte NOP) */
-    0x90
+// Provide a minimal valid ELF blob for testing
+const unsigned char FOSSIL_MEDIA_ELF_BUILTIN_BLOB[] = {
+    0x7f, 'E', 'L', 'F', // ELF magic
+    // Minimal ELF header for 32-bit little endian
+    1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // EI_CLASS, EI_DATA, EI_VERSION, etc.
+    2, 0, // e_type
+    3, 0, // e_machine
+    1, 0, 0, 0, // e_version
+    0, 0, 0, 0, // e_entry
+    52, 0, 0, 0, // e_phoff
+    0, 0, 0, 0, // e_shoff (set later)
+    0, 0, 0, 0, // e_flags
+    52, 0, // e_ehsize
+    0, 0, // e_phentsize
+    0, 0, // e_phnum
+    40, 0, // e_shentsize
+    3, 0, // e_shnum (3 sections: NULL, .text, .shstrtab)
+    2, 0, // e_shstrndx (index of .shstrtab)
+    // Section headers start here (offset 0x34)
+    // NULL section header
+    0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
+    // .text section header
+    1,0,0,0, // sh_name (offset 1 in shstrtab)
+    1,0,0,0, // sh_type (PROGBITS)
+    0,0,0,0, // sh_flags
+    0,0,0,0, // sh_addr
+    0xA4,0,0,0, // sh_offset (offset 0xA4)
+    1,0,0,0, // sh_size (1 byte)
+    0,0,0,0, // sh_link
+    0,0,0,0, // sh_info
+    1,0,0,0, // sh_addralign
+    0,0,0,0, // sh_entsize
+    // .shstrtab section header
+    7,0,0,0, // sh_name (offset 7 in shstrtab)
+    3,0,0,0, // sh_type (STRTAB)
+    0,0,0,0, // sh_flags
+    0,0,0,0, // sh_addr
+    0xA5,0,0,0, // sh_offset (offset 0xA5)
+    12,0,0,0, // sh_size (12 bytes)
+    0,0,0,0, // sh_link
+    0,0,0,0, // sh_info
+    1,0,0,0, // sh_addralign
+    0,0,0,0, // sh_entsize
+    // Section data for .text (offset 0xA4)
+    0x90, // NOP
+    // Section data for .shstrtab (offset 0xA5)
+    0x00, // null
+    '.', 't', 'e', 'x', 't', 0x00, // ".text"
+    '.', 's', 'h', 's', 't', 'r', 't', 'a', 'b', 0x00 // ".shstrtab"
 };
-
 const size_t FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE = sizeof(FOSSIL_MEDIA_ELF_BUILTIN_BLOB);
 
 /* Minimal on-disk ELF64 structures (packed-like representation).

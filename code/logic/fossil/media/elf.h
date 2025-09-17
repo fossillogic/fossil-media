@@ -231,7 +231,7 @@ void fossil_media_elf_dump(const fossil_media_elf_t *elf, FILE *out);
  * Can be used with fossil_media_elf_load_from_memory() to verify
  * that the loader works even without disk I/O.
  */
-extern const uint8_t FOSSIL_MEDIA_ELF_BUILTIN_BLOB[];
+extern const unsigned char FOSSIL_MEDIA_ELF_BUILTIN_BLOB[];
 extern const size_t  FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE;
 
 #ifdef __cplusplus
