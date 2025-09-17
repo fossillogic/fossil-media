@@ -583,7 +583,7 @@ void fossil_media_elf_dump(const fossil_media_elf_t *elf, FILE *out) {
         return;
     }
 
-    fprintf(out, "ELF Section Table (%zu sections):\n", count);
+    fprintf(out, "ELF Section Table (%llu sections):\n", (unsigned long long)count);
     for (size_t i = 0; i < count; ++i) {
         const char *name = NULL;
         const uint8_t *ptr = NULL;
@@ -597,10 +597,10 @@ void fossil_media_elf_dump(const fossil_media_elf_t *elf, FILE *out) {
             name = "<NULL>";
         }
 
-        fprintf(out, "  [%02zu] %-20s size=%zu%s\n",
-                i,
+        fprintf(out, "  [%02llu] %-20s size=%llu%s\n",
+                (unsigned long long)i,
                 (rc_name == FOSSIL_MEDIA_ELF_OK ? name : "<invalid>"),
-                (rc_data == FOSSIL_MEDIA_ELF_OK ? len : 0),
+                (unsigned long long)(rc_data == FOSSIL_MEDIA_ELF_OK ? len : 0),
                 (rc_data == FOSSIL_MEDIA_ELF_OK ? "" : " (no data)"));
     }
 }
