@@ -1134,7 +1134,6 @@ int fossil_media_fson_write_file(const fossil_media_fson_value_t *v, const char 
 
     size_t write_size = fwrite(json_text, 1, strlen(json_text), file);
     fclose(file);
-    free(json_text);
 
     if (write_size != strlen(json_text)) {
         if (err_out) {
@@ -1144,6 +1143,7 @@ int fossil_media_fson_write_file(const fossil_media_fson_value_t *v, const char 
         }
         return FOSSIL_MEDIA_FSON_ERR_IO;
     }
+    free(json_text);
 
     if (err_out) {
         err_out->code = FOSSIL_MEDIA_FSON_OK;
