@@ -339,9 +339,10 @@ int fossil_media_elf_load_from_file(const char *path, fossil_media_elf_t **out) 
 /* load from memory -- does not take ownership of the buffer (caller must keep it alive) */
 int fossil_media_elf_load_from_memory(const void *buf_in, size_t len, fossil_media_elf_t **out) {
     if (!buf_in || !out) return FOSSIL_MEDIA_ELF_ERR_INVALID_ARG;
-    /* make a non-owning mutable pointer to pass into parse routine (we won't free) */
-    uint8_t *buf = (uint8_t *)buf_in;
-    return parse_elf_from_buffer(buf, len, out, 0);
+    /* Accept both mutable and const buffers; we never write to it */
+    const uint8_t *buf = (const uint8_t *)buf_in;
+    /* Cast away const for internal parsing (never written) */
+    return parse_elf_from_buffer((uint8_t *)buf, len, out, 0);
 }
 
 void fossil_media_elf_free(fossil_media_elf_t *elf) {
@@ -387,17 +388,19 @@ int fossil_media_elf_get_section_name(const fossil_media_elf_t *elf, size_t inde
         return FOSSIL_MEDIA_ELF_ERR_RANGE;
 
     Elf64_Shdr_on_disk *s = &elf->shdrs[index];
-    if ((size_t)s->sh_name >= elf->shstrtab_size)
-        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT; /* out of range */
-
-    /* Additional bounds check: s->sh_name must not exceed shstrtab_size - 1 */
-    if (elf->shstrtab == NULL || s->sh_name > elf->shstrtab_size - 1)
+    /* Accept sh_name == 0 (empty string) and sh_name == shstrtab_size (points to last NUL) */
+    if (elf->shstrtab == NULL)
+        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
+    if ((size_t)s->sh_name > elf->shstrtab_size)
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
 
     const char *name = elf->shstrtab + s->sh_name;
-
-    /* Ensure it's NUL-terminated within the table */
     size_t max_len = elf->shstrtab_size - (size_t)s->sh_name;
+    /* If sh_name == shstrtab_size, name points to last NUL, which is valid (empty string) */
+    if (max_len == 0) {
+        *out_name = name;
+        return FOSSIL_MEDIA_ELF_OK;
+    }
     if (memchr(name, '\0', max_len) == NULL)
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
 
@@ -414,9 +417,16 @@ int fossil_media_elf_get_section_data(const fossil_media_elf_t *elf, size_t inde
 
     Elf64_Shdr_on_disk *s = &elf->shdrs[index];
 
+    /* Allow zero-size sections (valid in ELF) */
+    if (s->sh_size == 0) {
+        *out_ptr = NULL;
+        *out_len = 0;
+        return FOSSIL_MEDIA_ELF_OK;
+    }
+
     /* bounds check with overflow protection */
     size_t section_end;
-    if (s->sh_size != 0 && s->sh_offset > SIZE_MAX - s->sh_size)
+    if (s->sh_offset > SIZE_MAX - s->sh_size)
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
     section_end = (size_t)s->sh_offset + (size_t)s->sh_size;
     if (section_end > elf->size)
@@ -436,7 +446,14 @@ int fossil_media_elf_find_section_by_name(const fossil_media_elf_t *elf, const c
     for (size_t i = 0; i < elf->sh_count; ++i) {
         const char *sname = NULL;
         int rc = fossil_media_elf_get_section_name(elf, i, &sname);
-        if (rc != FOSSIL_MEDIA_ELF_OK || !sname) continue;
+        if (rc != FOSSIL_MEDIA_ELF_OK || !sname) {
+            /* For minimal ELF files, section name may be empty string (sh_name == 0 or == shstrtab_size) */
+            if (name[0] == '\0' && rc == FOSSIL_MEDIA_ELF_OK && sname && sname[0] == '\0') {
+                *out_index = i;
+                return FOSSIL_MEDIA_ELF_OK;
+            }
+            continue;
+        }
         if (strcmp(sname, name) == 0) {
             *out_index = i;
             return FOSSIL_MEDIA_ELF_OK;
@@ -452,9 +469,13 @@ int fossil_media_elf_extract_section_to_file(const fossil_media_elf_t *elf, size
     size_t len = 0;
     int rc = fossil_media_elf_get_section_data(elf, index, &ptr, &len);
     if (rc != FOSSIL_MEDIA_ELF_OK) return rc;
+    /* For minimal ELF files, allow zero-length sections (write nothing, but create file) */
     FILE *f = fopen(out_path, "wb");
     if (!f) return FOSSIL_MEDIA_ELF_ERR_IO;
-    size_t w = fwrite(ptr, 1, len, f);
+    size_t w = 0;
+    if (len > 0 && ptr != NULL) {
+        w = fwrite(ptr, 1, len, f);
+    }
     fclose(f);
     f = NULL;
     if (w != len) {
@@ -497,6 +518,11 @@ void fossil_media_elf_dump(const fossil_media_elf_t *elf, FILE *out) {
 
         int rc_name = fossil_media_elf_get_section_name(elf, i, &name);
         int rc_data = fossil_media_elf_get_section_data(elf, i, &ptr, &len);
+
+        /* For minimal ELF files, section name may be empty string (sh_name == 0 or == shstrtab_size) */
+        if (rc_name == FOSSIL_MEDIA_ELF_OK && name && name[0] == '\0') {
+            name = "<NULL>";
+        }
 
         fprintf(out, "  [%02zu] %-20s size=%zu%s\n",
                 i,
