@@ -25,6 +25,7 @@
 #include "fossil/media/fson.h"
 #include "fossil/media/media.h"
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -752,9 +753,113 @@ size_t fossil_media_fson_array_size(const fossil_media_fson_value_t *arr) {
     return arr->u.array.count;
 }
 
+/* helper to append to growing buffer */
+static int append_str(char **buf, size_t *len, size_t *cap, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    char temp[256];
+    int needed = vsnprintf(temp, sizeof(temp), fmt, args);
+    va_end(args);
+
+    if (needed < 0) return -1;
+
+    if (*len + (size_t)needed + 1 > *cap) {
+        size_t new_cap = (*cap == 0 ? 128 : *cap * 2);
+        while (new_cap < *len + (size_t)needed + 1) new_cap *= 2;
+        char *new_buf = realloc(*buf, new_cap);
+        if (!new_buf) return -1;
+        *buf = new_buf;
+        *cap = new_cap;
+    }
+
+    memcpy(*buf + *len, temp, (size_t)needed);
+    *len += (size_t)needed;
+    (*buf)[*len] = '\0';
+    return 0;
+}
+
+static int stringify_internal(const fossil_media_fson_value_t *v,
+                              char **buf, size_t *len, size_t *cap,
+                              int pretty, int depth);
+
+static void indent(char **buf, size_t *len, size_t *cap, int depth) {
+    for (int i = 0; i < depth; i++) append_str(buf, len, cap, "  ");
+}
+
+static int stringify_array(const fossil_media_fson_value_t *v,
+                           char **buf, size_t *len, size_t *cap,
+                           int pretty, int depth) {
+    append_str(buf, len, cap, "[");
+    if (pretty && v->u.array.count > 0) append_str(buf, len, cap, "\n");
+
+    for (size_t i = 0; i < v->u.array.count; i++) {
+        if (pretty) indent(buf, len, cap, depth + 1);
+        if (stringify_internal(v->u.array.items[i], buf, len, cap, pretty, depth + 1) != 0)
+            return -1;
+        if (i + 1 < v->u.array.count) append_str(buf, len, cap, pretty ? ",\n" : ",");
+    }
+
+    if (pretty && v->u.array.count > 0) {
+        append_str(buf, len, cap, "\n");
+        indent(buf, len, cap, depth);
+    }
+    append_str(buf, len, cap, "]");
+    return 0;
+}
+
+static int stringify_object(const fossil_media_fson_value_t *v,
+                            char **buf, size_t *len, size_t *cap,
+                            int pretty, int depth) {
+    append_str(buf, len, cap, "{");
+    if (pretty && v->u.object.count > 0) append_str(buf, len, cap, "\n");
+
+    for (size_t i = 0; i < v->u.object.count; i++) {
+        if (pretty) indent(buf, len, cap, depth + 1);
+        append_str(buf, len, cap, "\"%s\":", v->u.object.keys[i]);
+        if (pretty) append_str(buf, len, cap, " ");
+        if (stringify_internal(v->u.object.values[i], buf, len, cap, pretty, depth + 1) != 0)
+            return -1;
+        if (i + 1 < v->u.object.count) append_str(buf, len, cap, pretty ? ",\n" : ",");
+    }
+
+    if (pretty && v->u.object.count > 0) {
+        append_str(buf, len, cap, "\n");
+        indent(buf, len, cap, depth);
+    }
+    append_str(buf, len, cap, "}");
+    return 0;
+}
+
+static int stringify_internal(const fossil_media_fson_value_t *v,
+                              char **buf, size_t *len, size_t *cap,
+                              int pretty, int depth) {
+    switch (v->type) {
+        case FSON_TYPE_NULL: return append_str(buf, len, cap, "null");
+        case FSON_TYPE_BOOL: return append_str(buf, len, cap, v->u.boolean ? "true" : "false");
+        case FSON_TYPE_I8:   return append_str(buf, len, cap, "%d", v->u.i8);
+        case FSON_TYPE_I16:  return append_str(buf, len, cap, "%d", v->u.i16);
+        case FSON_TYPE_I32:  return append_str(buf, len, cap, "%d", v->u.i32);
+        case FSON_TYPE_I64:  return append_str(buf, len, cap, "%lld", (long long)v->u.i64);
+        case FSON_TYPE_U8:   return append_str(buf, len, cap, "%u", v->u.u8);
+        case FSON_TYPE_U16:  return append_str(buf, len, cap, "%u", v->u.u16);
+        case FSON_TYPE_U32:  return append_str(buf, len, cap, "%u", v->u.u32);
+        case FSON_TYPE_U64:  return append_str(buf, len, cap, "%llu", (unsigned long long)v->u.u64);
+        case FSON_TYPE_F32:  return append_str(buf, len, cap, "%g", v->u.f32);
+        case FSON_TYPE_F64:  return append_str(buf, len, cap, "%g", v->u.f64);
+        case FSON_TYPE_OCT:  return append_str(buf, len, cap, "0o%llo", (unsigned long long)v->u.oct);
+        case FSON_TYPE_HEX:  return append_str(buf, len, cap, "0x%llx", (unsigned long long)v->u.hex);
+        case FSON_TYPE_BIN:  return append_str(buf, len, cap, "0b%llu", (unsigned long long)v->u.bin);
+        case FSON_TYPE_CHAR: return append_str(buf, len, cap, "'%c'", v->u.character);
+        case FSON_TYPE_CSTR: return append_str(buf, len, cap, "\"%s\"", v->u.cstr ? v->u.cstr : "");
+        case FSON_TYPE_ARRAY: return stringify_array(v, buf, len, cap, pretty, depth);
+        case FSON_TYPE_OBJECT: return stringify_object(v, buf, len, cap, pretty, depth);
+    }
+    return -1;
+}
+
 char *fossil_media_fson_stringify(const fossil_media_fson_value_t *v, int pretty, fossil_media_fson_error_t *err_out) {
-    // Placeholder implementation
-    if (v == NULL) {
+    if (!v) {
         if (err_out) {
             err_out->code = FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
             err_out->position = 0;
@@ -763,13 +868,15 @@ char *fossil_media_fson_stringify(const fossil_media_fson_value_t *v, int pretty
         return NULL;
     }
 
-    // For demonstration, we will just return a fixed string
-    char *result = fossil_media_strdup("FSON_STRINGIFIED_VALUE");
-    if (!result) {
+    char *buf = NULL;
+    size_t len = 0, cap = 0;
+
+    if (stringify_internal(v, &buf, &len, &cap, pretty, 0) != 0 || !buf) {
+        free(buf);
         if (err_out) {
             err_out->code = FOSSIL_MEDIA_FSON_ERR_NOMEM;
-            err_out->position = 0;
-            snprintf(err_out->message, sizeof(err_out->message), "Memory allocation failed");
+            err_out->position = len;
+            snprintf(err_out->message, sizeof(err_out->message), "Failed to stringify value");
         }
         return NULL;
     }
@@ -779,7 +886,7 @@ char *fossil_media_fson_stringify(const fossil_media_fson_value_t *v, int pretty
         err_out->position = 0;
         snprintf(err_out->message, sizeof(err_out->message), "Stringified successfully");
     }
-    return result;
+    return buf;
 }
 
 char *fossil_media_fson_roundtrip(const char *json_text, int pretty, fossil_media_fson_error_t *err_out) {
