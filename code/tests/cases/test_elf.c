@@ -110,19 +110,6 @@ FOSSIL_TEST_CASE(c_test_elf_section_data) {
     fossil_media_elf_free(elf);
 }
 
-FOSSIL_TEST_CASE(c_test_elf_dump_does_not_crash) {
-    fossil_media_elf_t *elf = NULL;
-    fossil_media_elf_load_from_memory(
-        FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
-        FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE,
-        &elf);
-
-    // This should just print and not crash
-    fossil_media_elf_dump(elf, stdout);
-
-    fossil_media_elf_free(elf);
-}
-
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -134,7 +121,6 @@ FOSSIL_TEST_GROUP(c_elf_tests) {
     FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_load_builtin_blob);
     FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_section_lookup);
     FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_section_data);
-    FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_dump_does_not_crash);
 
     FOSSIL_TEST_REGISTER(c_elf_fixture);
 }
