@@ -95,10 +95,10 @@ FOSSIL_TEST_CASE(cpp_test_elf_find_section_by_name_builtin_blob) {
     ASSUME_ITS_TRUE(ok);
 
     size_t idx = elf.find_section(".text");
-    ASSUME_ITS_TRUE(idx >= 0);
+    ASSUME_ITS_TRUE(idx != SIZE_MAX);
 
     idx = elf.find_section(".shstrtab");
-    ASSUME_ITS_TRUE(idx >= 0);
+    ASSUME_ITS_TRUE(idx != SIZE_MAX);
 }
 
 FOSSIL_TEST_CASE(cpp_test_elf_strerror_known_and_unknown) {
