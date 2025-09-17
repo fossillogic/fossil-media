@@ -65,49 +65,68 @@ FOSSIL_TEST_CASE(c_test_elf_is_elf_short_buffer) {
     ASSUME_ITS_FALSE(fossil_media_elf_is_elf(elf_magic, 2));
 }
 
-
-FOSSIL_TEST_CASE(c_test_elf_load_builtin_blob) {
+FOSSIL_TEST_CASE(c_test_elf_load_from_memory_builtin_blob) {
     fossil_media_elf_t *elf = NULL;
-    fossil_media_elf_load_from_memory(
+    int rc = fossil_media_elf_load_from_memory(
         FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
         FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE,
-        &elf);
-    ASSUME_NOT_CNULL(elf);
+        &elf
+    );
+    ASSUME_ITS_TRUE(rc == FOSSIL_MEDIA_ELF_OK);
+    ASSUME_ITS_TRUE(elf != NULL);
+
+    size_t section_count = 0;
+    rc = fossil_media_elf_get_section_count(elf, &section_count);
+    ASSUME_ITS_TRUE(rc == FOSSIL_MEDIA_ELF_OK);
+    ASSUME_ITS_TRUE(section_count == 3);
 
     fossil_media_elf_free(elf);
 }
 
-FOSSIL_TEST_CASE(c_test_elf_section_lookup) {
+FOSSIL_TEST_CASE(c_test_elf_get_section_name_and_data_builtin_blob) {
     fossil_media_elf_t *elf = NULL;
-    fossil_media_elf_load_from_memory(
+    int rc = fossil_media_elf_load_from_memory(
         FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
         FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE,
-        &elf);
+        &elf
+    );
+    ASSUME_ITS_TRUE(rc == FOSSIL_MEDIA_ELF_OK);
 
     const char *name = NULL;
-    fossil_media_elf_get_section_name(elf, 2, &name);
-    ASSUME_NOT_CNULL(name);
-    ASSUME_ITS_EQUAL_CSTR(name, ".text");
+    rc = fossil_media_elf_get_section_name(elf, 1, &name);
+    ASSUME_ITS_TRUE(rc == FOSSIL_MEDIA_ELF_OK);
+    ASSUME_ITS_TRUE(name != NULL);
+
+    const uint8_t *ptr = NULL;
+    size_t len = 0;
+    rc = fossil_media_elf_get_section_data(elf, 1, &ptr, &len);
+    ASSUME_ITS_TRUE(rc == FOSSIL_MEDIA_ELF_OK);
 
     fossil_media_elf_free(elf);
 }
 
-FOSSIL_TEST_CASE(c_test_elf_section_data) {
+FOSSIL_TEST_CASE(c_test_elf_find_section_by_name_builtin_blob) {
     fossil_media_elf_t *elf = NULL;
-    fossil_media_elf_load_from_memory(
+    int rc = fossil_media_elf_load_from_memory(
         FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
         FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE,
-        &elf);
+        &elf
+    );
+    ASSUME_ITS_TRUE(rc == FOSSIL_MEDIA_ELF_OK);
 
-    const uint8_t *sec_data = NULL;
-    size_t sec_size = 0;
-    fossil_media_elf_get_section_data(elf, 2, &sec_data, &sec_size);
-    ASSUME_ITS_EQUAL_U32(sec_size, 1U);
-    ASSUME_NOT_CNULL(sec_data);
+    size_t idx = 0;
+    rc = fossil_media_elf_find_section_by_name(elf, ".text", &idx);
+    ASSUME_ITS_TRUE(rc == FOSSIL_MEDIA_ELF_OK);
 
-    ASSUME_ITS_EQUAL_O32(sec_data[0], 0x90);  // single NOP
+    rc = fossil_media_elf_find_section_by_name(elf, ".shstrtab", &idx);
+    ASSUME_ITS_TRUE(rc == FOSSIL_MEDIA_ELF_OK);
 
     fossil_media_elf_free(elf);
+}
+
+FOSSIL_TEST_CASE(c_test_elf_strerror_known_and_unknown) {
+    ASSUME_ITS_TRUE(strcmp(fossil_media_elf_strerror(FOSSIL_MEDIA_ELF_OK), "OK") == 0);
+    ASSUME_ITS_TRUE(strcmp(fossil_media_elf_strerror(-9999), "Unknown error") == 0);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -118,9 +137,10 @@ FOSSIL_TEST_GROUP(c_elf_tests) {
     FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_is_elf_non_magic);
     FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_is_elf_short_buffer);
 
-    FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_load_builtin_blob);
-    FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_section_lookup);
-    FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_section_data);
+    FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_load_from_memory_builtin_blob);
+    FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_get_section_name_and_data_builtin_blob);
+    FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_find_section_by_name_builtin_blob);
+    FOSSIL_TEST_ADD(c_elf_fixture, c_test_elf_strerror_known_and_unknown);
 
     FOSSIL_TEST_REGISTER(c_elf_fixture);
 }

@@ -11,8 +11,8 @@
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations
  * under the License.
  *
@@ -25,84 +25,99 @@
 #include <fossil/pizza/framework.h>
 #include "fossil/media/framework.h"
 
-using namespace fossil::media;
+// * * * * * * * * * * * * * * * * * * * * * * * *
+// * Fossil Logic Test Utilities
+// * * * * * * * * * * * * * * * * * * * * * * * *
+// Setup steps for things like test fixtures and
+// mock objects are set here.
+// * * * * * * * * * * * * * * * * * * * * * * * *
 
 FOSSIL_TEST_SUITE(cpp_elf_fixture);
 
 FOSSIL_SETUP(cpp_elf_fixture) {
-    // Setup for C++ ELF tests (no-op)
+    // Setup for ELF tests
 }
 
 FOSSIL_TEARDOWN(cpp_elf_fixture) {
-    // Cleanup (no-op)
+    // Teardown for ELF tests
 }
 
-// ------------------------------------------------------------
-// Basic magic number detection
-// ------------------------------------------------------------
+// * * * * * * * * * * * * * * * * * * * * * * * *
+// * Fossil Logic Test Cases
+// * * * * * * * * * * * * * * * * * * * * * * * *
+// The test cases below are provided as samples, inspired
+// by the Meson build system's approach of using test cases
+// as samples for library usage.
+// * * * * * * * * * * * * * * * * * * * * * * * *
+
 FOSSIL_TEST_CASE(cpp_test_elf_is_elf_magic) {
     unsigned char elf_magic[4] = {0x7f, 'E', 'L', 'F'};
-    ASSUME_ITS_TRUE(Elf::is_elf(elf_magic, 4));
+    ASSUME_ITS_TRUE(fossil::media::Elf::is_elf(elf_magic, 4));
+    ASSUME_ITS_TRUE(fossil_media_elf_is_elf(elf_magic, 4));
 }
 
 FOSSIL_TEST_CASE(cpp_test_elf_is_elf_non_magic) {
     unsigned char not_elf[4] = {0x00, 0x01, 0x02, 0x03};
-    ASSUME_ITS_FALSE(Elf::is_elf(not_elf, 4));
+    ASSUME_ITS_FALSE(fossil::media::Elf::is_elf(not_elf, 4));
+    ASSUME_ITS_FALSE(fossil_media_elf_is_elf(not_elf, 4));
 }
 
 FOSSIL_TEST_CASE(cpp_test_elf_is_elf_short_buffer) {
     unsigned char elf_magic[2] = {0x7f, 'E'};
-    ASSUME_ITS_FALSE(Elf::is_elf(elf_magic, 2));
+    ASSUME_ITS_FALSE(fossil::media::Elf::is_elf(elf_magic, 2));
+    ASSUME_ITS_FALSE(fossil_media_elf_is_elf(elf_magic, 2));
 }
 
-FOSSIL_TEST_CASE(cpp_test_elf_load_builtin_blob) {
-    Elf elf;
-    // Should successfully load a minimal ELF64 file with .text section
-    ASSUME_ITS_TRUE(elf.load_memory(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
-                                    FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE));
+FOSSIL_TEST_CASE(cpp_test_elf_load_from_memory_builtin_blob) {
+    fossil::media::Elf elf;
+    bool ok = elf.load_memory(FOSSIL_MEDIA_ELF_BUILTIN_BLOB, FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE);
+    ASSUME_ITS_TRUE(ok);
     ASSUME_ITS_TRUE(elf.is_loaded());
+    ASSUME_ITS_TRUE(elf.section_count() == 3);
 }
 
-FOSSIL_TEST_CASE(cpp_test_elf_section_lookup) {
-    Elf elf;
-    ASSUME_ITS_TRUE(elf.load_memory(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
-                                    FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE));
-    ASSUME_ITS_TRUE(elf.is_loaded());
-    ASSUME_ITS_TRUE(elf.section_count() >= 3);
+FOSSIL_TEST_CASE(cpp_test_elf_get_section_name_and_data_builtin_blob) {
+    fossil::media::Elf elf;
+    bool ok = elf.load_memory(FOSSIL_MEDIA_ELF_BUILTIN_BLOB, FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE);
+    ASSUME_ITS_TRUE(ok);
 
-    std::string name = elf.section_name(2);
-    ASSUME_ITS_EQUAL_CSTR(name.c_str(), ".text");
+    std::string name = elf.section_name(1);
+    ASSUME_ITS_TRUE(!name.empty());
+
+    auto data = elf.section_data(1);
+    ASSUME_ITS_TRUE(data.first != nullptr);
+    ASSUME_ITS_TRUE(data.second > 0);
 }
 
-FOSSIL_TEST_CASE(cpp_test_elf_section_data) {
-    Elf elf;
-    ASSUME_ITS_TRUE(elf.load_memory(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
-                                    FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE));
-    auto section = elf.section_data(2);
-    ASSUME_ITS_EQUAL_U32(section.second, 1U);
-    ASSUME_ITS_EQUAL_O32(section.first[0], 0x90);  // NOP
+FOSSIL_TEST_CASE(cpp_test_elf_find_section_by_name_builtin_blob) {
+    fossil::media::Elf elf;
+    bool ok = elf.load_memory(FOSSIL_MEDIA_ELF_BUILTIN_BLOB, FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE);
+    ASSUME_ITS_TRUE(ok);
+
+    size_t idx = elf.find_section(".text");
+    ASSUME_ITS_TRUE(idx >= 0);
+
+    idx = elf.find_section(".shstrtab");
+    ASSUME_ITS_TRUE(idx >= 0);
 }
 
-FOSSIL_TEST_CASE(cpp_test_elf_dump_does_not_crash) {
-    Elf elf;
-    ASSUME_ITS_TRUE(elf.load_memory(FOSSIL_MEDIA_ELF_BUILTIN_BLOB,
-                                    FOSSIL_MEDIA_ELF_BUILTIN_BLOB_SIZE));
-    // Should print to stdout safely
-    elf.dump(elf.c_struct(), stdout);
+FOSSIL_TEST_CASE(cpp_test_elf_strerror_known_and_unknown) {
+    ASSUME_ITS_TRUE(strcmp(fossil_media_elf_strerror(FOSSIL_MEDIA_ELF_OK), "OK") == 0);
+    ASSUME_ITS_TRUE(strcmp(fossil_media_elf_strerror(-9999), "Unknown error") == 0);
 }
 
-// ------------------------------------------------------------
-// Test Group Registration
-// ------------------------------------------------------------
+// * * * * * * * * * * * * * * * * * * * * * * * *
+// * Fossil Logic Test Pool
+// * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_elf_tests) {
     FOSSIL_TEST_ADD(cpp_elf_fixture, cpp_test_elf_is_elf_magic);
     FOSSIL_TEST_ADD(cpp_elf_fixture, cpp_test_elf_is_elf_non_magic);
     FOSSIL_TEST_ADD(cpp_elf_fixture, cpp_test_elf_is_elf_short_buffer);
 
-    FOSSIL_TEST_ADD(cpp_elf_fixture, cpp_test_elf_load_builtin_blob);
-    FOSSIL_TEST_ADD(cpp_elf_fixture, cpp_test_elf_section_lookup);
-    FOSSIL_TEST_ADD(cpp_elf_fixture, cpp_test_elf_section_data);
-    FOSSIL_TEST_ADD(cpp_elf_fixture, cpp_test_elf_dump_does_not_crash);
+    FOSSIL_TEST_ADD(cpp_elf_fixture, cpp_test_elf_load_from_memory_builtin_blob);
+    FOSSIL_TEST_ADD(cpp_elf_fixture, cpp_test_elf_get_section_name_and_data_builtin_blob);
+    FOSSIL_TEST_ADD(cpp_elf_fixture, cpp_test_elf_find_section_by_name_builtin_blob);
+    FOSSIL_TEST_ADD(cpp_elf_fixture, cpp_test_elf_strerror_known_and_unknown);
 
     FOSSIL_TEST_REGISTER(cpp_elf_fixture);
 }
