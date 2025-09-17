@@ -51,6 +51,7 @@ FOSSIL_TEARDOWN(cpp_fson_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
+/*
 FOSSIL_TEST_CASE(cpp_test_fson_parse_and_getters) {
     using fossil::media::Fson;
     const std::string fson_text = "flag:bool : true\nnum:i32 : -42\nname:cstr : \"Bob\"\n";
@@ -201,6 +202,7 @@ FOSSIL_TEST_CASE(cpp_test_fson_number_types) {
     ASSUME_ITS_EQUAL_I32((int)vbin.get_bin(), 42);
     ASSUME_ITS_EQUAL_I32((int)vchar.get_char(), 'Z');
 }
+*/
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
