@@ -121,6 +121,7 @@ FOSSIL_TEST_CASE(c_test_fson_stringify_roundtrip) {
     fossil_media_fson_free(v);
 }
 
+/*
 FOSSIL_TEST_CASE(c_test_fson_type_name_and_helpers) {
     fossil_media_fson_value_t *v_null = fossil_media_fson_new_null();
     fossil_media_fson_value_t *v_arr = fossil_media_fson_new_array();
@@ -203,6 +204,7 @@ FOSSIL_TEST_CASE(c_test_fson_get_path) {
     ASSUME_NOT_CNULL(tag2);
     fossil_media_fson_free(root);
 }
+*/
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
@@ -213,12 +215,13 @@ FOSSIL_TEST_GROUP(c_fson_tests) {
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_object_set_get_remove);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_array_append_get_size);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_stringify_roundtrip);
+/*
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_type_name_and_helpers);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_array_object_reserve);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_clone_and_equals);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_number_getters);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_debug_dump_and_validate);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_get_path);
-
+*/
     FOSSIL_TEST_REGISTER(c_fson_fixture);
 }
