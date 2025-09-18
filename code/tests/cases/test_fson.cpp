@@ -121,6 +121,45 @@ FOSSIL_TEST_CASE(cpp_test_fson_cpp_number_getters) {
     }
 }
 
+FOSSIL_TEST_CASE(cpp_test_fson_cpp_edge_cases) {
+    using fossil::media::Fson;
+    try {
+        // Access out-of-bounds index in array
+        Fson arr = Fson::new_array();
+        arr.array_append(Fson::new_i8(42));
+        bool caught = false;
+        try {
+            arr.array_get(10);
+        } catch (const fossil::media::FsonError&) {
+            caught = true;
+        }
+        ASSUME_ITS_TRUE(caught);
+
+        // Access non-existent key in object
+        Fson obj = Fson::new_object();
+        obj.object_set("key", Fson::new_i8(7));
+        caught = false;
+        try {
+            obj.object_get("missing");
+        } catch (const fossil::media::FsonError&) {
+            caught = true;
+        }
+        ASSUME_ITS_TRUE(caught);
+
+        // Clone null value
+        Fson v_null;
+        Fson v_null_clone = v_null.clone();
+        ASSUME_ITS_TRUE(v_null.equals(v_null_clone));
+
+        // Compare different types
+        Fson v_num = Fson::new_i8(1);
+        Fson v_str = Fson::new_string("1");
+        ASSUME_ITS_TRUE(!v_num.equals(v_str));
+    } catch (const fossil::media::FsonError& e) {
+        ASSUME_ITS_TRUE(false);
+    }
+}
+
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -130,6 +169,7 @@ FOSSIL_TEST_GROUP(cpp_fson_tests) {
     FOSSIL_TEST_ADD(cpp_fson_fixture, cpp_test_fson_cpp_array_object_reserve);
     FOSSIL_TEST_ADD(cpp_fson_fixture, cpp_test_fson_cpp_clone_and_equals);
     FOSSIL_TEST_ADD(cpp_fson_fixture, cpp_test_fson_cpp_number_getters);
+    FOSSIL_TEST_ADD(cpp_fson_fixture, cpp_test_fson_cpp_edge_cases);
 
     FOSSIL_TEST_REGISTER(cpp_fson_fixture);
 }
