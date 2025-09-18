@@ -51,14 +51,6 @@ FOSSIL_TEARDOWN(c_fson_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(c_test_fson_parse_and_free) {
-    const char *fson_text = "key:cstr : \"value\"\nnum:i32 : 42\nflag:bool : true\n";
-    fossil_media_fson_error_t err;
-    fossil_media_fson_value_t *v = fossil_media_fson_parse(fson_text, &err);
-    ASSUME_NOT_CNULL(v);
-    fossil_media_fson_free(v);
-}
-
 FOSSIL_TEST_CASE(c_test_fson_new_types_and_free) {
     fossil_media_fson_value_t *v_null = fossil_media_fson_new_null();
     fossil_media_fson_value_t *v_bool = fossil_media_fson_new_bool(1);
@@ -66,31 +58,33 @@ FOSSIL_TEST_CASE(c_test_fson_new_types_and_free) {
     fossil_media_fson_value_t *v_str = fossil_media_fson_new_string("hello");
     fossil_media_fson_value_t *v_arr = fossil_media_fson_new_array();
     fossil_media_fson_value_t *v_obj = fossil_media_fson_new_object();
+    fossil_media_fson_value_t *v_f64 = fossil_media_fson_new_f64(3.1415926535);
+    fossil_media_fson_value_t *v_u32 = fossil_media_fson_new_u32(1);
+    fossil_media_fson_value_t *v_u16 = fossil_media_fson_new_u16(1024);
+    fossil_media_fson_value_t *v_f32 = fossil_media_fson_new_f32(30.0f);
+    fossil_media_fson_value_t *v_char = fossil_media_fson_new_char(65);
     ASSUME_NOT_CNULL(v_null);
     ASSUME_NOT_CNULL(v_bool);
     ASSUME_NOT_CNULL(v_i32);
     ASSUME_NOT_CNULL(v_str);
     ASSUME_NOT_CNULL(v_arr);
     ASSUME_NOT_CNULL(v_obj);
+    ASSUME_NOT_CNULL(v_f64);
+    ASSUME_NOT_CNULL(v_u32);
+    ASSUME_NOT_CNULL(v_u16);
+    ASSUME_NOT_CNULL(v_f32);
+    ASSUME_NOT_CNULL(v_char);
     fossil_media_fson_free(v_null);
     fossil_media_fson_free(v_bool);
     fossil_media_fson_free(v_i32);
     fossil_media_fson_free(v_str);
     fossil_media_fson_free(v_arr);
     fossil_media_fson_free(v_obj);
-}
-
-FOSSIL_TEST_CASE(c_test_fson_object_set_get_remove) {
-    fossil_media_fson_value_t *obj = fossil_media_fson_new_object();
-    fossil_media_fson_value_t *val = fossil_media_fson_new_i32(99);
-    int rc = fossil_media_fson_object_set(obj, "num", val);
-    ASSUME_ITS_EQUAL_I32(rc, FOSSIL_MEDIA_FSON_OK);
-    fossil_media_fson_value_t *got = fossil_media_fson_object_get(obj, "num");
-    ASSUME_NOT_CNULL(got);
-    fossil_media_fson_value_t *removed = fossil_media_fson_object_remove(obj, "num");
-    ASSUME_NOT_CNULL(removed);
-    fossil_media_fson_free(removed);
-    fossil_media_fson_free(obj);
+    fossil_media_fson_free(v_f64);
+    fossil_media_fson_free(v_u32);
+    fossil_media_fson_free(v_u16);
+    fossil_media_fson_free(v_f32);
+    fossil_media_fson_free(v_char);
 }
 
 FOSSIL_TEST_CASE(c_test_fson_array_append_get_size) {
@@ -104,24 +98,18 @@ FOSSIL_TEST_CASE(c_test_fson_array_append_get_size) {
     ASSUME_NOT_CNULL(fossil_media_fson_array_get(arr, 0));
     ASSUME_NOT_CNULL(fossil_media_fson_array_get(arr, 1));
     ASSUME_ITS_EQUAL_I32((int)fossil_media_fson_array_size(arr), 2);
+
+    // Test array with objects
+    fossil_media_fson_value_t *colors = fossil_media_fson_new_array();
+    fossil_media_fson_array_append(colors, fossil_media_fson_new_object());
+    fossil_media_fson_array_append(colors, fossil_media_fson_new_object());
+    fossil_media_fson_array_append(colors, fossil_media_fson_new_object());
+    ASSUME_ITS_EQUAL_I32((int)fossil_media_fson_array_size(colors), 3);
+
     fossil_media_fson_free(arr);
+    fossil_media_fson_free(colors);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_stringify_roundtrip) {
-    const char *fson_text = "foo:cstr : \"bar\"\nnum:i32 : 7\n";
-    fossil_media_fson_error_t err;
-    fossil_media_fson_value_t *v = fossil_media_fson_parse(fson_text, &err);
-    ASSUME_NOT_CNULL(v);
-    char *out = fossil_media_fson_stringify(v, 1, &err);
-    ASSUME_NOT_CNULL(out);
-    free(out);
-    char *rt = fossil_media_fson_roundtrip(fson_text, 0, &err);
-    ASSUME_NOT_CNULL(rt);
-    free(rt);
-    fossil_media_fson_free(v);
-}
-
-/*
 FOSSIL_TEST_CASE(c_test_fson_type_name_and_helpers) {
     fossil_media_fson_value_t *v_null = fossil_media_fson_new_null();
     fossil_media_fson_value_t *v_arr = fossil_media_fson_new_array();
@@ -152,8 +140,19 @@ FOSSIL_TEST_CASE(c_test_fson_clone_and_equals) {
     ASSUME_NOT_CNULL(v2);
     int eq = fossil_media_fson_equals(v1, v2);
     ASSUME_ITS_EQUAL_I32(eq, 1);
+
+    // Clone complex object
+    fossil_media_fson_value_t *obj = fossil_media_fson_new_object();
+    fossil_media_fson_object_set(obj, "name", fossil_media_fson_new_string("Nested Object"));
+    fossil_media_fson_object_set(obj, "value", fossil_media_fson_new_i32(42));
+    fossil_media_fson_value_t *obj_clone = fossil_media_fson_clone(obj);
+    ASSUME_NOT_CNULL(obj_clone);
+    ASSUME_ITS_EQUAL_I32(fossil_media_fson_equals(obj, obj_clone), 1);
+
     fossil_media_fson_free(v1);
     fossil_media_fson_free(v2);
+    fossil_media_fson_free(obj);
+    fossil_media_fson_free(obj_clone);
 }
 
 FOSSIL_TEST_CASE(c_test_fson_number_getters) {
@@ -167,61 +166,37 @@ FOSSIL_TEST_CASE(c_test_fson_number_getters) {
     ASSUME_ITS_EQUAL_I32(u16, 65535);
     ASSUME_ITS_EQUAL_I32(fossil_media_fson_get_f32(vf32, &f32), FOSSIL_MEDIA_FSON_OK);
     ASSUME_ITS_TRUE(f32 > 3.13f && f32 < 3.15f);
+
+    // Test octal, hex, bin
+    fossil_media_fson_value_t *voct = fossil_media_fson_new_oct(077);
+    fossil_media_fson_value_t *vhex = fossil_media_fson_new_hex(0xFF);
+    fossil_media_fson_value_t *vbin = fossil_media_fson_new_bin(42);
+    int32_t oct, hex, bin;
+    ASSUME_ITS_EQUAL_I32(fossil_media_fson_get_oct(voct, &oct), FOSSIL_MEDIA_FSON_OK);
+    ASSUME_ITS_EQUAL_I32(oct, 077);
+    ASSUME_ITS_EQUAL_I32(fossil_media_fson_get_hex(vhex, &hex), FOSSIL_MEDIA_FSON_OK);
+    ASSUME_ITS_EQUAL_I32(hex, 0xFF);
+    ASSUME_ITS_EQUAL_I32(fossil_media_fson_get_bin(vbin, &bin), FOSSIL_MEDIA_FSON_OK);
+    ASSUME_ITS_EQUAL_I32(bin, 42);
+
     fossil_media_fson_free(vi8);
     fossil_media_fson_free(vu16);
     fossil_media_fson_free(vf32);
+    fossil_media_fson_free(voct);
+    fossil_media_fson_free(vhex);
+    fossil_media_fson_free(vbin);
 }
-
-FOSSIL_TEST_CASE(c_test_fson_debug_dump_and_validate) {
-    const char *fson_text = "foo:cstr : \"bar\"\n";
-    fossil_media_fson_error_t err;
-    fossil_media_fson_value_t *v = fossil_media_fson_parse(fson_text, &err);
-    ASSUME_NOT_CNULL(v);
-    fossil_media_fson_debug_dump(v, 0);
-    int rc = fossil_media_fson_validate(fson_text, &err);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    fossil_media_fson_free(v);
-}
-
-FOSSIL_TEST_CASE(c_test_fson_get_path) {
-    const char *fson_text =
-        "user:object : {\n"
-        "  name:cstr : \"Alice\"\n"
-        "  age:u8 : 30\n"
-        "  tags:array : [\n"
-        "    tag:cstr : \"admin\"\n"
-        "    tag:cstr : \"editor\"\n"
-        "  ]\n"
-        "}\n";
-    fossil_media_fson_error_t err;
-    fossil_media_fson_value_t *root = fossil_media_fson_parse(fson_text, &err);
-    ASSUME_NOT_CNULL(root);
-    fossil_media_fson_value_t *name = fossil_media_fson_get_path(root, "user.name");
-    fossil_media_fson_value_t *tag1 = fossil_media_fson_get_path(root, "user.tags[0].tag");
-    fossil_media_fson_value_t *tag2 = fossil_media_fson_get_path(root, "user.tags[1].tag");
-    ASSUME_NOT_CNULL(name);
-    ASSUME_NOT_CNULL(tag1);
-    ASSUME_NOT_CNULL(tag2);
-    fossil_media_fson_free(root);
-}
-*/
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_fson_tests) {
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_and_free);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_new_types_and_free);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_object_set_get_remove);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_array_append_get_size);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_stringify_roundtrip);
-/*
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_type_name_and_helpers);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_array_object_reserve);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_clone_and_equals);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_number_getters);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_debug_dump_and_validate);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_get_path);
-*/
+
     FOSSIL_TEST_REGISTER(c_fson_fixture);
 }

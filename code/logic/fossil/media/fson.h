@@ -690,6 +690,7 @@ fossil_media_fson_value_t * fossil_media_fson_get_path(const fossil_media_fson_v
 
 #include <string>
 #include <stdexcept>
+#include <utility>
 
 namespace fossil {
 
@@ -747,15 +748,12 @@ namespace fossil {
             Fson& operator=(const Fson&) = delete;
 
             // Movable
-            Fson(Fson&& other) noexcept : value_(other.value_) {
-                other.value_ = nullptr;
-            }
+            Fson(Fson&& other) noexcept : value_(std::exchange(other.value_, nullptr)) {}
 
             Fson& operator=(Fson&& other) noexcept {
                 if (this != &other) {
                     fossil_media_fson_free(value_);
-                    value_ = other.value_;
-                    other.value_ = nullptr;
+                    value_ = std::exchange(other.value_, nullptr);
                 }
                 return *this;
             }
