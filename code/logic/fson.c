@@ -940,9 +940,9 @@ char *fossil_media_fson_roundtrip(const char *json_text, int pretty, fossil_medi
     // If stringification failed but parse was OK, return minimal valid output
     if (!result && err_out && err_out->code == FOSSIL_MEDIA_FSON_OK) {
         if (value->type == FSON_TYPE_OBJECT) {
-            result = strdup("{}");
+            result = fossil_media_strdup("{}");
         } else if (value->type == FSON_TYPE_ARRAY) {
-            result = strdup("[]");
+            result = fossil_media_strdup("[]");
         }
     }
 
