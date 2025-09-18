@@ -347,6 +347,26 @@ fossil_media_fson_value_t *fossil_media_fson_new_array(void);
  */
 fossil_media_fson_value_t *fossil_media_fson_new_object(void);
 
+/**
+ * @brief Create a FSON enum value.
+ *
+ * @param symbol       Enum symbol string (UTF-8, cannot be NULL).
+ * @param allowed      Optional array of allowed symbols (can be NULL).
+ * @param allowed_count Number of allowed symbols (0 if none).
+ * @return Newly allocated FSON enum value, or NULL if allocation fails.
+ */
+fossil_media_fson_value_t *fossil_media_fson_new_enum(const char *symbol, const char **allowed, size_t allowed_count);
+
+/**
+ * @brief Create a FSON flags value.
+ *
+ * @param bitmask  Numeric bitmask value.
+ * @param symbols  Array of symbolic flag names (UTF-8, cannot be NULL).
+ * @param count    Number of symbols in the array.
+ * @return Newly allocated FSON flags value, or NULL if allocation fails.
+ */
+fossil_media_fson_value_t *fossil_media_fson_new_flags(uint64_t bitmask, const char **symbols, size_t count);
+
 /** @} */
 
 /** @name Object Helpers
@@ -708,6 +728,22 @@ int fossil_media_fson_get_bool(const fossil_media_fson_value_t *v, int *out);
  */
 int fossil_media_fson_get_cstr(const fossil_media_fson_value_t *v, char **out);
 
+/**
+ * @brief Get enum symbol from a FSON enum value.
+ * @param v FSON enum value.
+ * @param out Pointer to output char* (NUL-terminated string).
+ * @return 0 on success, nonzero on error.
+ */
+int fossil_media_fson_get_enum(const fossil_media_fson_value_t *v, const char **out);
+
+/**
+ * @brief Get flags bitmask from a FSON flags value.
+ * @param v FSON flags value.
+ * @param out Pointer to output uint64_t bitmask.
+ * @return 0 on success, nonzero on error.
+ */
+int fossil_media_fson_get_flags(const fossil_media_fson_value_t *v, uint64_t *out);
+
 /** @} */
 
 /** @name Debug & Validation
@@ -998,6 +1034,43 @@ namespace fossil {
              */
             static Fson new_object() {
                 return Fson(fossil_media_fson_new_object());
+            }
+
+            /**
+             * @brief Create a FSON enum value.
+             * @param symbol Enum symbol string.
+             * @param allowed Optional array of allowed symbols.
+             * @param allowed_count Number of allowed symbols.
+             * @return Fson object holding an enum value.
+             */
+            static Fson new_enum(const std::string& symbol, const std::vector<std::string>& allowed = {}) {
+                std::vector<const char*> allowed_cstrs;
+                for (const auto& s : allowed) {
+                    allowed_cstrs.push_back(s.c_str());
+                }
+                return Fson(fossil_media_fson_new_enum(
+                    symbol.c_str(),
+                    allowed.empty() ? nullptr : allowed_cstrs.data(),
+                    allowed_cstrs.size()
+                ));
+            }
+
+            /**
+             * @brief Create a FSON flags value.
+             * @param bitmask Numeric bitmask value.
+             * @param symbols Array of symbolic flag names.
+             * @return Fson object holding a flags value.
+             */
+            static Fson new_flags(uint64_t bitmask, const std::vector<std::string>& symbols) {
+                std::vector<const char*> symbol_cstrs;
+                for (const auto& s : symbols) {
+                    symbol_cstrs.push_back(s.c_str());
+                }
+                return Fson(fossil_media_fson_new_flags(
+                    bitmask,
+                    symbol_cstrs.empty() ? nullptr : symbol_cstrs.data(),
+                    symbol_cstrs.size()
+                ));
             }
 
             /**
@@ -1381,6 +1454,32 @@ namespace fossil {
                 std::string result(out);
                 free(out);
                 return result;
+            }
+
+            /**
+             * @brief Get enum symbol from this FSON enum value.
+             * @return std::string symbol.
+             * @throws FsonError if type mismatch or error.
+             */
+            std::string get_enum() const {
+                const char* out = nullptr;
+                if (fossil_media_fson_get_enum(value_, &out) != 0 || !out)
+                    throw FsonError("Failed to get enum symbol");
+                std::string result(out);
+                // No need to free 'out' as it's not heap-allocated by API
+                return result;
+            }
+
+            /**
+             * @brief Get flags bitmask from this FSON flags value.
+             * @return uint64_t bitmask.
+             * @throws FsonError if type mismatch or error.
+             */
+            uint64_t get_flags() const {
+                uint64_t out;
+                if (fossil_media_fson_get_flags(value_, &out) != 0)
+                    throw FsonError("Failed to get flags bitmask");
+                return out;
             }
 
             /**
