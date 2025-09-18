@@ -171,7 +171,7 @@ FOSSIL_TEST_CASE(c_test_fson_number_getters) {
     fossil_media_fson_value_t *voct = fossil_media_fson_new_oct(077);
     fossil_media_fson_value_t *vhex = fossil_media_fson_new_hex(0xFF);
     fossil_media_fson_value_t *vbin = fossil_media_fson_new_bin(42);
-    int32_t oct, hex, bin;
+    uint64_t oct, hex, bin;
     ASSUME_ITS_EQUAL_I32(fossil_media_fson_get_oct(voct, &oct), FOSSIL_MEDIA_FSON_OK);
     ASSUME_ITS_EQUAL_I32(oct, 077);
     ASSUME_ITS_EQUAL_I32(fossil_media_fson_get_hex(vhex, &hex), FOSSIL_MEDIA_FSON_OK);
