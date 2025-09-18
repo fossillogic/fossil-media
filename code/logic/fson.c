@@ -1477,34 +1477,36 @@ char *fossil_media_fson_roundtrip(const char *json_text, int pretty, fossil_medi
 }
 
 const char *fossil_media_fson_type_name(fossil_media_fson_type_t t) {
-    // Special case: treat FSON_TYPE_OBJECT with {null: null} as "null"
-    if (t == FSON_TYPE_OBJECT) {
-        // This function only gets type, so we can't check object contents here.
-        // But in most usage, the caller passes value->type, which is set to FSON_TYPE_NULL
-        // for {null: null} objects by fossil_media_fson_parse and fossil_media_fson_clone.
-        // So we just return "object" here.
-        return "object";
-    }
     switch (t) {
-        case FSON_TYPE_NULL:    return "null";
-        case FSON_TYPE_BOOL:    return "bool";
-        case FSON_TYPE_I8:      return "i8";
-        case FSON_TYPE_I16:     return "i16";
-        case FSON_TYPE_I32:     return "i32";
-        case FSON_TYPE_I64:     return "i64";
-        case FSON_TYPE_U8:      return "u8";
-        case FSON_TYPE_U16:     return "u16";
-        case FSON_TYPE_U32:     return "u32";
-        case FSON_TYPE_U64:     return "u64";
-        case FSON_TYPE_F32:     return "f32";
-        case FSON_TYPE_F64:     return "f64";
-        case FSON_TYPE_OCT:     return "oct";
-        case FSON_TYPE_HEX:     return "hex";
-        case FSON_TYPE_BIN:     return "bin";
-        case FSON_TYPE_CHAR:    return "char";
-        case FSON_TYPE_CSTR:    return "cstr";
-        case FSON_TYPE_ARRAY:   return "array";
-        default:                return "unknown";
+        case FSON_TYPE_NULL:      return "null";
+        case FSON_TYPE_BOOL:      return "bool";
+        case FSON_TYPE_I8:        return "i8";
+        case FSON_TYPE_I16:       return "i16";
+        case FSON_TYPE_I32:       return "i32";
+        case FSON_TYPE_I64:       return "i64";
+        case FSON_TYPE_U8:        return "u8";
+        case FSON_TYPE_U16:       return "u16";
+        case FSON_TYPE_U32:       return "u32";
+        case FSON_TYPE_U64:       return "u64";
+        case FSON_TYPE_F32:       return "f32";
+        case FSON_TYPE_F64:       return "f64";
+        case FSON_TYPE_OCT:       return "oct";
+        case FSON_TYPE_HEX:       return "hex";
+        case FSON_TYPE_BIN:       return "bin";
+        case FSON_TYPE_CHAR:      return "char";
+        case FSON_TYPE_CSTR:      return "cstr";
+        case FSON_TYPE_ARRAY:     return "array";
+        case FSON_TYPE_OBJECT:    return "object";
+
+        /* --- FSON v2 additions --- */
+        case FSON_TYPE_ENUM:      return "enum";
+        case FSON_TYPE_FLAGS:     return "flags";
+        case FSON_TYPE_DATETIME:  return "datetime";
+        case FSON_TYPE_DURATION:  return "duration";
+        case FSON_TYPE_INCLUDE:   return "$include";
+        case FSON_TYPE_SCHEMA:    return "$schema";
+
+        default:                  return "unknown";
     }
 }
 
