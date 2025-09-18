@@ -32,22 +32,30 @@
 extern "C" {
 #endif
 
-/* Error codes */
+/* -------------------------------------------------------------
+ * FSON v2: Error Codes
+ * ------------------------------------------------------------- */
 enum {
     FOSSIL_MEDIA_FSON_OK = 0,
-    FOSSIL_MEDIA_FSON_ERR_IO = -1,
-    FOSSIL_MEDIA_FSON_ERR_NOMEM = -2,
-    FOSSIL_MEDIA_FSON_ERR_PARSE = -3,
-    FOSSIL_MEDIA_FSON_ERR_TYPE = -4,
-    FOSSIL_MEDIA_FSON_ERR_RANGE = -5,
-    FOSSIL_MEDIA_FSON_ERR_NOT_FOUND = -6,
-    FOSSIL_MEDIA_FSON_ERR_INVALID_ARG = -7
+    FOSSIL_MEDIA_FSON_ERR_IO = -1,           /* File/stream error */
+    FOSSIL_MEDIA_FSON_ERR_NOMEM = -2,        /* Out of memory */
+    FOSSIL_MEDIA_FSON_ERR_PARSE = -3,        /* Syntax or structure error */
+    FOSSIL_MEDIA_FSON_ERR_TYPE = -4,         /* Type mismatch */
+    FOSSIL_MEDIA_FSON_ERR_RANGE = -5,        /* Value out of range */
+    FOSSIL_MEDIA_FSON_ERR_NOT_FOUND = -6,    /* Key or index not found */
+    FOSSIL_MEDIA_FSON_ERR_INVALID_ARG = -7,  /* Bad API argument */
+    FOSSIL_MEDIA_FSON_ERR_SCHEMA = -8,       /* Schema validation failed */
+    FOSSIL_MEDIA_FSON_ERR_INCLUDE = -9       /* Include could not be resolved */
 };
 
-/* Value types (explicit, matches FSON spec) */
+/* -------------------------------------------------------------
+ * FSON v2: Value Types
+ * ------------------------------------------------------------- */
 typedef enum {
     FSON_TYPE_NULL = 0,
     FSON_TYPE_BOOL,
+
+    /* Explicit scalar types */
     FSON_TYPE_I8,
     FSON_TYPE_I16,
     FSON_TYPE_I32,
@@ -58,57 +66,116 @@ typedef enum {
     FSON_TYPE_U64,
     FSON_TYPE_F32,
     FSON_TYPE_F64,
+
+    /* Literal number bases */
     FSON_TYPE_OCT,
     FSON_TYPE_HEX,
     FSON_TYPE_BIN,
+
+    /* Strings and chars */
     FSON_TYPE_CHAR,
     FSON_TYPE_CSTR,
+
+    /* Composite containers */
     FSON_TYPE_ARRAY,
-    FSON_TYPE_OBJECT
+    FSON_TYPE_OBJECT,
+
+    /* New in FSON v2 */
+    FSON_TYPE_ENUM,       /* Symbol from a fixed set */
+    FSON_TYPE_FLAGS,      /* Bitmask of symbolic flags */
+    FSON_TYPE_DATETIME,   /* ISO 8601 datetime */
+    FSON_TYPE_DURATION,   /* Time span (e.g. "30s", "5m", "1h") */
+
+    /* Virtual/meta nodes */
+    FSON_TYPE_INCLUDE,    /* $include directive */
+    FSON_TYPE_SCHEMA      /* $schema declaration */
 } fossil_media_fson_type_t;
 
-/* Error struct */
+/* -------------------------------------------------------------
+ * FSON v2: Error Struct
+ * ------------------------------------------------------------- */
 typedef struct {
-    int code;             /* 0 = OK, non-zero = error */
-    size_t position;      /* char offset in input (if applicable) */
-    char message[128];    /* short error message (truncated) */
+    int code;             /* 0 = OK, negative = error */
+    size_t position;      /* char offset in input (if available) */
+    char message[256];    /* detailed error message (UTF-8) */
 } fossil_media_fson_error_t;
 
-/* Forward declaration */
+/* -------------------------------------------------------------
+ * FSON v2: Forward Declarations
+ * ------------------------------------------------------------- */
 typedef struct fossil_media_fson_value fossil_media_fson_value_t;
 
-/* FSON value */
+/* -------------------------------------------------------------
+ * FSON v2: Value Representation
+ * ------------------------------------------------------------- */
 struct fossil_media_fson_value {
     fossil_media_fson_type_t type;
     union {
-        /* Null type has no value */
-        int boolean;            /* FSON_TYPE_BOOL: 0 or 1 */
-        int8_t i8;              /* FSON_TYPE_I8 */
-        int16_t i16;            /* FSON_TYPE_I16 */
-        int32_t i32;            /* FSON_TYPE_I32 */
-        int64_t i64;            /* FSON_TYPE_I64 */
-        uint8_t u8;             /* FSON_TYPE_U8 */
-        uint16_t u16;           /* FSON_TYPE_U16 */
-        uint32_t u32;           /* FSON_TYPE_U32 */
-        uint64_t u64;           /* FSON_TYPE_U64 */
-        float f32;              /* FSON_TYPE_F32 */
-        double f64;             /* FSON_TYPE_F64 */
-        uint64_t oct;           /* FSON_TYPE_OCT */
-        uint64_t hex;           /* FSON_TYPE_HEX */
-        uint64_t bin;           /* FSON_TYPE_BIN */
-        char character;         /* FSON_TYPE_CHAR */
-        char *cstr;             /* FSON_TYPE_CSTR: NUL-terminated, heap allocated */
+        /* Scalars */
+        int boolean;
+        int8_t i8;
+        int16_t i16;
+        int32_t i32;
+        int64_t i64;
+        uint8_t u8;
+        uint16_t u16;
+        uint32_t u32;
+        uint64_t u64;
+        float f32;
+        double f64;
+
+        /* Encoded numbers */
+        uint64_t oct;
+        uint64_t hex;
+        uint64_t bin;
+
+        /* Characters and strings */
+        char character;
+        char *cstr;       /* NUL-terminated, heap-allocated */
+
+        /* Enums and Flags */
+        struct {
+            char *symbol;     /* e.g. "warn" */
+            const char **allowed; /* optional schema-backed allowed values */
+            size_t allowed_count;
+        } enum_val;
+
+        struct {
+            uint64_t bitmask;   /* resolved numeric value */
+            char **symbols;     /* symbolic flag names */
+            size_t count;
+        } flags_val;
+
+        /* Date/time and duration */
+        struct {
+            int64_t epoch_ns;  /* nanoseconds since Unix epoch */
+        } datetime;
+
+        struct {
+            int64_t ns;        /* duration in nanoseconds */
+        } duration;
+
+        /* Arrays */
         struct {
             fossil_media_fson_value_t **items;
             size_t count;
             size_t capacity;
-        } array;                /* FSON_TYPE_ARRAY */
+        } array;
+
+        /* Objects */
         struct {
-            char **keys;                         /* keys[i] -> values[i] */
+            char **keys;
             fossil_media_fson_value_t **values;
             size_t count;
             size_t capacity;
-        } object;               /* FSON_TYPE_OBJECT */
+        } object;
+
+        /* Meta-directives */
+        char *include_path;    /* $include: cstr */
+        struct {
+            /* schema data is itself an object of constraints */
+            struct fossil_media_fson_value *schema_root;
+        } schema;
     } u;
 };
 
