@@ -30,6 +30,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
+#include <float.h>
 
 /**
  * Minimal FSON parser for the extended format:
@@ -1373,13 +1374,13 @@ int fossil_media_fson_get_int(const fossil_media_fson_value_t *v, long long *out
             *out = (long long)v->u.u64;
             break;
         case FSON_TYPE_F32:
-            if (v->u.f32 < LLONG_MIN || v->u.f32 > LLONG_MAX) {
+            if (v->u.f32 < FLT_MIN || v->u.f32 > FLT_MAX) {
                 return FOSSIL_MEDIA_FSON_ERR_RANGE; // Out of range
             }
             *out = (long long)v->u.f32;
             break;
         case FSON_TYPE_F64:
-            if (v->u.f64 < LLONG_MIN || v->u.f64 > LLONG_MAX) {
+            if (v->u.f64 < DBL_MIN || v->u.f64 > DBL_MAX) {
                 return FOSSIL_MEDIA_FSON_ERR_RANGE; // Out of range
             }
             *out = (long long)v->u.f64;
