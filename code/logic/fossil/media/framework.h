@@ -28,6 +28,7 @@
 #include "media.h"
 #include "markdown.h" 
 #include "json.h"
+#include "fson.h"
 #include "html.h"
 #include "yaml.h"
 #include "toml.h"

@@ -9,7 +9,7 @@ else
 endif
 
 fossil_media_lib = library('fossil_media',
-    files('media.c', 'markdown.c', 'yaml.c', 'html.c', 'json.c', 'text.c', 'toml.c', 'xml.c', 'elf.c', 'ini.c', 'csv.c'),
+    files('media.c', 'markdown.c', 'yaml.c', 'html.c', 'json.c', 'fson.c', 'text.c', 'toml.c', 'xml.c', 'elf.c', 'ini.c', 'csv.c'),
     install: true,
     dependencies: [cc.find_library('m', required: false), winsock_dep],
     include_directories: dir)
