@@ -245,6 +245,181 @@ FOSSIL_TEST_CASE(c_test_fson_parse_special_char_string) {
     fossil_media_fson_free(val);
 }
 
+FOSSIL_TEST_CASE(c_test_fson_parse_enum) {
+    fossil_media_fson_error_t err = {0};
+    const char *json =
+        "{\n"
+        "    log_level: enum: \"warn\"\n"
+        "}";
+    fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
+    ASSUME_NOT_CNULL(val);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_fson_type_name(val->type), "cstr");
+    fossil_media_fson_free(val);
+}
+
+FOSSIL_TEST_CASE(c_test_fson_parse_flags) {
+    fossil_media_fson_error_t err = {0};
+    const char *json =
+        "{\n"
+        "    features: flags:u16: [ \"debug\", \"trace\" ]\n"
+        "}";
+    fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
+    ASSUME_NOT_CNULL(val);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_fson_type_name(val->type), "array");
+    fossil_media_fson_free(val);
+}
+
+FOSSIL_TEST_CASE(c_test_fson_parse_datetime) {
+    fossil_media_fson_error_t err = {0};
+    const char *json =
+        "{\n"
+        "    timestamp: datetime: \"2025-09-18T23:59:59Z\"\n"
+        "}";
+    fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
+    ASSUME_NOT_CNULL(val);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_fson_type_name(val->type), "datetime");
+    fossil_media_fson_free(val);
+}
+
+FOSSIL_TEST_CASE(c_test_fson_parse_duration) {
+    fossil_media_fson_error_t err = {0};
+    const char *json =
+        "{\n"
+        "    timeout: duration: \"5m30s\"\n"
+        "}";
+    fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
+    ASSUME_NOT_CNULL(val);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_fson_type_name(val->type), "duration");
+    fossil_media_fson_free(val);
+}
+
+FOSSIL_TEST_CASE(c_test_fson_parse_invalid_enum) {
+    fossil_media_fson_error_t err = {0};
+    const char *json =
+        "{\n"
+        "    log_level: enum: \"invalid-level\"\n"
+        "}";
+    fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
+    ASSUME_ITS_CNULL(val);
+    ASSUME_ITS_EQUAL_I32(err.code, FOSSIL_MEDIA_FSON_ERR_RANGE);
+}
+
+FOSSIL_TEST_CASE(c_test_fson_parse_invalid_flags_type) {
+    fossil_media_fson_error_t err = {0};
+    const char *json =
+        "{\n"
+        "    features: flags:u16: \"debug\"  // Must be an array, not a string\n"
+        "}";
+    fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
+    ASSUME_ITS_CNULL(val);
+    ASSUME_ITS_EQUAL_I32(err.code, FOSSIL_MEDIA_FSON_ERR_TYPE);
+}
+
+FOSSIL_TEST_CASE(c_test_fson_parse_flags_out_of_range) {
+    fossil_media_fson_error_t err = {0};
+    const char *json =
+        "{\n"
+        "    features: flags:u8: [ \"debug\", \"trace\", \"extra\", \"overflow\" ]\n"
+        "}";
+    fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
+    ASSUME_ITS_CNULL(val);
+    ASSUME_ITS_EQUAL_I32(err.code, FOSSIL_MEDIA_FSON_ERR_PARSE);
+}
+
+FOSSIL_TEST_CASE(c_test_fson_parse_invalid_datetime) {
+    fossil_media_fson_error_t err = {0};
+    const char *json =
+        "{\n"
+        "    timestamp: datetime: \"2025-99-99T99:99:99Z\"\n"
+        "}";
+    fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
+    ASSUME_ITS_CNULL(val);
+    ASSUME_ITS_EQUAL_I32(err.code, FOSSIL_MEDIA_FSON_ERR_PARSE);
+}
+
+FOSSIL_TEST_CASE(c_test_fson_parse_invalid_duration) {
+    fossil_media_fson_error_t err = {0};
+    const char *json =
+        "{\n"
+        "    timeout: duration: \"5minutes30seconds\"  // not ISO 8601 or simplified format\n"
+        "}";
+    fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
+    ASSUME_ITS_CNULL(val);
+    ASSUME_ITS_EQUAL_I32(err.code, FOSSIL_MEDIA_FSON_ERR_PARSE);
+}
+
+// Complex object with nested arrays and objects
+FOSSIL_TEST_CASE(c_test_fson_complex_nested) {
+    fossil_media_fson_error_t err = {0};
+    const char *json =
+        "{\n"
+        "    app: object: {\n"
+        "        name: cstr: \"Fossil App\",\n"
+        "        version: u32: 101,\n"
+        "        debug: bool: true,\n"
+        "        log: object: {\n"
+        "            level: enum: \"info\",\n"
+        "            output: cstr: \"/tmp/fossil.log\"\n"
+        "        },\n"
+        "        features: array: [\n"
+        "            feature1: bool: true,\n"
+        "            feature2: bool: false,\n"
+        "            max_threads: u8: 16\n"
+        "        ]\n"
+        "    },\n"
+        "    crypto: object: {\n"
+        "        enabled: bool: true,\n"
+        "        key: hex: \"DEADBEEFCAFEBABE\"\n"
+        "    },\n"
+        "    build_flags: flags:u16: [ \"debug\", \"trace\" ]\n"
+        "}";
+    fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
+    ASSUME_NOT_CNULL(val);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_fson_type_name(val->type), "object");
+
+    // Validate nested object
+    fossil_media_fson_value_t *app_obj = fossil_media_fson_object_get(val, "app");
+    ASSUME_NOT_CNULL(app_obj);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_fson_type_name(app_obj->type), "object");
+
+    // Validate nested array
+    fossil_media_fson_value_t *features_arr = fossil_media_fson_object_get(app_obj, "features");
+    ASSUME_NOT_CNULL(features_arr);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_fson_type_name(features_arr->type), "array");
+    ASSUME_ITS_EQUAL_SIZE(fossil_media_fson_array_size(features_arr), 3);
+
+    fossil_media_fson_free(val);
+}
+
+// Complex object with enums and flags
+FOSSIL_TEST_CASE(c_test_fson_complex_flags_enum) {
+    fossil_media_fson_error_t err = {0};
+    const char *json =
+        "{\n"
+        "    build: object: {\n"
+        "        type: enum: \"release\",\n"
+        "        flags: flags:u16: [ \"optimize\", \"log\" ]\n"
+        "    }\n"
+        "}";
+    fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
+    ASSUME_NOT_CNULL(val);
+
+    fossil_media_fson_value_t *build_obj = fossil_media_fson_object_get(val, "build");
+    ASSUME_NOT_CNULL(build_obj);
+
+    fossil_media_fson_value_t *type_val = fossil_media_fson_object_get(build_obj, "type");
+    ASSUME_NOT_CNULL(type_val);
+    // With this parser, enums are parsed as cstr
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_fson_type_name(type_val->type), "cstr");
+
+    fossil_media_fson_value_t *flags_val = fossil_media_fson_object_get(build_obj, "flags");
+    ASSUME_NOT_CNULL(flags_val);
+    // With this parser, flags are parsed as array of cstr
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_fson_type_name(flags_val->type), "array");
+
+    fossil_media_fson_free(val);
+}
+
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -263,6 +438,19 @@ FOSSIL_TEST_GROUP(c_fson_tests) {
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_invalid_json);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_large_number);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_special_char_string);
+
+    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_enum);
+    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_flags);
+    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_datetime);
+    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_duration);
+
+    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_invalid_enum);
+    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_invalid_flags_type);
+    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_flags_out_of_range);
+    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_invalid_datetime);
+    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_invalid_duration);
+    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_complex_nested);
+    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_complex_flags_enum);
 
     FOSSIL_TEST_REGISTER(c_fson_fixture);
 } // end of tests
