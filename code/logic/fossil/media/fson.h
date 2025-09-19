@@ -85,10 +85,6 @@ typedef enum {
     FSON_TYPE_FLAGS,      /* Bitmask of symbolic flags */
     FSON_TYPE_DATETIME,   /* ISO 8601 datetime */
     FSON_TYPE_DURATION,   /* Time span (e.g. "30s", "5m", "1h") */
-
-    /* Virtual/meta nodes */
-    FSON_TYPE_INCLUDE,    /* $include directive */
-    FSON_TYPE_SCHEMA      /* $schema declaration */
 } fossil_media_fson_type_t;
 
 /* -------------------------------------------------------------
@@ -366,6 +362,42 @@ fossil_media_fson_value_t *fossil_media_fson_new_enum(const char *symbol, const 
  * @return Newly allocated FSON flags value, or NULL if allocation fails.
  */
 fossil_media_fson_value_t *fossil_media_fson_new_flags(uint64_t bitmask, const char **symbols, size_t count);
+
+/**
+ * @brief Create a FSON flags value from a string.
+ *
+ * Parses a comma-separated string of flag names and creates a FSON flags value.
+ *
+ * @param flags_str Comma-separated flag names (e.g., "read,write,execute").
+ * @return Newly allocated FSON flags value, or NULL if allocation fails.
+ */
+fossil_media_fson_value_t *fossil_media_fson_new_flags_from_string(const char *flags_str);
+
+/**
+ * @brief Create a FSON datetime value from an ISO 8601 string.
+ *
+ * @param dt_str ISO 8601 datetime string (e.g., "2024-06-01T12:34:56Z").
+ * @return Newly allocated FSON datetime value, or NULL if allocation fails.
+ */
+fossil_media_fson_value_t *fossil_media_fson_new_datetime(const char *dt_str);
+
+/**
+ * @brief Create a FSON duration value from a string.
+ *
+ * Parses a duration string (e.g., "30s", "5m", "1h") and creates a FSON duration value.
+ *
+ * @param dur_str Duration string.
+ * @return Newly allocated FSON duration value, or NULL if allocation fails.
+ */
+fossil_media_fson_value_t *fossil_media_fson_new_duration(const char *dur_str);
+
+/**
+ * @brief Set the root object for a FSON schema value.
+ *
+ * @param schema FSON schema value.
+ * @param root Root object value (ownership transferred).
+ */
+void fossil_media_fson_schema_set_root(fossil_media_fson_value_t *schema, fossil_media_fson_value_t *root);
 
 /** @} */
 
@@ -794,6 +826,7 @@ fossil_media_fson_value_t * fossil_media_fson_get_path(const fossil_media_fson_v
 #include <string>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace fossil {
 
@@ -1071,6 +1104,58 @@ namespace fossil {
                     symbol_cstrs.empty() ? nullptr : symbol_cstrs.data(),
                     symbol_cstrs.size()
                 ));
+            }
+
+            /**
+             * @brief Create a FSON flags value from a comma-separated string.
+             * @param flags_str Comma-separated flag names (e.g., "read,write,execute").
+             * @return Fson object holding a flags value.
+             * @throws FsonError if allocation fails.
+             */
+            static Fson new_flags_from_string(const std::string& flags_str) {
+                fossil_media_fson_value_t* val = fossil_media_fson_new_flags_from_string(flags_str.c_str());
+                if (!val) {
+                    throw FsonError("Failed to create flags from string");
+                }
+                return Fson(val);
+            }
+
+            /**
+             * @brief Create a FSON datetime value from an ISO 8601 string.
+             * @param dt_str ISO 8601 datetime string (e.g., "2024-06-01T12:34:56Z").
+             * @return Fson object holding a datetime value.
+             * @throws FsonError if allocation fails.
+             */
+            static Fson new_datetime(const std::string& dt_str) {
+                fossil_media_fson_value_t* val = fossil_media_fson_new_datetime(dt_str.c_str());
+                if (!val) {
+                    throw FsonError("Failed to create datetime value");
+                }
+                return Fson(val);
+            }
+
+            /**
+             * @brief Create a FSON duration value from a string.
+             * @param dur_str Duration string (e.g., "30s", "5m", "1h").
+             * @return Fson object holding a duration value.
+             * @throws FsonError if allocation fails.
+             */
+            static Fson new_duration(const std::string& dur_str) {
+                fossil_media_fson_value_t* val = fossil_media_fson_new_duration(dur_str.c_str());
+                if (!val) {
+                    throw FsonError("Failed to create duration value");
+                }
+                return Fson(val);
+            }
+
+            /**
+             * @brief Set the root object for a FSON schema value.
+             * @param root Root object value (ownership transferred).
+             * @throws FsonError if operation fails.
+             */
+            void schema_set_root(Fson&& root) {
+                fossil_media_fson_schema_set_root(value_, root.value_);
+                root.value_ = nullptr; // Ownership transferred
             }
 
             /**
