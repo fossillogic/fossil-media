@@ -323,7 +323,7 @@ FOSSIL_TEST_CASE(c_test_fson_parse_flags_out_of_range) {
         "}";
     fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
     ASSUME_ITS_CNULL(val);
-    ASSUME_ITS_EQUAL_I32(err.code, FOSSIL_MEDIA_FSON_ERR_PARSE);
+    ASSUME_ITS_EQUAL_I32(err.code, FOSSIL_MEDIA_FSON_ERR_TYPE);
 }
 
 FOSSIL_TEST_CASE(c_test_fson_parse_invalid_datetime) {
