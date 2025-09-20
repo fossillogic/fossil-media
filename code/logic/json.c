@@ -415,8 +415,8 @@ static fossil_media_json_value_t *parse_value(ctx_t *c, fossil_media_json_error_
     if (!ch) { set_error(err,1,c->i,"Unexpected end of input"); return NULL; }
     if (ch == '"') return parse_string(c, err);
     if (ch == '-' || (ch >= '0' && ch <= '9')) return parse_number(c, err);
-    if (ch == '{') return parse_object(c, err);
-    if (ch == '[') return parse_array(c, err);
+    if (ch == '{') return parse_object(c, err); // supports nested objects
+    if (ch == '[') return parse_array(c, err);  // supports nested arrays
     /* literals */
     if (ch == 't' || ch == 'f' || ch == 'n') return parse_literal(c, err);
     set_error(err,1,c->i,"Unexpected token '%c'", ch);

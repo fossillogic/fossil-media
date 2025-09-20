@@ -228,27 +228,60 @@ fossil_media_fson_value_t *fossil_media_fson_parse(const char *json_text, fossil
 
             // Handle nested object
             if (strcmp(base_type, "object") == 0 && *json_text == '{') {
-                val = fossil_media_fson_parse(json_text, NULL);
-                // Advance json_text past nested object
+                // Find matching closing brace for nested object
                 int brace = 1;
+                const char *obj_start = json_text;
                 json_text++;
                 while (*json_text && brace > 0) {
                     if (*json_text == '{') brace++;
                     else if (*json_text == '}') brace--;
                     json_text++;
                 }
+                size_t obj_len = json_text - obj_start;
+                char *obj_buf = (char *)malloc(obj_len + 1);
+                if (!obj_buf) {
+                    free(key);
+                    free(type);
+                    fossil_media_fson_free(obj);
+                    if (err_out) {
+                        err_out->code = FOSSIL_MEDIA_FSON_ERR_NOMEM;
+                        err_out->position = 0;
+                        snprintf(err_out->message, sizeof(err_out->message), "Out of memory");
+                    }
+                    return NULL;
+                }
+                strncpy(obj_buf, obj_start, obj_len);
+                obj_buf[obj_len] = '\0';
+                val = fossil_media_fson_parse(obj_buf, NULL);
+                free(obj_buf);
             }
             // Handle nested array
             else if (strcmp(base_type, "array") == 0 && *json_text == '[') {
-                val = fossil_media_fson_parse(json_text, NULL);
-                // Advance json_text past nested array
                 int bracket = 1;
+                const char *arr_start = json_text;
                 json_text++;
                 while (*json_text && bracket > 0) {
                     if (*json_text == '[') bracket++;
                     else if (*json_text == ']') bracket--;
                     json_text++;
                 }
+                size_t arr_len = json_text - arr_start;
+                char *arr_buf = (char *)malloc(arr_len + 1);
+                if (!arr_buf) {
+                    free(key);
+                    free(type);
+                    fossil_media_fson_free(obj);
+                    if (err_out) {
+                        err_out->code = FOSSIL_MEDIA_FSON_ERR_NOMEM;
+                        err_out->position = 0;
+                        snprintf(err_out->message, sizeof(err_out->message), "Out of memory");
+                    }
+                    return NULL;
+                }
+                strncpy(arr_buf, arr_start, arr_len);
+                arr_buf[arr_len] = '\0';
+                val = fossil_media_fson_parse(arr_buf, NULL);
+                free(arr_buf);
             }
             // Handle enum
             else if (strcmp(base_type, "enum") == 0) {
@@ -609,28 +642,60 @@ fossil_media_fson_value_t *fossil_media_fson_parse(const char *json_text, fossil
                 break;
             }
             if (*json_text == '{') {
-                fossil_media_fson_value_t *item = fossil_media_fson_parse(json_text, NULL);
-                if (item) {
-                    fossil_media_fson_array_append(arr, item);
-                }
+                // Find matching closing brace for nested object
                 int brace = 1;
+                const char *obj_start = json_text;
                 json_text++;
                 while (*json_text && brace > 0) {
                     if (*json_text == '{') brace++;
                     else if (*json_text == '}') brace--;
                     json_text++;
                 }
-            } else if (*json_text == '[') {
-                fossil_media_fson_value_t *item = fossil_media_fson_parse(json_text, NULL);
+                size_t obj_len = json_text - obj_start;
+                char *obj_buf = (char *)malloc(obj_len + 1);
+                if (!obj_buf) {
+                    fossil_media_fson_free(arr);
+                    if (err_out) {
+                        err_out->code = FOSSIL_MEDIA_FSON_ERR_NOMEM;
+                        err_out->position = 0;
+                        snprintf(err_out->message, sizeof(err_out->message), "Out of memory");
+                    }
+                    return NULL;
+                }
+                strncpy(obj_buf, obj_start, obj_len);
+                obj_buf[obj_len] = '\0';
+                fossil_media_fson_value_t *item = fossil_media_fson_parse(obj_buf, NULL);
+                free(obj_buf);
                 if (item) {
                     fossil_media_fson_array_append(arr, item);
                 }
+            } else if (*json_text == '[') {
+                // Find matching closing bracket for nested array
                 int bracket2 = 1;
+                const char *arr_start = json_text;
                 json_text++;
                 while (*json_text && bracket2 > 0) {
                     if (*json_text == '[') bracket2++;
                     else if (*json_text == ']') bracket2--;
                     json_text++;
+                }
+                size_t arr_len = json_text - arr_start;
+                char *arr_buf = (char *)malloc(arr_len + 1);
+                if (!arr_buf) {
+                    fossil_media_fson_free(arr);
+                    if (err_out) {
+                        err_out->code = FOSSIL_MEDIA_FSON_ERR_NOMEM;
+                        err_out->position = 0;
+                        snprintf(err_out->message, sizeof(err_out->message), "Out of memory");
+                    }
+                    return NULL;
+                }
+                strncpy(arr_buf, arr_start, arr_len);
+                arr_buf[arr_len] = '\0';
+                fossil_media_fson_value_t *item = fossil_media_fson_parse(arr_buf, NULL);
+                free(arr_buf);
+                if (item) {
+                    fossil_media_fson_array_append(arr, item);
                 }
             } else {
                 // Accept key: type: value
