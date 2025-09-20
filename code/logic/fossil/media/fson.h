@@ -82,7 +82,6 @@ typedef enum {
 
     /* New in FSON v2 */
     FSON_TYPE_ENUM,       /* Symbol from a fixed set */
-    FSON_TYPE_FLAGS,      /* Bitmask of symbolic flags */
     FSON_TYPE_DATETIME,   /* ISO 8601 datetime */
     FSON_TYPE_DURATION,   /* Time span (e.g. "30s", "5m", "1h") */
 } fossil_media_fson_type_t;
@@ -136,12 +135,6 @@ struct fossil_media_fson_value {
             size_t allowed_count;
         } enum_val;
 
-        struct {
-            uint64_t bitmask;   /* resolved numeric value */
-            char **symbols;     /* symbolic flag names */
-            size_t count;
-        } flags_val;
-
         /* Date/time and duration */
         struct {
             int64_t epoch_ns;  /* nanoseconds since Unix epoch */
@@ -166,12 +159,12 @@ struct fossil_media_fson_value {
             size_t capacity;
         } object;
 
-        /* Meta-directives */
-        char *include_path;    /* $include: cstr */
-        struct {
-            /* schema data is itself an object of constraints */
-            struct fossil_media_fson_value *schema_root;
-        } schema;
+        // /* Meta-directives */
+        // char *include_path;    /* $include: cstr */
+        // struct {
+        //     /* schema data is itself an object of constraints */
+        //     struct fossil_media_fson_value *schema_root;
+        // } schema;
     } u;
 };
 
@@ -354,16 +347,6 @@ fossil_media_fson_value_t *fossil_media_fson_new_object(void);
 fossil_media_fson_value_t *fossil_media_fson_new_enum(const char *symbol, const char **allowed, size_t allowed_count);
 
 /**
- * @brief Create a FSON flags value.
- *
- * @param bitmask  Numeric bitmask value.
- * @param symbols  Array of symbolic flag names (UTF-8, cannot be NULL).
- * @param count    Number of symbols in the array.
- * @return Newly allocated FSON flags value, or NULL if allocation fails.
- */
-fossil_media_fson_value_t *fossil_media_fson_new_flags(uint64_t bitmask, const char **symbols, size_t count);
-
-/**
  * @brief Create a FSON flags value from a string.
  *
  * Parses a comma-separated string of flag names and creates a FSON flags value.
@@ -519,8 +502,7 @@ const char *fossil_media_fson_type_name(fossil_media_fson_type_t t);
  * @param src  Source FSON value (must not be NULL).
  * @return Newly allocated FSON value on success, or NULL on failure.
  */
-fossil_media_fson_value_t *
-fossil_media_fson_clone(const fossil_media_fson_value_t *src);
+fossil_media_fson_value_t *fossil_media_fson_clone(const fossil_media_fson_value_t *src);
 
 /**
  * @brief Compare two FSON values for equality.
@@ -607,8 +589,7 @@ int fossil_media_fson_object_reserve(fossil_media_fson_value_t *obj, size_t capa
  * @param err_out  Optional pointer to error details.
  * @return Pointer to the parsed FSON value, or NULL on failure.
  */
-fossil_media_fson_value_t *
-fossil_media_fson_parse_file(const char *filename, fossil_media_fson_error_t *err_out);
+fossil_media_fson_value_t * fossil_media_fson_parse_file(const char *filename, fossil_media_fson_error_t *err_out);
 
 /**
  * @brief Write a FSON value to a file.
@@ -767,14 +748,6 @@ int fossil_media_fson_get_cstr(const fossil_media_fson_value_t *v, char **out);
  * @return 0 on success, nonzero on error.
  */
 int fossil_media_fson_get_enum(const fossil_media_fson_value_t *v, const char **out);
-
-/**
- * @brief Get flags bitmask from a FSON flags value.
- * @param v FSON flags value.
- * @param out Pointer to output uint64_t bitmask.
- * @return 0 on success, nonzero on error.
- */
-int fossil_media_fson_get_flags(const fossil_media_fson_value_t *v, uint64_t *out);
 
 /** @} */
 
@@ -1085,24 +1058,6 @@ namespace fossil {
                     symbol.c_str(),
                     allowed.empty() ? nullptr : allowed_cstrs.data(),
                     allowed_cstrs.size()
-                ));
-            }
-
-            /**
-             * @brief Create a FSON flags value.
-             * @param bitmask Numeric bitmask value.
-             * @param symbols Array of symbolic flag names.
-             * @return Fson object holding a flags value.
-             */
-            static Fson new_flags(uint64_t bitmask, const std::vector<std::string>& symbols) {
-                std::vector<const char*> symbol_cstrs;
-                for (const auto& s : symbols) {
-                    symbol_cstrs.push_back(s.c_str());
-                }
-                return Fson(fossil_media_fson_new_flags(
-                    bitmask,
-                    symbol_cstrs.empty() ? nullptr : symbol_cstrs.data(),
-                    symbol_cstrs.size()
                 ));
             }
 
@@ -1553,18 +1508,6 @@ namespace fossil {
                 std::string result(out);
                 // No need to free 'out' as it's not heap-allocated by API
                 return result;
-            }
-
-            /**
-             * @brief Get flags bitmask from this FSON flags value.
-             * @return uint64_t bitmask.
-             * @throws FsonError if type mismatch or error.
-             */
-            uint64_t get_flags() const {
-                uint64_t out;
-                if (fossil_media_fson_get_flags(value_, &out) != 0)
-                    throw FsonError("Failed to get flags bitmask");
-                return out;
             }
 
             /**

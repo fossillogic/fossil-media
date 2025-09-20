@@ -1301,45 +1301,6 @@ void fossil_media_fson_schema_set_root(fossil_media_fson_value_t *schema, fossil
     }
 }
 
-fossil_media_fson_value_t *fossil_media_fson_new_flags(uint64_t bitmask, const char **symbols, size_t count) {
-    if (symbols == NULL && count > 0) {
-        return NULL;
-    }
-
-    fossil_media_fson_value_t *v = (fossil_media_fson_value_t *)malloc(sizeof(fossil_media_fson_value_t));
-    if (!v) {
-        return NULL;
-    }
-
-    v->type = FSON_TYPE_FLAGS;
-    v->u.flags_val.bitmask = bitmask;
-
-    if (symbols && count > 0) {
-        v->u.flags_val.symbols = (char **)malloc(count * sizeof(char *));
-        if (!v->u.flags_val.symbols) {
-            free(v);
-            return NULL;
-        }
-        for (size_t i = 0; i < count; i++) {
-            v->u.flags_val.symbols[i] = fossil_media_strdup(symbols[i]);
-            if (!v->u.flags_val.symbols[i]) {
-                for (size_t j = 0; j < i; j++) {
-                    free(v->u.flags_val.symbols[j]);
-                }
-                free(v->u.flags_val.symbols);
-                free(v);
-                return NULL;
-            }
-        }
-        v->u.flags_val.count = count;
-    } else {
-        v->u.flags_val.symbols = NULL;
-        v->u.flags_val.count = 0;
-    }
-
-    return v;
-}
-
 int fossil_media_fson_object_set(fossil_media_fson_value_t *obj, const char *key, fossil_media_fson_value_t *val) {
     if (obj == NULL || obj->type != FSON_TYPE_OBJECT || key == NULL || val == NULL) {
         return FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
@@ -1689,7 +1650,6 @@ const char *fossil_media_fson_type_name(fossil_media_fson_type_t t) {
         case FSON_TYPE_ARRAY:     return "array";
         case FSON_TYPE_OBJECT:    return "object";
         case FSON_TYPE_ENUM:      return "enum";
-        case FSON_TYPE_FLAGS:     return "flags";
         case FSON_TYPE_DATETIME:  return "datetime";
         case FSON_TYPE_DURATION:  return "duration";
         default:                  return "unknown";
@@ -1867,31 +1827,6 @@ fossil_media_fson_value_t * fossil_media_fson_clone(const fossil_media_fson_valu
                 copy->u.enum_val.allowed_count = 0;
             }
             break;
-        case FSON_TYPE_FLAGS:
-            copy->u.flags_val.bitmask = src->u.flags_val.bitmask;
-            if (src->u.flags_val.count > 0 && src->u.flags_val.symbols) {
-                copy->u.flags_val.symbols = malloc(sizeof(char*) * src->u.flags_val.count);
-                if (!copy->u.flags_val.symbols) {
-                    free(copy);
-                    return NULL;
-                }
-                for (size_t i = 0; i < src->u.flags_val.count; i++) {
-                    copy->u.flags_val.symbols[i] = fossil_media_strdup(src->u.flags_val.symbols[i]);
-                    if (!copy->u.flags_val.symbols[i]) {
-                        for (size_t j = 0; j < i; j++) {
-                            free(copy->u.flags_val.symbols[j]);
-                        }
-                        free(copy->u.flags_val.symbols);
-                        free(copy);
-                        return NULL;
-                    }
-                }
-                copy->u.flags_val.count = src->u.flags_val.count;
-            } else {
-                copy->u.flags_val.symbols = NULL;
-                copy->u.flags_val.count = 0;
-            }
-            break;
         case FSON_TYPE_DATETIME:
             if (src->u.cstr) {
                 copy->u.cstr = fossil_media_strdup(src->u.cstr);
@@ -2033,16 +1968,6 @@ int fossil_media_fson_equals(const fossil_media_fson_value_t *a, const fossil_me
                 return 0;
             }
             return (strcmp(a->u.enum_val.symbol, b->u.enum_val.symbol) == 0) ? 1 : 0;
-        case FSON_TYPE_FLAGS:
-            if (a->u.flags_val.count != b->u.flags_val.count) {
-                return 0;
-            }
-            for (size_t i = 0; i < a->u.flags_val.count; i++) {
-                if (strcmp(a->u.flags_val.symbols[i], b->u.flags_val.symbols[i]) != 0) {
-                    return 0;
-                }
-            }
-            return (a->u.flags_val.bitmask == b->u.flags_val.bitmask) ? 1 : 0;
         case FSON_TYPE_DATETIME:
         case FSON_TYPE_DURATION:
         case FSON_TYPE_ARRAY:
@@ -2440,13 +2365,6 @@ int fossil_media_fson_get_enum(const fossil_media_fson_value_t *v, const char **
     return FOSSIL_MEDIA_FSON_OK;
 }
 
-int fossil_media_fson_get_flags(const fossil_media_fson_value_t *v, uint64_t *out) {
-    if (v == NULL || out == NULL) return FOSSIL_MEDIA_FSON_ERR_INVALID_ARG;
-    if (v->type != FSON_TYPE_FLAGS) return FOSSIL_MEDIA_FSON_ERR_TYPE;
-    *out = v->u.flags_val.bitmask;
-    return FOSSIL_MEDIA_FSON_OK;
-}
-
 void fossil_media_fson_debug_dump(const fossil_media_fson_value_t *v, int indent) {
     if (v == NULL) {
         printf("%*s<null>\n", indent, "");
@@ -2533,16 +2451,6 @@ void fossil_media_fson_debug_dump(const fossil_media_fson_value_t *v, int indent
             break;
         case FSON_TYPE_ENUM:
             printf("%*senum: \"%s\"\n", indent, "", v->u.enum_val.symbol ? v->u.enum_val.symbol : "(null)");
-            break;
-        case FSON_TYPE_FLAGS:
-            printf("%*sflags: bitmask=0x%llx\n", indent, "", (unsigned long long)v->u.flags_val.bitmask);
-            if (v->u.flags_val.count > 0 && v->u.flags_val.symbols) {
-                printf("%*sflags symbols: [", indent + 2, "");
-                for (size_t i = 0; i < v->u.flags_val.count; i++) {
-                    printf("\"%s\"%s", v->u.flags_val.symbols[i], (i + 1 < v->u.flags_val.count) ? ", " : "");
-                }
-                printf("]\n");
-            }
             break;
         case FSON_TYPE_DATETIME:
             printf("%*sdatetime: \"%s\"\n", indent, "", v->u.cstr ? v->u.cstr : "(null)");

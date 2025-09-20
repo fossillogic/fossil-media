@@ -304,28 +304,6 @@ FOSSIL_TEST_CASE(c_test_fson_parse_invalid_enum) {
     ASSUME_ITS_EQUAL_I32(err.code, FOSSIL_MEDIA_FSON_ERR_RANGE);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_parse_invalid_flags_type) {
-    fossil_media_fson_error_t err = {0};
-    const char *json =
-        "{\n"
-        "    features: flags:u16: \"debug\"  // Must be an array, not a string\n"
-        "}";
-    fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
-    ASSUME_ITS_CNULL(val);
-    ASSUME_ITS_EQUAL_I32(err.code, FOSSIL_MEDIA_FSON_ERR_TYPE);
-}
-
-FOSSIL_TEST_CASE(c_test_fson_parse_flags_out_of_range) {
-    fossil_media_fson_error_t err = {0};
-    const char *json =
-        "{\n"
-        "    features: flags:u8: [ \"debug\", \"trace\", \"extra\", \"overflow\" ]\n"
-        "}";
-    fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
-    ASSUME_ITS_CNULL(val);
-    ASSUME_ITS_EQUAL_I32(err.code, FOSSIL_MEDIA_FSON_ERR_TYPE);
-}
-
 FOSSIL_TEST_CASE(c_test_fson_parse_invalid_datetime) {
     fossil_media_fson_error_t err = {0};
     const char *json =
@@ -370,8 +348,7 @@ FOSSIL_TEST_CASE(c_test_fson_complex_nested) {
         "    crypto: object: {\n"
         "        enabled: bool: true,\n"
         "        key: hex: \"DEADBEEFCAFEBABE\"\n"
-        "    },\n"
-        "    build_flags: flags:u16: [ \"debug\", \"trace\" ]\n"
+        "    }\n"
         "}";
     fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
     ASSUME_NOT_CNULL(val);
@@ -391,14 +368,13 @@ FOSSIL_TEST_CASE(c_test_fson_complex_nested) {
     fossil_media_fson_free(val);
 }
 
-// Complex object with enums and flags
+// Complex object with enums
 FOSSIL_TEST_CASE(c_test_fson_complex_flags_enum) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
         "    build: object: {\n"
-        "        type: enum: \"release\",\n"
-        "        flags: flags:u16: [ \"optimize\", \"log\" ]\n"
+        "        type: enum: \"release\"\n"
         "    }\n"
         "}";
     fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
@@ -411,11 +387,6 @@ FOSSIL_TEST_CASE(c_test_fson_complex_flags_enum) {
     ASSUME_NOT_CNULL(type_val);
     // With this parser, enums are parsed as cstr
     ASSUME_ITS_EQUAL_CSTR(fossil_media_fson_type_name(type_val->type), "cstr");
-
-    fossil_media_fson_value_t *flags_val = fossil_media_fson_object_get(build_obj, "flags");
-    ASSUME_NOT_CNULL(flags_val);
-    // With this parser, flags are parsed as array of cstr
-    ASSUME_ITS_EQUAL_CSTR(fossil_media_fson_type_name(flags_val->type), "array");
 
     fossil_media_fson_free(val);
 }
@@ -445,8 +416,6 @@ FOSSIL_TEST_GROUP(c_fson_tests) {
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_duration);
 
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_invalid_enum);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_invalid_flags_type);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_flags_out_of_range);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_invalid_datetime);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_invalid_duration);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_complex_nested);
