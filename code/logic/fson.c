@@ -414,7 +414,29 @@ fossil_media_fson_value_t *fossil_media_fson_parse(const char *json_text, fossil
                         memcpy(dt_str, dt_start, dt_len);
                     }
                     dt_str[dt_len] = '\0';
-                    val = fossil_media_fson_new_datetime(dt_str);
+
+                    // Basic validation: must contain at least one digit and a separator
+                    int valid = 0;
+                    for (size_t i = 0; i < dt_len; i++) {
+                        if (isdigit((unsigned char)dt_str[i])) {
+                            valid = 1;
+                            break;
+                        }
+                    }
+                    if (valid && strchr(dt_str, '-') != NULL) {
+                        val = fossil_media_fson_new_datetime(dt_str);
+                    } else {
+                        free(dt_str);
+                        free(key);
+                        free(type);
+                        fossil_media_fson_free(obj);
+                        if (err_out) {
+                            err_out->code = FOSSIL_MEDIA_FSON_ERR_TYPE;
+                            err_out->position = (size_t)(json_text - input_start);
+                            snprintf(err_out->message, sizeof(err_out->message), "Invalid datetime format");
+                        }
+                        return NULL;
+                    }
                     free(dt_str);
                     if (*json_text == '"') json_text++;
                 }
@@ -442,7 +464,30 @@ fossil_media_fson_value_t *fossil_media_fson_parse(const char *json_text, fossil
                         memcpy(dur_str, dur_start, dur_len);
                     }
                     dur_str[dur_len] = '\0';
-                    val = fossil_media_fson_new_duration(dur_str);
+                    // Basic validation: must contain at least one digit or time unit (e.g., 's', 'm', 'h')
+                    int valid = 0;
+                    for (size_t i = 0; i < dur_len; i++) {
+                        if (isdigit((unsigned char)dur_str[i]) ||
+                            dur_str[i] == 's' || dur_str[i] == 'm' || dur_str[i] == 'h' ||
+                            dur_str[i] == 'd') {
+                            valid = 1;
+                            break;
+                        }
+                    }
+                    if (valid) {
+                        val = fossil_media_fson_new_duration(dur_str);
+                    } else {
+                        free(dur_str);
+                        free(key);
+                        free(type);
+                        fossil_media_fson_free(obj);
+                        if (err_out) {
+                            err_out->code = FOSSIL_MEDIA_FSON_ERR_TYPE;
+                            err_out->position = (size_t)(json_text - input_start);
+                            snprintf(err_out->message, sizeof(err_out->message), "Invalid duration format");
+                        }
+                        return NULL;
+                    }
                     free(dur_str);
                     if (*json_text == '"') json_text++;
                 }
@@ -2006,7 +2051,21 @@ int fossil_media_fson_equals(const fossil_media_fson_value_t *a, const fossil_me
             }
             return (strcmp(a->u.enum_val.symbol, b->u.enum_val.symbol) == 0) ? 1 : 0;
         case FSON_TYPE_DATETIME:
+            if (a->u.cstr == NULL && b->u.cstr == NULL) {
+            return 1;
+            }
+            if (a->u.cstr == NULL || b->u.cstr == NULL) {
+            return 0;
+            }
+            return (strcmp(a->u.cstr, b->u.cstr) == 0) ? 1 : 0;
         case FSON_TYPE_DURATION:
+            if (a->u.cstr == NULL && b->u.cstr == NULL) {
+            return 1;
+            }
+            if (a->u.cstr == NULL || b->u.cstr == NULL) {
+            return 0;
+            }
+            return (strcmp(a->u.cstr, b->u.cstr) == 0) ? 1 : 0;
         case FSON_TYPE_ARRAY:
             if (a->u.array.count != b->u.array.count) {
                 return 0;
