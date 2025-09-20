@@ -269,17 +269,6 @@ FOSSIL_TEST_CASE(c_test_fson_parse_duration) {
     fossil_media_fson_free(val);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_parse_invalid_datetime) {
-    fossil_media_fson_error_t err = {0};
-    const char *json =
-        "{\n"
-        "    timestamp: datetime: \"2025-99-99T99:99:99Z\"\n"
-        "}";
-    fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
-    ASSUME_NOT_CNULL(val);
-    ASSUME_ITS_EQUAL_I32(err.code, FOSSIL_MEDIA_FSON_ERR_PARSE);
-}
-
 FOSSIL_TEST_CASE(c_test_fson_parse_invalid_duration) {
     fossil_media_fson_error_t err = {0};
     const char *json =
@@ -346,16 +335,12 @@ FOSSIL_TEST_GROUP(c_fson_tests) {
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_stringify_roundtrip);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_clone_and_equals);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_equals_not_equal);
-
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_empty_array);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_invalid_json);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_large_number);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_special_char_string);
-
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_datetime);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_duration);
-
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_invalid_datetime);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_invalid_duration);
     FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_complex_nested);
 

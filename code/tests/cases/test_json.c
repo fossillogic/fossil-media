@@ -390,6 +390,7 @@ FOSSIL_TEST_CASE(c_test_json_parse_deeply_nested) {
     fossil_media_json_value_t *e_val = fossil_media_json_get_path(val, "a.b.c.d[2].e");
     ASSUME_NOT_CNULL(e_val);
     ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(e_val->type), "string");
+    fossil_media_json_free(e_val);
     fossil_media_json_free(val);
 }
 
