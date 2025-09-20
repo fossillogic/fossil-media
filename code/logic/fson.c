@@ -1216,56 +1216,6 @@ fossil_media_fson_value_t *fossil_media_fson_new_enum(const char *symbol, const 
 
 void fossil_media_fson_schema_set_root(fossil_media_fson_value_t *schema, fossil_media_fson_value_t *root);
 
-fossil_media_fson_value_t *fossil_media_fson_new_flags_from_string(const char *flags_str) {
-    // Parse comma-separated flags into symbols array and bitmask
-    if (!flags_str) return fossil_media_fson_new_flags(0, NULL, 0);
-
-    // Count symbols
-    size_t count = 0;
-    const char *p = flags_str;
-    while (*p) {
-        while (*p == ' ' || *p == ',') p++;
-        if (*p) count++;
-        while (*p && *p != ',') p++;
-        if (*p == ',') p++;
-    }
-
-    if (count == 0) return fossil_media_fson_new_flags(0, NULL, 0);
-
-    char **symbols = (char **)malloc(count * sizeof(char *));
-    if (!symbols) return fossil_media_fson_new_flags(0, NULL, 0);
-
-    size_t idx = 0;
-    p = flags_str;
-    while (*p && idx < count) {
-        while (*p == ' ' || *p == ',') p++;
-        const char *start = p;
-        while (*p && *p != ',') p++;
-        size_t len = p - start;
-        if (len > 0) {
-            symbols[idx] = (char *)malloc(len + 1);
-            if (!symbols[idx]) {
-                for (size_t j = 0; j < idx; j++) free(symbols[j]);
-                free(symbols);
-                return fossil_media_fson_new_flags(0, NULL, 0);
-            }
-            memcpy(symbols[idx], start, len);
-            symbols[idx][len] = '\0';
-            idx++;
-        }
-        if (*p == ',') p++;
-    }
-    count = idx; // update count to actual number of symbols
-
-    // Bitmask is not computed from symbols, just set to 0
-    fossil_media_fson_value_t *v = fossil_media_fson_new_flags(0, (const char **)symbols, count);
-
-    for (size_t i = 0; i < count; i++) free(symbols[i]);
-    free(symbols);
-
-    return v;
-}
-
 fossil_media_fson_value_t *fossil_media_fson_new_datetime(const char *dt_str) {
     // Store as DATETIME type (not just CSTR)
     if (!dt_str) return NULL;

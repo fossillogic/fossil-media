@@ -347,16 +347,6 @@ fossil_media_fson_value_t *fossil_media_fson_new_object(void);
 fossil_media_fson_value_t *fossil_media_fson_new_enum(const char *symbol, const char **allowed, size_t allowed_count);
 
 /**
- * @brief Create a FSON flags value from a string.
- *
- * Parses a comma-separated string of flag names and creates a FSON flags value.
- *
- * @param flags_str Comma-separated flag names (e.g., "read,write,execute").
- * @return Newly allocated FSON flags value, or NULL if allocation fails.
- */
-fossil_media_fson_value_t *fossil_media_fson_new_flags_from_string(const char *flags_str);
-
-/**
  * @brief Create a FSON datetime value from an ISO 8601 string.
  *
  * @param dt_str ISO 8601 datetime string (e.g., "2024-06-01T12:34:56Z").
@@ -1059,20 +1049,6 @@ namespace fossil {
                     allowed.empty() ? nullptr : allowed_cstrs.data(),
                     allowed_cstrs.size()
                 ));
-            }
-
-            /**
-             * @brief Create a FSON flags value from a comma-separated string.
-             * @param flags_str Comma-separated flag names (e.g., "read,write,execute").
-             * @return Fson object holding a flags value.
-             * @throws FsonError if allocation fails.
-             */
-            static Fson new_flags_from_string(const std::string& flags_str) {
-                fossil_media_fson_value_t* val = fossil_media_fson_new_flags_from_string(flags_str.c_str());
-                if (!val) {
-                    throw FsonError("Failed to create flags from string");
-                }
-                return Fson(val);
             }
 
             /**
