@@ -40,52 +40,72 @@
   #include <unistd.h>
 #endif
 
-// Provide a minimal valid ELF blob for testing
+// Provide a minimal valid ELF blob for testing (ELF64, little-endian, 3 sections: NULL, .text, .shstrtab)
 const unsigned char FOSSIL_MEDIA_ELF_BUILTIN_BLOB[] = {
+    // ELF header (64 bytes)
     0x7f, 'E', 'L', 'F', // ELF magic
-    // Minimal ELF header for 32-bit little endian
-    1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // EI_CLASS, EI_DATA, EI_VERSION, etc.
-    2, 0, // e_type
-    3, 0, // e_machine
-    1, 0, 0, 0, // e_version
-    0, 0, 0, 0, // e_entry
-    52, 0, 0, 0, // e_phoff
-    0, 0, 0, 0, // e_shoff (set later)
-    0, 0, 0, 0, // e_flags
-    52, 0, // e_ehsize
-    0, 0, // e_phentsize
-    0, 0, // e_phnum
-    40, 0, // e_shentsize
-    3, 0, // e_shnum (3 sections: NULL, .text, .shstrtab)
-    2, 0, // e_shstrndx (index of .shstrtab)
-    // Section headers start here (offset 0x34)
-    // NULL section header
-    0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-    // .text section header
-    1,0,0,0, // sh_name (offset 1 in shstrtab)
-    1,0,0,0, // sh_type (PROGBITS)
-    0,0,0,0, // sh_flags
-    0,0,0,0, // sh_addr
-    0xA4,0,0,0, // sh_offset (offset 0xA4)
-    1,0,0,0, // sh_size (1 byte)
-    0,0,0,0, // sh_link
-    0,0,0,0, // sh_info
-    1,0,0,0, // sh_addralign
-    0,0,0,0, // sh_entsize
-    // .shstrtab section header
-    7,0,0,0, // sh_name (offset 7 in shstrtab)
-    3,0,0,0, // sh_type (STRTAB)
-    0,0,0,0, // sh_flags
-    0,0,0,0, // sh_addr
-    0xA5,0,0,0, // sh_offset (offset 0xA5)
-    12,0,0,0, // sh_size (12 bytes)
-    0,0,0,0, // sh_link
-    0,0,0,0, // sh_info
-    1,0,0,0, // sh_addralign
-    0,0,0,0, // sh_entsize
-    // Section data for .text (offset 0xA4)
+    2,    // EI_CLASS (ELFCLASS64)
+    1,    // EI_DATA (ELFDATA2LSB)
+    1,    // EI_VERSION
+    0,    // EI_OSABI
+    0,    // EI_ABIVERSION
+    0,0,0,0,0,0,0, // EI_PAD
+    0,0,0,0,0, // EI_PAD (total 16 bytes for e_ident)
+    2,0,       // e_type (ET_EXEC)
+    62,0,      // e_machine (EM_X86_64)
+    1,0,0,0,   // e_version
+    0,0,0,0,0,0,0,0, // e_entry
+    0,0,0,0,0,0,0,0, // e_phoff
+    0x40,0,0,0,0,0,0,0, // e_shoff (section headers start at offset 0x40)
+    0,0,0,0,   // e_flags
+    64,0,      // e_ehsize (ELF header size)
+    0,0,       // e_phentsize
+    0,0,       // e_phnum
+    64,0,      // e_shentsize (section header size)
+    3,0,       // e_shnum (3 sections)
+    2,0,       // e_shstrndx (section header string table index)
+
+    // Section headers (3 x 64 bytes = 192 bytes, start at offset 0x40)
+    // [0] NULL section header
+    0,0,0,0,       // sh_name
+    0,0,0,0,       // sh_type
+    0,0,0,0,0,0,0,0, // sh_flags
+    0,0,0,0,0,0,0,0, // sh_addr
+    0,0,0,0,0,0,0,0, // sh_offset
+    0,0,0,0,0,0,0,0, // sh_size
+    0,0,0,0,         // sh_link
+    0,0,0,0,         // sh_info
+    0,0,0,0,0,0,0,0, // sh_addralign
+    0,0,0,0,0,0,0,0, // sh_entsize
+
+    // [1] .text section header
+    1,0,0,0,         // sh_name (offset 1 in shstrtab)
+    1,0,0,0,         // sh_type (SHT_PROGBITS)
+    0,0,0,0,0,0,0,0, // sh_flags
+    0,0,0,0,0,0,0,0, // sh_addr
+    0xC0,0,0,0,0,0,0,0, // sh_offset (offset 0xC0)
+    1,0,0,0,0,0,0,0, // sh_size (1 byte)
+    0,0,0,0,         // sh_link
+    0,0,0,0,         // sh_info
+    1,0,0,0,0,0,0,0, // sh_addralign
+    0,0,0,0,0,0,0,0, // sh_entsize
+
+    // [2] .shstrtab section header
+    7,0,0,0,         // sh_name (offset 7 in shstrtab)
+    3,0,0,0,         // sh_type (SHT_STRTAB)
+    0,0,0,0,0,0,0,0, // sh_flags
+    0,0,0,0,0,0,0,0, // sh_addr
+    0xC1,0,0,0,0,0,0,0, // sh_offset (offset 0xC1)
+    12,0,0,0,0,0,0,0, // sh_size (12 bytes)
+    0,0,0,0,         // sh_link
+    0,0,0,0,         // sh_info
+    1,0,0,0,0,0,0,0, // sh_addralign
+    0,0,0,0,0,0,0,0, // sh_entsize
+
+    // Section data for .text (offset 0xC0)
     0x90, // NOP
-    // Section data for .shstrtab (offset 0xA5)
+
+    // Section data for .shstrtab (offset 0xC1)
     0x00, // null
     '.', 't', 'e', 'x', 't', 0x00, // ".text"
     '.', 's', 'h', 's', 't', 'r', 't', 'a', 'b', 0x00 // ".shstrtab"
