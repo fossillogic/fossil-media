@@ -241,15 +241,38 @@ FOSSIL_TEST_CASE(c_test_json_validate) {
 
 FOSSIL_TEST_CASE(c_test_json_get_path) {
     fossil_media_json_error_t err = {0};
-    const char *json = "{\"user\":{\"name\":\"alice\",\"items\":[10,20]}}";
+    const char *json = "{\"user\":{\"name\":\"alice\",\"items\":[10,20],\"complex.key\":{\"foo\":42}}}";
     fossil_media_json_value_t *val = fossil_media_json_parse(json, &err);
     ASSUME_NOT_CNULL(val);
+
+    // Simple dot notation
     fossil_media_json_value_t *name = fossil_media_json_get_path(val, "user.name");
     ASSUME_NOT_CNULL(name);
     ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(name->type), "string");
+    fossil_media_json_free(name);
+
+    // Array index
     fossil_media_json_value_t *item1 = fossil_media_json_get_path(val, "user.items[1]");
     ASSUME_NOT_CNULL(item1);
     ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(item1->type), "number");
+    fossil_media_json_free(item1);
+
+    // Quoted key with dot in key
+    fossil_media_json_value_t *complex = fossil_media_json_get_path(val, "user.\"complex.key\".foo");
+    ASSUME_NOT_CNULL(complex);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(complex->type), "number");
+    fossil_media_json_free(complex);
+
+    // Chained array indices
+    const char *json2 = "{\"arr\":[[1,2],[3,4]]}";
+    fossil_media_json_value_t *val2 = fossil_media_json_parse(json2, &err);
+    ASSUME_NOT_CNULL(val2);
+    fossil_media_json_value_t *nested = fossil_media_json_get_path(val2, "arr[1][0]");
+    ASSUME_NOT_CNULL(nested);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(nested->type), "number");
+    fossil_media_json_free(nested);
+    fossil_media_json_free(val2);
+
     fossil_media_json_free(val);
 }
 
@@ -387,10 +410,23 @@ FOSSIL_TEST_CASE(c_test_json_parse_deeply_nested) {
     const char *json = "{\"a\":{\"b\":{\"c\":{\"d\":[1,2,{\"e\":\"f\"}]}}}}";
     fossil_media_json_value_t *val = fossil_media_json_parse(json, &err);
     ASSUME_NOT_CNULL(val);
+
+    // Test path: a.b.c.d[2].e
     fossil_media_json_value_t *e_val = fossil_media_json_get_path(val, "a.b.c.d[2].e");
     ASSUME_NOT_CNULL(e_val);
     ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(e_val->type), "string");
     fossil_media_json_free(e_val);
+
+    // Also test chained array indices: a.b.c.d[2]
+    fossil_media_json_value_t *d2 = fossil_media_json_get_path(val, "a.b.c.d[2]");
+    ASSUME_NOT_CNULL(d2);
+    ASSUME_ITS_EQUAL_CSTR(fossil_media_json_type_name(d2->type), "object");
+    fossil_media_json_free(d2);
+
+    // Also test invalid path: a.b.c.d[5]
+    fossil_media_json_value_t *invalid = fossil_media_json_get_path(val, "a.b.c.d[5]");
+    ASSUME_ITS_CNULL(invalid);
+
     fossil_media_json_free(val);
 }
 

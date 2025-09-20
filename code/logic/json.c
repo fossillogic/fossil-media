@@ -881,54 +881,65 @@ int fossil_media_json_validate(const char *json_text, fossil_media_json_error_t 
 // Path Access
 // -----------------------------------------------------------------------------
 
+/**
+ * Enhanced path getter: supports dot notation, array indices, quoted keys, and escapes.
+ * Example paths:
+ *   foo.bar[2].baz
+ *   arr[0][1]
+ *   "complex.key".arr[1]
+ *   foo."key.with.dots"[3]
+ */
 fossil_media_json_value_t *fossil_media_json_get_path(const fossil_media_json_value_t *root, const char *path) {
     if (!root || !path) return NULL;
 
     const fossil_media_json_value_t *cur = root;
+    const char *p = path;
     size_t path_len = strlen(path);
     char *buf = fm_malloc(path_len + 1);
     if (!buf) return NULL;
-    strcpy(buf, path);
 
-    char *p = buf;
     while (*p && cur) {
-        // Find next '.' or end
-        char *dot = strchr(p, '.');
-        char *token_end = dot ? dot : p + strlen(p);
+        // Parse next token (object key or array index)
+        size_t toklen = 0;
 
-        // Check for array index: look for '[' in token
-        char *bracket = strchr(p, '[');
-        if (bracket && bracket < token_end) {
-            *bracket = '\0';
-            // Object key before '['
-            if (cur->type != FOSSIL_MEDIA_JSON_OBJECT) { fm_free(buf); return NULL; }
-            cur = fossil_media_json_object_get(cur, p);
-            if (!cur) { fm_free(buf); return NULL; }
-            // Array index (support multiple indices, e.g. arr[1][2])
-            char *idx_ptr = bracket;
-            while (cur && idx_ptr && *idx_ptr == '[' && idx_ptr < token_end) {
-                char *idx_start = idx_ptr + 1;
-                char *idx_end = strchr(idx_start, ']');
-                if (!idx_end || idx_end > token_end) { fm_free(buf); return NULL; }
-                *idx_end = '\0';
-                long idx = strtol(idx_start, NULL, 10);
-                if (cur->type != FOSSIL_MEDIA_JSON_ARRAY) { fm_free(buf); return NULL; }
-                cur = fossil_media_json_array_get(cur, (size_t)idx);
-                if (!cur) { fm_free(buf); return NULL; }
-                idx_ptr = idx_end + 1;
+        // Skip dots
+        while (*p == '.') p++;
+
+        // Quoted key support
+        if (*p == '"') {
+            p++;
+            const char *q = p;
+            while (*q && *q != '"') {
+                if (*q == '\\' && *(q+1)) q++; // skip escaped char
+                q++;
             }
-            p = token_end;
+            if (*q != '"') { fm_free(buf); return NULL; }
+            toklen = (size_t)(q - p);
+            if (toklen > 0) strncpy(buf, p, toklen);
+            buf[toklen] = '\0';
+            p = q + 1;
         } else {
-            // No array index, just object key or array index as token
-            char save = *token_end;
-            *token_end = '\0';
+            // Unquoted key or array index
+            const char *q = p;
+            while (*q && *q != '.' && *q != '[') q++;
+            toklen = (size_t)(q - p);
+            if (toklen > 0) strncpy(buf, p, toklen);
+            buf[toklen] = '\0';
+            p = q;
+        }
+
+        // Handle object key
+        if (toklen > 0) {
             if (cur->type == FOSSIL_MEDIA_JSON_OBJECT) {
-                cur = fossil_media_json_object_get(cur, p);
+                cur = fossil_media_json_object_get(cur, buf);
+                if (!cur) { fm_free(buf); return NULL; }
             } else if (cur->type == FOSSIL_MEDIA_JSON_ARRAY) {
+                // Try numeric index
                 char *endptr;
-                long idx = strtol(p, &endptr, 10);
+                long idx = strtol(buf, &endptr, 10);
                 if (*endptr == '\0') {
                     cur = fossil_media_json_array_get(cur, (size_t)idx);
+                    if (!cur) { fm_free(buf); return NULL; }
                 } else {
                     fm_free(buf);
                     return NULL;
@@ -937,13 +948,25 @@ fossil_media_json_value_t *fossil_media_json_get_path(const fossil_media_json_va
                 fm_free(buf);
                 return NULL;
             }
-            *token_end = save;
-            p = dot ? dot + 1 : token_end;
         }
-        // Skip '.' if present
-        while (*p == '.') p++;
+
+        // Handle array indices (may be chained: arr[1][2])
+        while (*p == '[' && cur) {
+            p++;
+            const char *q = p;
+            while (*q && *q != ']') q++;
+            if (*q != ']') { fm_free(buf); return NULL; }
+            strncpy(buf, p, (size_t)(q - p));
+            buf[q - p] = '\0';
+            long idx = strtol(buf, NULL, 10);
+            if (cur->type != FOSSIL_MEDIA_JSON_ARRAY) { fm_free(buf); return NULL; }
+            cur = fossil_media_json_array_get(cur, (size_t)idx);
+            if (!cur) { fm_free(buf); return NULL; }
+            p = q + 1;
+        }
     }
+
+    fossil_media_json_value_t *result = cur ? fossil_media_json_clone(cur) : NULL;
     fm_free(buf);
-    // Return a clone so caller can free safely
-    return cur ? fossil_media_json_clone(cur) : NULL;
+    return result;
 }
