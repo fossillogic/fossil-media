@@ -338,6 +338,7 @@ static fossil_media_json_value_t *parse_array(ctx_t *c, fossil_media_json_error_
     skip_ws(c);
     fossil_media_json_value_t *arr = fossil_media_json_new_array();
     if (!arr) { set_error(err,1,c->i,"OOM"); return NULL; }
+    skip_ws(c);
     if (c->s[c->i] == ']') { c->i++; return arr; }
     while (1) {
         skip_ws(c);
@@ -345,7 +346,12 @@ static fossil_media_json_value_t *parse_array(ctx_t *c, fossil_media_json_error_
         if (!elem) { fossil_media_json_free(arr); return NULL; }
         if (fossil_media_json_array_append(arr, elem) != 0) { fossil_media_json_free(elem); fossil_media_json_free(arr); set_error(err,1,c->i,"OOM"); return NULL; }
         skip_ws(c);
-        if (c->s[c->i] == ',') { c->i++; continue; }
+        if (c->s[c->i] == ',') {
+            c->i++;
+            skip_ws(c);
+            if (c->s[c->i] == ']') { fossil_media_json_free(arr); set_error(err,1,c->i,"Trailing comma in array"); return NULL; }
+            continue;
+        }
         else if (c->s[c->i] == ']') { c->i++; break; }
         else { fossil_media_json_free(arr); set_error(err,1,c->i,"Expected ',' or ']' in array"); return NULL; }
     }
@@ -361,6 +367,7 @@ static fossil_media_json_value_t *parse_object(ctx_t *c, fossil_media_json_error
     skip_ws(c);
     fossil_media_json_value_t *obj = fossil_media_json_new_object();
     if (!obj) { set_error(err,1,c->i,"OOM"); return NULL; }
+    skip_ws(c);
     if (c->s[c->i] == '}') { c->i++; return obj; }
     while (1) {
         skip_ws(c);
@@ -390,7 +397,12 @@ static fossil_media_json_value_t *parse_object(ctx_t *c, fossil_media_json_error
         obj->u.object.values[obj->u.object.count] = val;
         obj->u.object.count++;
         skip_ws(c);
-        if (c->s[c->i] == ',') { c->i++; continue; }
+        if (c->s[c->i] == ',') {
+            c->i++;
+            skip_ws(c);
+            if (c->s[c->i] == '}') { fossil_media_json_free(obj); set_error(err,1,c->i,"Trailing comma in object"); return NULL; }
+            continue;
+        }
         else if (c->s[c->i] == '}') { c->i++; break; }
         else { fossil_media_json_free(obj); set_error(err,1,c->i,"Expected ',' or '}' in object"); return NULL; }
     }
@@ -403,8 +415,8 @@ static fossil_media_json_value_t *parse_value(ctx_t *c, fossil_media_json_error_
     if (!ch) { set_error(err,1,c->i,"Unexpected end of input"); return NULL; }
     if (ch == '"') return parse_string(c, err);
     if (ch == '-' || (ch >= '0' && ch <= '9')) return parse_number(c, err);
-    if (ch == '{') return parse_object(c, err);
-    if (ch == '[') return parse_array(c, err);
+    if (ch == '{') return parse_object(c, err); // supports nested objects
+    if (ch == '[') return parse_array(c, err);  // supports nested arrays
     /* literals */
     if (ch == 't' || ch == 'f' || ch == 'n') return parse_literal(c, err);
     set_error(err,1,c->i,"Unexpected token '%c'", ch);
@@ -451,10 +463,10 @@ static void append_escaped(char **bufp, size_t *lenp, size_t *cap, const char *s
             add = 6;
         }
         if (esc) {
-            if (*lenp + add + 1 > *cap) { *cap = (*lenp + add + 1) * 2; *bufp = fm_realloc(*bufp, *cap); }
+            if (*lenp + add + 1 > *cap) { *cap = (*lenp + add + 1) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return; }
             memcpy(*bufp + *lenp, esc, add); *lenp += add; continue;
         }
-        if (*lenp + 2 > *cap) { *cap = (*lenp + 2) * 2; *bufp = fm_realloc(*bufp, *cap); }
+        if (*lenp + 2 > *cap) { *cap = (*lenp + 2) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return; }
         (*bufp)[(*lenp)++] = c;
     }
 }
@@ -465,82 +477,83 @@ static int stringify_value(const fossil_media_json_value_t *v, char **bufp, size
     if (*bufp == NULL) { *cap = 256; *bufp = fm_malloc(*cap); if (!*bufp) return -1; *lenp = 0; }
     switch (v->type) {
         case FOSSIL_MEDIA_JSON_NULL:
-            if (*lenp + 5 > *cap) { *cap = (*lenp + 5) * 2; *bufp = fm_realloc(*bufp, *cap); }
+            if (*lenp + 5 > *cap) { *cap = (*lenp + 5) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
             memcpy(*bufp + *lenp, "null", 4); *lenp += 4;
             break;
         case FOSSIL_MEDIA_JSON_BOOL: {
             const char *t = v->u.boolean ? "true" : "false";
             size_t n = v->u.boolean ? 4 : 5;
-            if (*lenp + n + 1 > *cap) { *cap = (*lenp + n + 1) * 2; *bufp = fm_realloc(*bufp, *cap); }
+            if (*lenp + n + 1 > *cap) { *cap = (*lenp + n + 1) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
             memcpy(*bufp + *lenp, t, n); *lenp += n;
             break;
         }
         case FOSSIL_MEDIA_JSON_NUMBER: {
             char tmp[64];
             int n = snprintf(tmp, sizeof(tmp), "%.17g", v->u.number);
-            if (*lenp + (size_t)n + 1 > *cap) { *cap = (*lenp + n + 1) * 2; *bufp = fm_realloc(*bufp, *cap); }
+            if (n < 0) return -1;
+            if (*lenp + (size_t)n + 1 > *cap) { *cap = (*lenp + n + 1) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
             memcpy(*bufp + *lenp, tmp, n); *lenp += n;
             break;
         }
         case FOSSIL_MEDIA_JSON_STRING: {
-            if (*lenp + 3 > *cap) { *cap = (*lenp + 3) * 2; *bufp = fm_realloc(*bufp, *cap); }
+            if (*lenp + 3 > *cap) { *cap = (*lenp + 3) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
             (*bufp)[(*lenp)++] = '"';
             append_escaped(bufp, lenp, cap, v->u.string ? v->u.string : "");
-            if (*lenp + 2 > *cap) { *cap = (*lenp + 2) * 2; *bufp = fm_realloc(*bufp, *cap); }
+            if (*lenp + 2 > *cap) { *cap = (*lenp + 2) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
             (*bufp)[(*lenp)++] = '"';
             break;
         }
         case FOSSIL_MEDIA_JSON_ARRAY: {
-            if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); }
+            if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
             (*bufp)[(*lenp)++] = '[';
             for (size_t i = 0; i < v->u.array.count; ++i) {
                 if (i) {
-                    if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); }
+                    if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
                     (*bufp)[(*lenp)++] = ',';
                 }
                 if (pretty) {
-                    if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); }
+                    if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
                     (*bufp)[(*lenp)++] = '\n';
                     for (int d = 0; d < depth+1; ++d) {
-                        if (*lenp + 2 > *cap) { *cap = (*lenp + 2) * 2; *bufp = fm_realloc(*bufp, *cap); }
+                        if (*lenp + 2 > *cap) { *cap = (*lenp + 2) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
                         (*bufp)[(*lenp)++] = '\t';
                     }
                 }
                 if (stringify_value(v->u.array.items[i], bufp, lenp, cap, pretty, depth+1) != 0) return -1;
             }
             if (pretty && v->u.array.count) {
-                if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); }
+                if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
                 (*bufp)[(*lenp)++] = '\n';
                 for (int d = 0; d < depth; ++d) {
-                    if (*lenp + 2 > *cap) { *cap = (*lenp + 2) * 2; *bufp = fm_realloc(*bufp, *cap); }
+                    if (*lenp + 2 > *cap) { *cap = (*lenp + 2) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
                     (*bufp)[(*lenp)++] = '\t';
                 }
             }
-            if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); }
+            if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
             (*bufp)[(*lenp)++] = ']';
             break;
         }
         case FOSSIL_MEDIA_JSON_OBJECT: {
-            if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); }
+            if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
             (*bufp)[(*lenp)++] = '{';
             for (size_t i = 0; i < v->u.object.count; ++i) {
                 if (i) {
-                    if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); }
+                    if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
                     (*bufp)[(*lenp)++] = ',';
                 }
                 if (pretty) {
-                    if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); }
+                    if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
                     (*bufp)[(*lenp)++] = '\n';
                     for (int d = 0; d < depth+1; ++d) {
-                        if (*lenp + 2 > *cap) { *cap = (*lenp + 2) * 2; *bufp = fm_realloc(*bufp, *cap); }
+                        if (*lenp + 2 > *cap) { *cap = (*lenp + 2) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
                         (*bufp)[(*lenp)++] = '\t';
                     }
                 }
                 /* key */
-                if (*lenp + 2 > *cap) { *cap = (*lenp + 2) * 2; *bufp = fm_realloc(*bufp, *cap); }
+                if (*lenp + 2 > *cap) { *cap = (*lenp + 2) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
                 (*bufp)[(*lenp)++] = '"';
                 append_escaped(bufp, lenp, cap, v->u.object.keys[i]);
-                if (*lenp + 3 > *cap) { *cap = (*lenp + 3) * 2; *bufp = fm_realloc(*bufp, *cap); }
+                if (*lenp + 3 > *cap) { *cap = (*lenp + 3) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
                 (*bufp)[(*lenp)++] = '"';
                 (*bufp)[(*lenp)++] = ':';
                 if (pretty) {
@@ -549,14 +562,14 @@ static int stringify_value(const fossil_media_json_value_t *v, char **bufp, size
                 if (stringify_value(v->u.object.values[i], bufp, lenp, cap, pretty, depth+1) != 0) return -1;
             }
             if (pretty && v->u.object.count) {
-                if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); }
+                if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
                 (*bufp)[(*lenp)++] = '\n';
                 for (int d = 0; d < depth; ++d) {
-                    if (*lenp + 2 > *cap) { *cap = (*lenp + 2) * 2; *bufp = fm_realloc(*bufp, *cap); }
+                    if (*lenp + 2 > *cap) { *cap = (*lenp + 2) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
                     (*bufp)[(*lenp)++] = '\t';
                 }
             }
-            if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); }
+            if (*lenp + 1 > *cap) { *cap = (*lenp + 1) * 2; *bufp = fm_realloc(*bufp, *cap); if (!*bufp) return -1; }
             (*bufp)[(*lenp)++] = '}';
             break;
         }
@@ -580,7 +593,7 @@ char *fossil_media_json_stringify(const fossil_media_json_value_t *v, int pretty
 }
 
 char *fossil_media_json_roundtrip(const char *json_text, int pretty, fossil_media_json_error_t *err_out) {
-    fossil_media_json_error_t err;
+    fossil_media_json_error_t err = {0,0,""};
     fossil_media_json_value_t *v = fossil_media_json_parse(json_text, &err);
     if (!v) { if (err_out) *err_out = err; return NULL; }
     char *s = fossil_media_json_stringify(v, pretty, &err);
@@ -646,6 +659,8 @@ static fossil_media_json_value_t *fossil_media_json_clone_internal(const fossil_
             }
         }
         break;
+    default:
+        break;
     }
     return copy;
 }
@@ -657,7 +672,8 @@ fossil_media_json_clone(const fossil_media_json_value_t *src) {
 
 int fossil_media_json_equals(const fossil_media_json_value_t *a,
                              const fossil_media_json_value_t *b) {
-    if (!a || !b) return -1;
+    if (!a && !b) return -1;
+    if (!a || !b) return 0;
     if (a->type != b->type) return 0;
 
     switch (a->type) {
@@ -668,6 +684,8 @@ int fossil_media_json_equals(const fossil_media_json_value_t *a,
     case FOSSIL_MEDIA_JSON_NUMBER:
         return a->u.number == b->u.number;
     case FOSSIL_MEDIA_JSON_STRING:
+        if (!a->u.string && !b->u.string) return 1;
+        if (!a->u.string || !b->u.string) return 0;
         return strcmp(a->u.string, b->u.string) == 0;
     case FOSSIL_MEDIA_JSON_ARRAY:
         if (a->u.array.count != b->u.array.count) return 0;
@@ -683,7 +701,14 @@ int fossil_media_json_equals(const fossil_media_json_value_t *a,
             if (!val_b || !fossil_media_json_equals(a->u.object.values[i], val_b))
                 return 0;
         }
+        for (size_t i = 0; i < b->u.object.count; i++) {
+            fossil_media_json_value_t *val_a = fossil_media_json_object_get(a, b->u.object.keys[i]);
+            if (!val_a || !fossil_media_json_equals(b->u.object.values[i], val_a))
+                return 0;
+        }
         return 1;
+    default:
+        break;
     }
     return 0;
 }
@@ -713,7 +738,7 @@ int fossil_media_json_array_reserve(fossil_media_json_value_t *arr, size_t capac
     if (capacity <= arr->u.array.capacity) return 0;
 
     fossil_media_json_value_t **new_items =
-        realloc(arr->u.array.items, capacity * sizeof(*new_items));
+        fm_realloc(arr->u.array.items, capacity * sizeof(*new_items));
     if (!new_items) return -1;
 
     arr->u.array.items = new_items;
@@ -725,9 +750,9 @@ int fossil_media_json_object_reserve(fossil_media_json_value_t *obj, size_t capa
     if (!obj || obj->type != FOSSIL_MEDIA_JSON_OBJECT) return -1;
     if (capacity <= obj->u.object.capacity) return 0;
 
-    char **new_keys = realloc(obj->u.object.keys, capacity * sizeof(*new_keys));
+    char **new_keys = fm_realloc(obj->u.object.keys, capacity * sizeof(*new_keys));
     fossil_media_json_value_t **new_vals =
-        realloc(obj->u.object.values, capacity * sizeof(*new_vals));
+        fm_realloc(obj->u.object.values, capacity * sizeof(*new_vals));
     if (!new_keys || !new_vals) return -1;
 
     obj->u.object.keys = new_keys;
@@ -823,7 +848,7 @@ void fossil_media_json_debug_dump(const fossil_media_json_value_t *v, int indent
         printf("%*sValue: %g\n", indent + 2, "", v->u.number);
         break;
     case FOSSIL_MEDIA_JSON_STRING:
-        printf("%*sValue: \"%s\"\n", indent + 2, "", v->u.string);
+        printf("%*sValue: \"%s\"\n", indent + 2, "", v->u.string ? v->u.string : "(null)");
         break;
     case FOSSIL_MEDIA_JSON_ARRAY:
         for (size_t i = 0; i < v->u.array.count; i++) {
@@ -841,9 +866,14 @@ void fossil_media_json_debug_dump(const fossil_media_json_value_t *v, int indent
 }
 
 int fossil_media_json_validate(const char *json_text, fossil_media_json_error_t *err_out) {
-    fossil_media_json_value_t *v = fossil_media_json_parse(json_text, err_out);
-    if (!v) return -1;
+    fossil_media_json_error_t errtmp = {0,0,""};
+    fossil_media_json_value_t *v = fossil_media_json_parse(json_text, &errtmp);
+    if (!v) {
+        if (err_out) *err_out = errtmp;
+        return 1;
+    }
     fossil_media_json_free(v);
+    if (err_out) *err_out = errtmp;
     return 0;
 }
 
@@ -851,42 +881,92 @@ int fossil_media_json_validate(const char *json_text, fossil_media_json_error_t 
 // Path Access
 // -----------------------------------------------------------------------------
 
-// Very simple dotted path: "foo.bar[2].baz"
-fossil_media_json_value_t *
-fossil_media_json_get_path(const fossil_media_json_value_t *root, const char *path) {
+/**
+ * Enhanced path getter: supports dot notation, array indices, quoted keys, and escapes.
+ * Example paths:
+ *   foo.bar[2].baz
+ *   arr[0][1]
+ *   "complex.key".arr[1]
+ *   foo."key.with.dots"[3]
+ */
+fossil_media_json_value_t *fossil_media_json_get_path(const fossil_media_json_value_t *root, const char *path) {
     if (!root || !path) return NULL;
 
     const fossil_media_json_value_t *cur = root;
-    char *tokenized = fossil_media_strdup(path);
-    if (!tokenized) return NULL;
+    const char *p = path;
+    size_t path_len = strlen(path);
+    char *buf = fm_malloc(path_len + 1);
+    if (!buf) return NULL;
 
-    char *tok = tokenized;
-    while (tok && cur) {
-        char *next_dot = strchr(tok, '.');
-        if (next_dot) {
-            *next_dot = '\0';
+    while (*p && cur) {
+        // Parse next token (object key or array index)
+        size_t toklen = 0;
+
+        // Skip dots
+        while (*p == '.') p++;
+
+        // Quoted key support
+        if (*p == '"') {
+            p++;
+            const char *q = p;
+            while (*q && *q != '"') {
+                if (*q == '\\' && *(q+1)) q++; // skip escaped char
+                q++;
+            }
+            if (*q != '"') { fm_free(buf); return NULL; }
+            toklen = (size_t)(q - p);
+            if (toklen > 0) strncpy(buf, p, toklen);
+            buf[toklen] = '\0';
+            p = q + 1;
+        } else {
+            // Unquoted key or array index
+            const char *q = p;
+            while (*q && *q != '.' && *q != '[') q++;
+            toklen = (size_t)(q - p);
+            if (toklen > 0) strncpy(buf, p, toklen);
+            buf[toklen] = '\0';
+            p = q;
         }
-        if (cur->type == FOSSIL_MEDIA_JSON_OBJECT) {
-            cur = fossil_media_json_object_get(cur, tok);
-        } else if (cur->type == FOSSIL_MEDIA_JSON_ARRAY) {
-            char *end;
-            long idx = strtol(tok, &end, 10);
-            if (*end == '\0') {
-                cur = fossil_media_json_array_get(cur, (size_t)idx);
+
+        // Handle object key
+        if (toklen > 0) {
+            if (cur->type == FOSSIL_MEDIA_JSON_OBJECT) {
+                cur = fossil_media_json_object_get(cur, buf);
+                if (!cur) { fm_free(buf); return NULL; }
+            } else if (cur->type == FOSSIL_MEDIA_JSON_ARRAY) {
+                // Try numeric index
+                char *endptr;
+                long idx = strtol(buf, &endptr, 10);
+                if (*endptr == '\0') {
+                    cur = fossil_media_json_array_get(cur, (size_t)idx);
+                    if (!cur) { fm_free(buf); return NULL; }
+                } else {
+                    fm_free(buf);
+                    return NULL;
+                }
             } else {
-                fm_free(tokenized);
+                fm_free(buf);
                 return NULL;
             }
-        } else {
-            fm_free(tokenized);
-            return NULL;
         }
-        if (next_dot) {
-            tok = next_dot + 1;
-        } else {
-            tok = NULL;
+
+        // Handle array indices (may be chained: arr[1][2])
+        while (*p == '[' && cur) {
+            p++;
+            const char *q = p;
+            while (*q && *q != ']') q++;
+            if (*q != ']') { fm_free(buf); return NULL; }
+            strncpy(buf, p, (size_t)(q - p));
+            buf[q - p] = '\0';
+            long idx = strtol(buf, NULL, 10);
+            if (cur->type != FOSSIL_MEDIA_JSON_ARRAY) { fm_free(buf); return NULL; }
+            cur = fossil_media_json_array_get(cur, (size_t)idx);
+            if (!cur) { fm_free(buf); return NULL; }
+            p = q + 1;
         }
     }
-    fm_free(tokenized);
-    return (fossil_media_json_value_t *)cur;
+
+    fossil_media_json_value_t *result = cur ? fossil_media_json_clone(cur) : NULL;
+    fm_free(buf);
+    return result;
 }

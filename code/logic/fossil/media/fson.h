@@ -32,22 +32,30 @@
 extern "C" {
 #endif
 
-/* Error codes */
+/* -------------------------------------------------------------
+ * FSON v2: Error Codes
+ * ------------------------------------------------------------- */
 enum {
     FOSSIL_MEDIA_FSON_OK = 0,
-    FOSSIL_MEDIA_FSON_ERR_IO = -1,
-    FOSSIL_MEDIA_FSON_ERR_NOMEM = -2,
-    FOSSIL_MEDIA_FSON_ERR_PARSE = -3,
-    FOSSIL_MEDIA_FSON_ERR_TYPE = -4,
-    FOSSIL_MEDIA_FSON_ERR_RANGE = -5,
-    FOSSIL_MEDIA_FSON_ERR_NOT_FOUND = -6,
-    FOSSIL_MEDIA_FSON_ERR_INVALID_ARG = -7
+    FOSSIL_MEDIA_FSON_ERR_IO = -1,           /* File/stream error */
+    FOSSIL_MEDIA_FSON_ERR_NOMEM = -2,        /* Out of memory */
+    FOSSIL_MEDIA_FSON_ERR_PARSE = -3,        /* Syntax or structure error */
+    FOSSIL_MEDIA_FSON_ERR_TYPE = -4,         /* Type mismatch */
+    FOSSIL_MEDIA_FSON_ERR_RANGE = -5,        /* Value out of range */
+    FOSSIL_MEDIA_FSON_ERR_NOT_FOUND = -6,    /* Key or index not found */
+    FOSSIL_MEDIA_FSON_ERR_INVALID_ARG = -7,  /* Bad API argument */
+    FOSSIL_MEDIA_FSON_ERR_SCHEMA = -8,       /* Schema validation failed */
+    FOSSIL_MEDIA_FSON_ERR_INCLUDE = -9       /* Include could not be resolved */
 };
 
-/* Value types (explicit, matches FSON spec) */
+/* -------------------------------------------------------------
+ * FSON v2: Value Types
+ * ------------------------------------------------------------- */
 typedef enum {
     FSON_TYPE_NULL = 0,
     FSON_TYPE_BOOL,
+
+    /* Explicit scalar types */
     FSON_TYPE_I8,
     FSON_TYPE_I16,
     FSON_TYPE_I32,
@@ -58,57 +66,105 @@ typedef enum {
     FSON_TYPE_U64,
     FSON_TYPE_F32,
     FSON_TYPE_F64,
+
+    /* Literal number bases */
     FSON_TYPE_OCT,
     FSON_TYPE_HEX,
     FSON_TYPE_BIN,
+
+    /* Strings and chars */
     FSON_TYPE_CHAR,
     FSON_TYPE_CSTR,
+
+    /* Composite containers */
     FSON_TYPE_ARRAY,
-    FSON_TYPE_OBJECT
+    FSON_TYPE_OBJECT,
+
+    /* New in FSON v2 */
+    FSON_TYPE_ENUM,       /* Symbol from a fixed set */
+    FSON_TYPE_DATETIME,   /* ISO 8601 datetime */
+    FSON_TYPE_DURATION,   /* Time span (e.g. "30s", "5m", "1h") */
 } fossil_media_fson_type_t;
 
-/* Error struct */
+/* -------------------------------------------------------------
+ * FSON v2: Error Struct
+ * ------------------------------------------------------------- */
 typedef struct {
-    int code;             /* 0 = OK, non-zero = error */
-    size_t position;      /* char offset in input (if applicable) */
-    char message[128];    /* short error message (truncated) */
+    int code;             /* 0 = OK, negative = error */
+    size_t position;      /* char offset in input (if available) */
+    char message[256];    /* detailed error message (UTF-8) */
 } fossil_media_fson_error_t;
 
-/* Forward declaration */
+/* -------------------------------------------------------------
+ * FSON v2: Forward Declarations
+ * ------------------------------------------------------------- */
 typedef struct fossil_media_fson_value fossil_media_fson_value_t;
 
-/* FSON value */
+/* -------------------------------------------------------------
+ * FSON v2: Value Representation
+ * ------------------------------------------------------------- */
 struct fossil_media_fson_value {
     fossil_media_fson_type_t type;
     union {
-        /* Null type has no value */
-        int boolean;            /* FSON_TYPE_BOOL: 0 or 1 */
-        int8_t i8;              /* FSON_TYPE_I8 */
-        int16_t i16;            /* FSON_TYPE_I16 */
-        int32_t i32;            /* FSON_TYPE_I32 */
-        int64_t i64;            /* FSON_TYPE_I64 */
-        uint8_t u8;             /* FSON_TYPE_U8 */
-        uint16_t u16;           /* FSON_TYPE_U16 */
-        uint32_t u32;           /* FSON_TYPE_U32 */
-        uint64_t u64;           /* FSON_TYPE_U64 */
-        float f32;              /* FSON_TYPE_F32 */
-        double f64;             /* FSON_TYPE_F64 */
-        uint64_t oct;           /* FSON_TYPE_OCT */
-        uint64_t hex;           /* FSON_TYPE_HEX */
-        uint64_t bin;           /* FSON_TYPE_BIN */
-        char character;         /* FSON_TYPE_CHAR */
-        char *cstr;             /* FSON_TYPE_CSTR: NUL-terminated, heap allocated */
+        /* Scalars */
+        int boolean;
+        int8_t i8;
+        int16_t i16;
+        int32_t i32;
+        int64_t i64;
+        uint8_t u8;
+        uint16_t u16;
+        uint32_t u32;
+        uint64_t u64;
+        float f32;
+        double f64;
+
+        /* Encoded numbers */
+        uint64_t oct;
+        uint64_t hex;
+        uint64_t bin;
+
+        /* Characters and strings */
+        char character;
+        char *cstr;       /* NUL-terminated, heap-allocated */
+
+        /* Enums and Flags */
+        struct {
+            char *symbol;     /* e.g. "warn" */
+            const char **allowed; /* optional schema-backed allowed values */
+            size_t allowed_count;
+        } enum_val;
+
+        /* Date/time and duration */
+        struct {
+            int64_t epoch_ns;  /* nanoseconds since Unix epoch */
+        } datetime;
+
+        struct {
+            int64_t ns;        /* duration in nanoseconds */
+        } duration;
+
+        /* Arrays */
         struct {
             fossil_media_fson_value_t **items;
             size_t count;
             size_t capacity;
-        } array;                /* FSON_TYPE_ARRAY */
+        } array;
+
+        /* Objects */
         struct {
-            char **keys;                         /* keys[i] -> values[i] */
+            char **keys;
             fossil_media_fson_value_t **values;
             size_t count;
             size_t capacity;
-        } object;               /* FSON_TYPE_OBJECT */
+        } object;
+
+        // /* Meta-directives */
+        // char *include_path;    /* $include: cstr */
+        // struct {
+        //     /* schema data is itself an object of constraints */
+        //     struct fossil_media_fson_value *schema_root;
+        // } schema;
     } u;
 };
 
@@ -280,6 +336,42 @@ fossil_media_fson_value_t *fossil_media_fson_new_array(void);
  */
 fossil_media_fson_value_t *fossil_media_fson_new_object(void);
 
+/**
+ * @brief Create a FSON enum value.
+ *
+ * @param symbol       Enum symbol string (UTF-8, cannot be NULL).
+ * @param allowed      Optional array of allowed symbols (can be NULL).
+ * @param allowed_count Number of allowed symbols (0 if none).
+ * @return Newly allocated FSON enum value, or NULL if allocation fails.
+ */
+fossil_media_fson_value_t *fossil_media_fson_new_enum(const char *symbol, const char **allowed, size_t allowed_count);
+
+/**
+ * @brief Create a FSON datetime value from an ISO 8601 string.
+ *
+ * @param dt_str ISO 8601 datetime string (e.g., "2024-06-01T12:34:56Z").
+ * @return Newly allocated FSON datetime value, or NULL if allocation fails.
+ */
+fossil_media_fson_value_t *fossil_media_fson_new_datetime(const char *dt_str);
+
+/**
+ * @brief Create a FSON duration value from a string.
+ *
+ * Parses a duration string (e.g., "30s", "5m", "1h") and creates a FSON duration value.
+ *
+ * @param dur_str Duration string.
+ * @return Newly allocated FSON duration value, or NULL if allocation fails.
+ */
+fossil_media_fson_value_t *fossil_media_fson_new_duration(const char *dur_str);
+
+/**
+ * @brief Set the root object for a FSON schema value.
+ *
+ * @param schema FSON schema value.
+ * @param root Root object value (ownership transferred).
+ */
+void fossil_media_fson_schema_set_root(fossil_media_fson_value_t *schema, fossil_media_fson_value_t *root);
+
 /** @} */
 
 /** @name Object Helpers
@@ -400,8 +492,7 @@ const char *fossil_media_fson_type_name(fossil_media_fson_type_t t);
  * @param src  Source FSON value (must not be NULL).
  * @return Newly allocated FSON value on success, or NULL on failure.
  */
-fossil_media_fson_value_t *
-fossil_media_fson_clone(const fossil_media_fson_value_t *src);
+fossil_media_fson_value_t *fossil_media_fson_clone(const fossil_media_fson_value_t *src);
 
 /**
  * @brief Compare two FSON values for equality.
@@ -488,8 +579,7 @@ int fossil_media_fson_object_reserve(fossil_media_fson_value_t *obj, size_t capa
  * @param err_out  Optional pointer to error details.
  * @return Pointer to the parsed FSON value, or NULL on failure.
  */
-fossil_media_fson_value_t *
-fossil_media_fson_parse_file(const char *filename, fossil_media_fson_error_t *err_out);
+fossil_media_fson_value_t * fossil_media_fson_parse_file(const char *filename, fossil_media_fson_error_t *err_out);
 
 /**
  * @brief Write a FSON value to a file.
@@ -641,6 +731,14 @@ int fossil_media_fson_get_bool(const fossil_media_fson_value_t *v, int *out);
  */
 int fossil_media_fson_get_cstr(const fossil_media_fson_value_t *v, char **out);
 
+/**
+ * @brief Get enum symbol from a FSON enum value.
+ * @param v FSON enum value.
+ * @param out Pointer to output char* (NUL-terminated string).
+ * @return 0 on success, nonzero on error.
+ */
+int fossil_media_fson_get_enum(const fossil_media_fson_value_t *v, const char **out);
+
 /** @} */
 
 /** @name Debug & Validation
@@ -691,6 +789,7 @@ fossil_media_fson_value_t * fossil_media_fson_get_path(const fossil_media_fson_v
 #include <string>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace fossil {
 
@@ -931,6 +1030,63 @@ namespace fossil {
              */
             static Fson new_object() {
                 return Fson(fossil_media_fson_new_object());
+            }
+
+            /**
+             * @brief Create a FSON enum value.
+             * @param symbol Enum symbol string.
+             * @param allowed Optional array of allowed symbols.
+             * @param allowed_count Number of allowed symbols.
+             * @return Fson object holding an enum value.
+             */
+            static Fson new_enum(const std::string& symbol, const std::vector<std::string>& allowed = {}) {
+                std::vector<const char*> allowed_cstrs;
+                for (const auto& s : allowed) {
+                    allowed_cstrs.push_back(s.c_str());
+                }
+                return Fson(fossil_media_fson_new_enum(
+                    symbol.c_str(),
+                    allowed.empty() ? nullptr : allowed_cstrs.data(),
+                    allowed_cstrs.size()
+                ));
+            }
+
+            /**
+             * @brief Create a FSON datetime value from an ISO 8601 string.
+             * @param dt_str ISO 8601 datetime string (e.g., "2024-06-01T12:34:56Z").
+             * @return Fson object holding a datetime value.
+             * @throws FsonError if allocation fails.
+             */
+            static Fson new_datetime(const std::string& dt_str) {
+                fossil_media_fson_value_t* val = fossil_media_fson_new_datetime(dt_str.c_str());
+                if (!val) {
+                    throw FsonError("Failed to create datetime value");
+                }
+                return Fson(val);
+            }
+
+            /**
+             * @brief Create a FSON duration value from a string.
+             * @param dur_str Duration string (e.g., "30s", "5m", "1h").
+             * @return Fson object holding a duration value.
+             * @throws FsonError if allocation fails.
+             */
+            static Fson new_duration(const std::string& dur_str) {
+                fossil_media_fson_value_t* val = fossil_media_fson_new_duration(dur_str.c_str());
+                if (!val) {
+                    throw FsonError("Failed to create duration value");
+                }
+                return Fson(val);
+            }
+
+            /**
+             * @brief Set the root object for a FSON schema value.
+             * @param root Root object value (ownership transferred).
+             * @throws FsonError if operation fails.
+             */
+            void schema_set_root(Fson&& root) {
+                fossil_media_fson_schema_set_root(value_, root.value_);
+                root.value_ = nullptr; // Ownership transferred
             }
 
             /**
@@ -1313,6 +1469,20 @@ namespace fossil {
                     throw FsonError("Failed to get string value");
                 std::string result(out);
                 free(out);
+                return result;
+            }
+
+            /**
+             * @brief Get enum symbol from this FSON enum value.
+             * @return std::string symbol.
+             * @throws FsonError if type mismatch or error.
+             */
+            std::string get_enum() const {
+                const char* out = nullptr;
+                if (fossil_media_fson_get_enum(value_, &out) != 0 || !out)
+                    throw FsonError("Failed to get enum symbol");
+                std::string result(out);
+                // No need to free 'out' as it's not heap-allocated by API
                 return result;
             }
 
