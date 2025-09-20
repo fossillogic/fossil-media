@@ -33,7 +33,6 @@
 #include <float.h>
 
 /**
- * @file fson.c
  * @brief Implementation of FSON (Fossil Simple Object Notation) logic.
  *
  * This file contains functions and logic for parsing, serializing, and manipulating
@@ -42,38 +41,61 @@
  *
  * @section FSON_Sample_Objects Sample FSON Objects
  *
- * Example 1: Simple object
+ * Example 1: Simple object (FSON requires explicit types)
  * {
- *   "name": "Alice",
- *   "age": 30,
- *   "isMember": true
+ *   name: cstr: "Alice",
+ *   age: i32: 30,
+ *   isMember: bool: true
  * }
  *
  * Example 2: Nested object
  * {
- *   "user": {
- *     "id": 123,
- *     "profile": {
- *       "email": "alice@example.com"
+ *   user: object: {
+ *     id: i64: 123,
+ *     profile: object: {
+ *       email: cstr: "alice@example.com"
  *     }
  *   }
  * }
  *
- * Example 3: Array
+ * Example 3: Array of typed values
  * {
- *   "items": [ "apple", "banana", "cherry" ]
+ *   items: array: [
+ *     cstr: "apple",
+ *     cstr: "banana",
+ *     cstr: "cherry"
+ *   ]
  * }
  *
  * Example 4: Mixed types
  * {
- *   "count": 5,
- *   "valid": false,
- *   "tags": [ "fossil", "media", "fson" ]
+ *   count: i32: 5,
+ *   valid: bool: false,
+ *   tags: array: [
+ *     cstr: "fossil",
+ *     cstr: "media",
+ *     cstr: "fson"
+ *   ]
+ * }
+ *
+ * Example 5: Null object (special case)
+ * { null: null }
+ *
+ * Example 6: Array of objects
+ * array: [
+ *   object: { name: cstr: "Alice", age: i32: 30 },
+ *   object: { name: cstr: "Bob", age: i32: 25 }
+ * ]
+ *
+ * Example 7: Numbers in various formats
+ * {
+ *   octal: oct: 0o755,
+ *   hex: hex: 0xFF,
+ *   binary: bin: 0b1010
  * }
  *
  * @note For more details on the FSON specification, refer to the project documentation.
  */
-//
 
 fossil_media_fson_value_t *fossil_media_fson_parse(const char *json_text, fossil_media_fson_error_t *err_out) {
     const char *input_start = json_text;
