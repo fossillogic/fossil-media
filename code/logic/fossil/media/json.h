@@ -90,8 +90,7 @@ struct fossil_media_json_value {
  *
  * @note The returned value must be freed with fossil_media_json_free().
  */
-fossil_media_json_value_t *
-fossil_media_json_parse(const char *json_text, fossil_media_json_error_t *err_out);
+fossil_media_json_value_t *fossil_media_json_parse(const char *json_text, fossil_media_json_error_t *err_out);
 
 /**
  * @brief Free a JSON DOM tree.
