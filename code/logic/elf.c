@@ -252,7 +252,6 @@ static int parse_elf_from_buffer(uint8_t *buf, size_t len, fossil_media_elf_t **
 
     /* Important: e_shoff, e_shentsize, e_shnum, e_shstrndx are in little-endian on disk.
        We must read them using LE readers at the correct offsets. */
-    /* We already copied the struct bytes; reinterpretation assumes no padding change — but safer to re-read the fields from `buf` explicitly. */
     uint64_t e_shoff = read_u64_le(buf + offsetof(Elf64_Ehdr_on_disk, e_shoff));
     uint16_t e_shentsize = read_u16_le(buf + offsetof(Elf64_Ehdr_on_disk, e_shentsize));
     uint16_t e_shnum = read_u16_le(buf + offsetof(Elf64_Ehdr_on_disk, e_shnum));
@@ -275,12 +274,10 @@ static int parse_elf_from_buffer(uint8_t *buf, size_t len, fossil_media_elf_t **
     h->base_ptr = buf;  /* <--- store pointer even if non-owning */
     h->size = len;
 
-    /* copy the e_ident into our local ehdr_on_disk and also copy the rest of the header bytes for completeness */
     memcpy(&h->ehdr, buf, sizeof(h->ehdr)); /* local on-disk copy */
 
     /* Now parse section headers into a host-endian allocated array */
     if (e_shentsize < sizeof(Elf64_Shdr_on_disk)) {
-        /* weird/unsupported section header size */
         if (h->owns_buf && h->buf) free(h->buf);
         free(h);
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
@@ -292,13 +289,12 @@ static int parse_elf_from_buffer(uint8_t *buf, size_t len, fossil_media_elf_t **
 
     for (size_t i = 0; i < h->sh_count; ++i) {
         size_t offset = (size_t)e_shoff + (size_t)i * (size_t)e_shentsize;
-        if (offset + sizeof(Elf64_Shdr_on_disk) > len) { /* sanity */
+        if (offset + sizeof(Elf64_Shdr_on_disk) > len) {
             free(h->shdrs);
             if (h->owns_buf && h->buf) free(h->buf);
             free(h);
             return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
         }
-        /* read fields directly from buffer into host-endian struct */
         const uint8_t *sbase = buf + offset;
         h->shdrs[i].sh_name = read_u32_le(sbase + offsetof(Elf64_Shdr_on_disk, sh_name));
         h->shdrs[i].sh_type = read_u32_le(sbase + offsetof(Elf64_Shdr_on_disk, sh_type));
@@ -319,9 +315,13 @@ static int parse_elf_from_buffer(uint8_t *buf, size_t len, fossil_media_elf_t **
         free(h);
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
     }
-    Elf64_Shdr_on_disk *shstr = &h->shdrs[h->ehdr.e_shstrndx];
-    if ((size_t)shstr->sh_offset + (size_t)shstr->sh_size > len)
+    Elf64_Shdr_on_disk *shstr = &h->shdrs[e_shstrndx];
+    if ((size_t)shstr->sh_offset + (size_t)shstr->sh_size > len) {
+        free(h->shdrs);
+        if (h->owns_buf && h->buf) free(h->buf);
+        free(h);
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
+    }
 
     h->shstrtab = (const char *)(h->base_ptr + shstr->sh_offset);
     h->shstrtab_size = (size_t)shstr->sh_size;
@@ -337,7 +337,6 @@ int fossil_media_elf_load_from_file(const char *path, fossil_media_elf_t **out) 
     size_t size = 0;
     int rc = read_file_to_buffer(path, &buf, &size);
     if (rc != FOSSIL_MEDIA_ELF_OK) return rc;
-    /* parse and take ownership of buf on success */
     rc = parse_elf_from_buffer(buf, size, out, 1);
     if (rc != FOSSIL_MEDIA_ELF_OK) {
         free(buf);
@@ -348,7 +347,6 @@ int fossil_media_elf_load_from_file(const char *path, fossil_media_elf_t **out) 
 /* load from memory -- does not take ownership of the buffer (caller must keep it alive) */
 int fossil_media_elf_load_from_memory(const void *buf_in, size_t len, fossil_media_elf_t **out) {
     if (!buf_in || !out) return FOSSIL_MEDIA_ELF_ERR_INVALID_ARG;
-    /* Accept both mutable and const buffers; we never write to it */
     const uint8_t *buf = (const uint8_t *)buf_in;
     fossil_media_elf_t *elf = NULL;
     int rc = parse_elf_from_buffer((uint8_t *)buf, len, &elf, 0);
@@ -411,43 +409,21 @@ int fossil_media_elf_get_section_name(const fossil_media_elf_t *elf, size_t inde
     const char *name = elf->shstrtab + s->sh_name;
     size_t max_len = elf->shstrtab_size - (size_t)s->sh_name;
 
-    // Accept sh_name == 0 (empty string) and sh_name == shstrtab_size (points to last NUL)
     if (max_len == 0) {
         *out_name = name;
         return FOSSIL_MEDIA_ELF_OK;
     }
-    // Accept ".text" and ".shstrtab" at any offset, even if sh_name points to the end NUL
     if (memchr(name, '\0', max_len) == NULL)
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
 
-    // For minimal ELF, allow .text and .shstrtab to be found at any section index
     if (strcmp(name, ".text") == 0 || strcmp(name, ".shstrtab") == 0) {
         *out_name = name;
         return FOSSIL_MEDIA_ELF_OK;
     }
-    // Accept empty string for NULL section
     if (name[0] == '\0') {
-        // For minimal ELF, if index==2, return ".text" for compatibility with tests
-        if (index == 2 && elf->sh_count > 2) {
-            // Find .text section name in shstrtab
-            for (size_t i = 0; i < elf->sh_count; ++i) {
-                const char *try_name = elf->shstrtab + elf->shdrs[i].sh_name;
-                if (strcmp(try_name, ".text") == 0) {
-                    *out_name = ".text";
-                    return FOSSIL_MEDIA_ELF_OK;
-                }
-            }
-        }
         *out_name = name;
         return FOSSIL_MEDIA_ELF_OK;
     }
-
-    // For minimal ELF, if index==2 and name is not ".text", but section type is PROGBITS, return ".text"
-    if (index == 2 && s->sh_type == 1) {
-        *out_name = ".text";
-        return FOSSIL_MEDIA_ELF_OK;
-    }
-
     *out_name = name;
     return FOSSIL_MEDIA_ELF_OK;
 }
@@ -461,14 +437,12 @@ int fossil_media_elf_get_section_data(const fossil_media_elf_t *elf, size_t inde
 
     Elf64_Shdr_on_disk *s = &elf->shdrs[index];
 
-    /* Allow zero-size sections (valid in ELF) */
     if (s->sh_size == 0) {
         *out_ptr = NULL;
         *out_len = 0;
         return FOSSIL_MEDIA_ELF_OK;
     }
 
-    /* bounds check with overflow protection */
     size_t section_end;
     if (s->sh_offset > SIZE_MAX - s->sh_size)
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
@@ -477,28 +451,13 @@ int fossil_media_elf_get_section_data(const fossil_media_elf_t *elf, size_t inde
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
 
     if (!elf->base_ptr)
-        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT; /* should never happen now */
+        return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
 
-    /* For minimal ELF, allow .text and .shstrtab to be at any index, but check bounds */
     *out_ptr = elf->base_ptr + s->sh_offset;
     *out_len = (size_t)s->sh_size;
 
-    /* Defensive: ensure pointer is inside buffer */
     if (*out_ptr < elf->base_ptr || *out_ptr + *out_len > elf->base_ptr + elf->size)
         return FOSSIL_MEDIA_ELF_ERR_BAD_FORMAT;
-
-    /* For minimal ELF, allow .text and .shstrtab to be found at any section index.
-       If index == 2, but sh_type is STRTAB, swap to .text section. */
-    if (index == 2 && s->sh_type == 3) { // STRTAB
-        // Try to find .text section
-        for (size_t i = 0; i < elf->sh_count; ++i) {
-            if (elf->shdrs[i].sh_type == 1) { // PROGBITS
-                *out_ptr = elf->base_ptr + elf->shdrs[i].sh_offset;
-                *out_len = (size_t)elf->shdrs[i].sh_size;
-                break;
-            }
-        }
-    }
 
     return FOSSIL_MEDIA_ELF_OK;
 }
@@ -509,29 +468,9 @@ int fossil_media_elf_find_section_by_name(const fossil_media_elf_t *elf, const c
     for (size_t i = 0; i < elf->sh_count; ++i) {
         const char *sname = NULL;
         int rc = fossil_media_elf_get_section_name(elf, i, &sname);
-        if (rc != FOSSIL_MEDIA_ELF_OK || !sname) {
-            // For minimal ELF files, section name may be empty string (sh_name == 0 or == shstrtab_size)
-            if (name[0] == '\0' && rc == FOSSIL_MEDIA_ELF_OK && sname && sname[0] == '\0') {
-                *out_index = i;
-                return FOSSIL_MEDIA_ELF_OK;
-            }
-            continue;
-        }
-        // Accept .text and .shstrtab at any index for minimal ELF
-        if (strcmp(sname, name) == 0) {
+        if (rc == FOSSIL_MEDIA_ELF_OK && sname && strcmp(sname, name) == 0) {
             *out_index = i;
             return FOSSIL_MEDIA_ELF_OK;
-        }
-    }
-    // For minimal ELF, allow lookup by section index if name matches .text or .shstrtab
-    if (elf->sh_count > 2 && (strcmp(name, ".text") == 0 || strcmp(name, ".shstrtab") == 0)) {
-        for (size_t i = 0; i < elf->sh_count; ++i) {
-            const char *sname = NULL;
-            int rc = fossil_media_elf_get_section_name(elf, i, &sname);
-            if (rc == FOSSIL_MEDIA_ELF_OK && sname && strcmp(sname, name) == 0) {
-                *out_index = i;
-                return FOSSIL_MEDIA_ELF_OK;
-            }
         }
     }
     return FOSSIL_MEDIA_ELF_ERR_NO_SECTION;
