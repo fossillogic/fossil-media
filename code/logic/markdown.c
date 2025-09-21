@@ -40,7 +40,9 @@ static fossil_media_md_node_t *md_new_node(fossil_media_md_type_t type, const ch
 
 static void md_add_child(fossil_media_md_node_t *parent, fossil_media_md_node_t *child) {
     if (!parent || !child) return;
-    parent->children = realloc(parent->children, sizeof(*parent->children) * (parent->child_count + 1));
+    fossil_media_md_node_t **new_children = realloc(parent->children, sizeof(*parent->children) * (parent->child_count + 1));
+    if (!new_children) return; // realloc failed, do not modify parent
+    parent->children = new_children;
     parent->children[parent->child_count++] = child;
     child->parent = parent;
 }
@@ -191,11 +193,13 @@ char *fossil_media_md_serialize(const fossil_media_md_node_t *root) {
 
 void fossil_media_md_free(fossil_media_md_node_t *node) {
     if (!node) return;
-    free(node->content);
-    free(node->extra);
-    for (size_t i = 0; i < node->child_count; i++) {
-        fossil_media_md_free(node->children[i]);
+    if (node->content) free(node->content);
+    if (node->extra) free(node->extra);
+    if (node->children) {
+        for (size_t i = 0; i < node->child_count; i++) {
+            fossil_media_md_free(node->children[i]);
+        }
+        free(node->children);
     }
-    free(node->children);
     free(node);
 }
