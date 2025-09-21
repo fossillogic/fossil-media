@@ -29,6 +29,11 @@
 #include <string.h>
 #include <ctype.h>
 
+#if defined(_WIN32) && !defined(__MINGW32__)
+    // Windows has strtok_s instead of strtok_r
+    #define strtok_r(str, delim, saveptr) strtok_s((str), (delim), (saveptr))
+#endif
+
 
 /*
  * Enhanced YAML parser: supports nested maps (basic indentation-based hierarchy)
