@@ -1,5 +1,7 @@
 dir = include_directories('.')
 cc = meson.get_compiler('c')
+add_project_arguments('-D_POSIX_C_SOURCE=200112L', language: 'c')
+add_project_arguments('-D_POSIX_C_SOURCE=200112L', language: 'cpp')
 
 # Check if the host system is Windows
 if host_machine.system() == 'windows'
