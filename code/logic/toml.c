@@ -127,15 +127,20 @@ const char *fossil_media_toml_get(const fossil_media_toml_t *toml, const char *t
 }
 
 void fossil_media_toml_free(fossil_media_toml_t *toml) {
+    if (!toml || !toml->tables) return;
     for (size_t i = 0; i < toml->table_count; i++) {
         fossil_media_toml_table_t *table = &toml->tables[i];
-        free(table->name);
-        for (size_t j = 0; j < table->entry_count; j++) {
-            free(table->entries[j].key);
-            free(table->entries[j].value);
+        if (table->name) free(table->name);
+        if (table->entries) {
+            for (size_t j = 0; j < table->entry_count; j++) {
+                if (table->entries[j].key) free(table->entries[j].key);
+                if (table->entries[j].value) free(table->entries[j].value);
+            }
+            free(table->entries);
         }
-        free(table->entries);
     }
     free(toml->tables);
+    toml->tables = NULL;
+    toml->table_count = 0;
     memset(toml, 0, sizeof(*toml));
 }
