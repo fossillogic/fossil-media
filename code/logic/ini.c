@@ -175,7 +175,7 @@ int fossil_media_ini_load_string(const char *data, fossil_media_ini_t *ini) {
                         // Multiline quoted value
                         memmove(value, value+1, vlen); // remove leading quote
                         multiline_key = key;
-                        multiline_value = strdup(value);
+                        multiline_value = fossil_media_strdup(value);
                         multiline_quote = quote;
                         free(value);
                         free(trimmed);
