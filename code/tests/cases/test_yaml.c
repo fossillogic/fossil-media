@@ -57,6 +57,7 @@ FOSSIL_TEST_CASE(c_test_yaml_parse_simple) {
     ASSUME_ITS_TRUE(head != NULL);
     ASSUME_ITS_TRUE(strcmp(head->key, "foo") == 0);
     ASSUME_ITS_TRUE(strcmp(head->value, "bar") == 0);
+    ASSUME_ITS_TRUE(head->next != NULL);
     ASSUME_ITS_TRUE(strcmp(head->next->key, "baz") == 0);
     ASSUME_ITS_TRUE(strcmp(head->next->value, "qux") == 0);
     fossil_media_yaml_free(head);
@@ -68,8 +69,9 @@ FOSSIL_TEST_CASE(c_test_yaml_parse_with_indent) {
     ASSUME_ITS_TRUE(head != NULL);
     ASSUME_ITS_TRUE(strcmp(head->key, "foo") == 0);
     ASSUME_ITS_TRUE(head->indent == 0);
-    ASSUME_ITS_TRUE(strcmp(head->next->key, "indented") == 0);
-    ASSUME_ITS_TRUE(head->next->indent > 0);
+    ASSUME_ITS_TRUE(head->child != NULL);
+    ASSUME_ITS_TRUE(strcmp(head->child->key, "indented") == 0);
+    ASSUME_ITS_TRUE(head->child->indent > 0);
     fossil_media_yaml_free(head);
 }
 
@@ -113,6 +115,7 @@ FOSSIL_TEST_CASE(c_test_yaml_parse_nested) {
     ASSUME_ITS_TRUE(strcmp(head->child->next->key, "child2") == 0);
     ASSUME_ITS_TRUE(head->child->next->child != NULL);
     ASSUME_ITS_TRUE(strcmp(head->child->next->child->key, "grandchild") == 0);
+    ASSUME_ITS_TRUE(head->next != NULL);
     ASSUME_ITS_TRUE(strcmp(head->next->key, "sibling") == 0);
     fossil_media_yaml_free(head);
 }
@@ -124,6 +127,7 @@ FOSSIL_TEST_CASE(c_test_yaml_parse_trailing_spaces) {
     ASSUME_ITS_TRUE(head != NULL);
     ASSUME_ITS_TRUE(strcmp(head->key, "key1") == 0);
     ASSUME_ITS_TRUE(strcmp(head->value, "value1") == 0);
+    ASSUME_ITS_TRUE(head->next != NULL);
     ASSUME_ITS_TRUE(strcmp(head->next->key, "key2") == 0);
     ASSUME_ITS_TRUE(strcmp(head->next->value, "value2") == 0);
     fossil_media_yaml_free(head);
@@ -175,6 +179,7 @@ FOSSIL_TEST_CASE(c_test_yaml_parse_colon_at_end) {
     ASSUME_ITS_TRUE(head != NULL);
     ASSUME_ITS_TRUE(strcmp(head->key, "key") == 0);
     ASSUME_ITS_TRUE(strcmp(head->value, "") == 0);
+    ASSUME_ITS_TRUE(head->next != NULL);
     ASSUME_ITS_TRUE(strcmp(head->next->key, "other") == 0);
     ASSUME_ITS_TRUE(strcmp(head->next->value, "value") == 0);
     fossil_media_yaml_free(head);
