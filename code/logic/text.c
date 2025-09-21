@@ -32,16 +32,22 @@ char *fossil_media_text_trim(char *str) {
     char *start = str;
     char *end;
 
-    // Skip leading whitespace
+    // Skip leading spaces
     while (isspace((unsigned char)*start)) start++;
 
     if (*start == 0) return start; // Empty string
 
-    // Trim trailing whitespace
+    // Trim trailing spaces
     end = start + strlen(start) - 1;
     while (end > start && isspace((unsigned char)*end)) end--;
 
     *(end + 1) = '\0';
+
+    // If start != str, move trimmed string to the beginning to avoid double free issues
+    if (start != str) {
+        memmove(str, start, strlen(start) + 1);
+        return str;
+    }
     return start;
 }
 
@@ -74,12 +80,15 @@ size_t fossil_media_text_replace(char *str, const char *old_sub, const char *new
     while (pos) {
         size_t tail_len = strlen(pos + old_len);
 
+        // Check for buffer overflow
         if ((strlen(str) - old_len + new_len) >= buf_size) {
-            // No room for replacement
             break;
         }
 
-        memmove(pos + new_len, pos + old_len, tail_len + 1);
+        // If new_sub is longer, move tail forward
+        if (new_len != old_len) {
+            memmove(pos + new_len, pos + old_len, tail_len + 1);
+        }
         memcpy(pos, new_sub, new_len);
 
         count++;
@@ -93,61 +102,18 @@ char *fossil_media_text_find(const char *haystack, const char *needle) {
     return strstr(haystack, needle);
 }
 
-// Enhanced split: supports quoted tokens and ignores empty tokens
 size_t fossil_media_text_split(char *str, char delim, char **tokens, size_t max_tokens) {
     if (!str || !tokens || max_tokens == 0) return 0;
 
     size_t count = 0;
     char *p = str;
-    char *token_start = NULL;
-    int in_quotes = 0;
 
-    while (*p && count < max_tokens) {
-        // Skip leading delimiters
-        while (*p == delim) p++;
-        if (!*p) break;
-
-        token_start = p;
-        in_quotes = 0;
-
-        while (*p) {
-            if (*p == '"') {
-                in_quotes = !in_quotes;
-            } else if (*p == delim && !in_quotes) {
-                break;
-            }
-            p++;
-        }
-
-        if (*p) {
-            *p = '\0';
-            p++;
-        }
-
-        // Remove surrounding quotes if present
-        if (*token_start == '"' && p > token_start + 1 && *(p - 2) == '"') {
-            token_start++;
-            *(p - 2) = '\0';
-        }
-
-        tokens[count++] = token_start;
+    while (count < max_tokens) {
+        tokens[count++] = p;
+        p = strchr(p, delim);
+        if (!p) break;
+        *p = '\0';
+        p++;
     }
     return count;
-}
-
-// Enhanced: checks if string starts with prefix
-int fossil_media_text_starts_with(const char *str, const char *prefix) {
-    if (!str || !prefix) return 0;
-    size_t len_prefix = strlen(prefix);
-    size_t len_str = strlen(str);
-    return len_str >= len_prefix && strncmp(str, prefix, len_prefix) == 0;
-}
-
-// Enhanced: checks if string ends with suffix
-int fossil_media_text_ends_with(const char *str, const char *suffix) {
-    if (!str || !suffix) return 0;
-    size_t len_suffix = strlen(suffix);
-    size_t len_str = strlen(str);
-    if (len_str < len_suffix) return 0;
-    return strcmp(str + len_str - len_suffix, suffix) == 0;
 }
