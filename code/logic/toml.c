@@ -38,6 +38,12 @@ static char *trim_whitespace(char *str) {
     return str;
 }
 
+/* Remove inline comment from a line */
+static void remove_inline_comment(char *str) {
+    char *hash = strchr(str, '#');
+    if (hash) *hash = '\0';
+}
+
 /* Internal function to add a new table */
 static fossil_media_toml_table_t *add_table(fossil_media_toml_t *toml, const char *name) {
     toml->tables = realloc(toml->tables, sizeof(fossil_media_toml_table_t) * (toml->table_count + 1));
@@ -56,18 +62,31 @@ static void add_entry(fossil_media_toml_table_t *table, const char *key, const c
     entry->value = fossil_media_strdup(value);
 }
 
+/* Parse a TOML value, handling quoted strings and numbers */
+static char *parse_value(char *value) {
+    value = trim_whitespace(value);
+    size_t len = strlen(value);
+    if (len >= 2 && value[0] == '"' && value[len - 1] == '"') {
+        value[len - 1] = '\0';
+        value++;
+    }
+    return value;
+}
+
 int fossil_media_toml_parse(const char *input, fossil_media_toml_t *out_toml) {
     memset(out_toml, 0, sizeof(*out_toml));
 
     char *data = fossil_media_strdup(input);
-    char *line = strtok(data, "\n");
+    char *saveptr;
+    char *line = strtok_r(data, "\n", &saveptr);
     fossil_media_toml_table_t *current_table = add_table(out_toml, NULL);
 
     while (line) {
+        remove_inline_comment(line);
         char *trimmed = trim_whitespace(line);
 
-        if (*trimmed == '#' || *trimmed == '\0') {
-            line = strtok(NULL, "\n");
+        if (*trimmed == '\0') {
+            line = strtok_r(NULL, "\n", &saveptr);
             continue;
         }
 
@@ -81,16 +100,12 @@ int fossil_media_toml_parse(const char *input, fossil_media_toml_t *out_toml) {
             if (eq) {
                 *eq = '\0';
                 char *key = trim_whitespace(trimmed);
-                char *value = trim_whitespace(eq + 1);
-                if (*value == '"' && value[strlen(value) - 1] == '"') {
-                    value[strlen(value) - 1] = '\0';
-                    value++;
-                }
+                char *value = parse_value(eq + 1);
                 add_entry(current_table, key, value);
             }
         }
 
-        line = strtok(NULL, "\n");
+        line = strtok_r(NULL, "\n", &saveptr);
     }
 
     free(data);

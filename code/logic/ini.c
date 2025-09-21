@@ -41,6 +41,11 @@ static char *strdup_trim(const char *src) {
     return out;
 }
 
+static void remove_inline_comment(char *line) {
+    char *comment = strpbrk(line, ";#");
+    if (comment) *comment = '\0';
+}
+
 static fossil_media_ini_section_t *find_section(fossil_media_ini_t *ini, const char *name) {
     for (size_t i = 0; i < ini->section_count; i++) {
         if (strcmp(ini->sections[i].name, name) == 0) {
@@ -72,12 +77,15 @@ int fossil_media_ini_load_string(const char *data, fossil_media_ini_t *ini) {
         memcpy(line, line_start, line_len);
         line[line_len] = '\0';
 
+        // Remove inline comments
+        remove_inline_comment(line);
+
         // Trim
         char *trimmed = strdup_trim(line);
         free(line);
 
         // Skip blank and comments
-        if (*trimmed == '\0' || *trimmed == ';' || *trimmed == '#') {
+        if (*trimmed == '\0') {
             free(trimmed);
             goto next_line;
         }
@@ -101,6 +109,16 @@ int fossil_media_ini_load_string(const char *data, fossil_media_ini_t *ini) {
                 *eq = '\0';
                 char *key = strdup_trim(trimmed);
                 char *value = strdup_trim(eq + 1);
+
+                // Handle quoted values
+                if (*value == '"' || *value == '\'') {
+                    char quote = *value;
+                    size_t vlen = strlen(value);
+                    if (vlen > 1 && value[vlen-1] == quote) {
+                        value[vlen-1] = '\0';
+                        memmove(value, value+1, vlen-1);
+                    }
+                }
 
                 current_section->entries = realloc(
                     current_section->entries,
@@ -137,7 +155,6 @@ int fossil_media_ini_load_file(const char *path, fossil_media_ini_t *ini) {
     }
     rewind(f);
 
-    // use size_t for safety
     size_t size = (size_t)fsize;
     char *buf = malloc(size + 1);
     if (!buf) {

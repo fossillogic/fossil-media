@@ -30,10 +30,13 @@
 #include <ctype.h>
 
 
+// Enhanced YAML parser: supports nested maps (basic indentation-based hierarchy)
 fossil_media_yaml_node_t *fossil_media_yaml_parse(const char *input) {
     if (!input) return NULL;
 
-    fossil_media_yaml_node_t *head = NULL, *tail = NULL;
+    fossil_media_yaml_node_t *root = NULL, *last = NULL;
+    fossil_media_yaml_node_t **stack = NULL;
+    size_t stack_size = 0, stack_cap = 0;
 
     char *copy = fossil_media_strdup(input);
     if (!copy) return NULL;
@@ -58,20 +61,47 @@ fossil_media_yaml_node_t *fossil_media_yaml_parse(const char *input) {
             node->value = fossil_media_strdup(value);
             node->indent = indent;
             node->next = NULL;
+            node->child = NULL;
 
-            if (!head) head = tail = node;
-            else { tail->next = node; tail = node; }
+            // Stack management for hierarchy
+            while (stack_size > 0 && stack[stack_size - 1]->indent >= indent)
+                stack_size--;
+
+            if (stack_size == 0) {
+                // Top-level node
+                if (!root) root = node;
+                else last->next = node;
+                last = node;
+            } else {
+                // Child node
+                fossil_media_yaml_node_t *parent = stack[stack_size - 1];
+                if (!parent->child) parent->child = node;
+                else {
+                    fossil_media_yaml_node_t *sibling = parent->child;
+                    while (sibling->next) sibling = sibling->next;
+                    sibling->next = node;
+                }
+            }
+
+            // Push to stack
+            if (stack_size == stack_cap) {
+                stack_cap = stack_cap ? stack_cap * 2 : 8;
+                stack = realloc(stack, stack_cap * sizeof(*stack));
+            }
+            stack[stack_size++] = node;
         }
         line = strtok(NULL, "\n");
     }
 
+    free(stack);
     free(copy);
-    return head;
+    return root;
 }
 
 void fossil_media_yaml_free(fossil_media_yaml_node_t *head) {
     while (head) {
         fossil_media_yaml_node_t *next = head->next;
+        fossil_media_yaml_free(head->child);
         free(head->key);
         free(head->value);
         free(head);
@@ -83,6 +113,8 @@ const char *fossil_media_yaml_get(const fossil_media_yaml_node_t *head, const ch
     for (; head; head = head->next) {
         if (strcmp(head->key, key) == 0)
             return head->value;
+        const char *val = fossil_media_yaml_get(head->child, key);
+        if (val) return val;
     }
     return NULL;
 }
@@ -91,5 +123,7 @@ void fossil_media_yaml_print(const fossil_media_yaml_node_t *head) {
     for (; head; head = head->next) {
         for (size_t i = 0; i < head->indent; i++) printf(" ");
         printf("%s: %s\n", head->key, head->value);
+        if (head->child)
+            fossil_media_yaml_print(head->child);
     }
 }

@@ -39,7 +39,7 @@ static int csv_row_add_field(fossil_media_csv_row_t *row, const char *field) {
     return 0;
 }
 
-/* Parse CSV text */
+/* Enhanced CSV parser: handles quoted fields, embedded newlines, whitespace, empty fields */
 fossil_media_csv_doc_t *
 fossil_media_csv_parse(const char *csv_text, char delimiter, fossil_media_csv_error_t *err_out) {
     if (err_out) *err_out = FOSSIL_MEDIA_CSV_OK;
@@ -59,35 +59,46 @@ fossil_media_csv_parse(const char *csv_text, char delimiter, fossil_media_csv_er
     char buffer[4096];
     size_t buf_len = 0;
     int in_quotes = 0;
+    int field_started = 0;
 
     while (*p) {
-        char c = *p++;
+        char c = *p;
 
         if (in_quotes) {
             if (c == '"') {
-                if (*p == '"') { /* Escaped quote */
+                if (*(p + 1) == '"') { /* Escaped quote */
                     buffer[buf_len++] = '"';
-                    p++;
+                    p += 2;
+                    continue;
                 } else {
-                    in_quotes = 0; /* End quote */
+                    in_quotes = 0;
+                    p++;
+                    continue;
                 }
             } else {
                 buffer[buf_len++] = c;
+                p++;
+                continue;
             }
         } else {
             if (c == '"') {
                 in_quotes = 1;
+                field_started = 1;
+                p++;
+                continue;
             } else if (c == delimiter) {
                 buffer[buf_len] = '\0';
                 if (csv_row_add_field(&current_row, buffer) < 0) goto fail;
                 buf_len = 0;
+                field_started = 0;
+                p++;
+                continue;
             } else if (c == '\n' || c == '\r') {
-                /* End of row */
                 buffer[buf_len] = '\0';
                 if (csv_row_add_field(&current_row, buffer) < 0) goto fail;
                 buf_len = 0;
+                field_started = 0;
 
-                /* Append row */
                 fossil_media_csv_row_t *new_rows = realloc(doc->rows, (doc->row_count + 1) * sizeof(*doc->rows));
                 if (!new_rows) goto fail;
                 doc->rows = new_rows;
@@ -95,10 +106,18 @@ fossil_media_csv_parse(const char *csv_text, char delimiter, fossil_media_csv_er
                 current_row.fields = NULL;
                 current_row.field_count = 0;
 
-                /* Skip CRLF pairs */
-                if (c == '\r' && *p == '\n') p++;
+                if (c == '\r' && *(p + 1) == '\n') p++;
+                p++;
+                continue;
+            } else if (isspace((unsigned char)c) && !field_started) {
+                /* skip leading whitespace before field */
+                p++;
+                continue;
             } else {
                 buffer[buf_len++] = c;
+                field_started = 1;
+                p++;
+                continue;
             }
         }
 
