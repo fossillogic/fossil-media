@@ -66,7 +66,8 @@ static fossil_media_ini_entry_t *find_entry(fossil_media_ini_section_t *section,
 
 int fossil_media_ini_load_string(const char *data, fossil_media_ini_t *ini) {
     memset(ini, 0, sizeof(*ini));
-    if (!data || *data == '\0') return 0;
+    if (!data || *data == '\0')
+        return 0;
 
     fossil_media_ini_section_t *current_section = NULL;
     const char *line_start = data;
@@ -82,14 +83,13 @@ int fossil_media_ini_load_string(const char *data, fossil_media_ini_t *ini) {
         memcpy(line, line_start, line_len);
         line[line_len] = '\0';
 
-        // Remove inline comments (only if not inside a quoted multiline value)
-        if (!multiline_quote) remove_inline_comment(line);
+        if (!multiline_quote)
+            remove_inline_comment(line);
 
-        // Trim
         char *trimmed = strdup_trim(line);
         free(line);
 
-        // Handle multiline quoted value
+        // --- Handle multiline quoted value ---
         if (multiline_quote) {
             size_t tlen = strlen(trimmed);
             char *end_quote = NULL;
@@ -99,53 +99,54 @@ int fossil_media_ini_load_string(const char *data, fossil_media_ini_t *ini) {
                     break;
                 }
             }
+
+            size_t oldlen = strlen(multiline_value);
+            size_t addlen = strlen(trimmed);
+            multiline_value = realloc(multiline_value, oldlen + addlen + 2);
+            multiline_value[oldlen] = '\n';
+            memcpy(multiline_value + oldlen + 1, trimmed, addlen + 1);
+
             if (end_quote) {
-                // End of multiline value
                 *end_quote = '\0';
-                size_t oldlen = strlen(multiline_value);
-                size_t addlen = strlen(trimmed);
-                multiline_value = realloc(multiline_value, oldlen + addlen + 2);
-                multiline_value[oldlen] = '\n';
-                memcpy(multiline_value + oldlen + 1, trimmed, addlen + 1);
-                // Store the key/value
+                // End of multiline value: store key/value
                 current_section->entries = realloc(
                     current_section->entries,
                     sizeof(*current_section->entries) * (current_section->entry_count + 1)
                 );
-                fossil_media_ini_entry_t *entry = &current_section->entries[current_section->entry_count++];
+                fossil_media_ini_entry_t *entry =
+                    &current_section->entries[current_section->entry_count++];
                 entry->key = multiline_key;
                 entry->value = multiline_value;
                 multiline_key = NULL;
                 multiline_value = NULL;
                 multiline_quote = 0;
-                free(trimmed);
-                goto next_line;
-            } else {
-                // Continue multiline value
-                size_t oldlen = strlen(multiline_value);
-                size_t addlen = strlen(trimmed);
-                multiline_value = realloc(multiline_value, oldlen + addlen + 2);
-                multiline_value[oldlen] = '\n';
-                memcpy(multiline_value + oldlen + 1, trimmed, addlen + 1);
-                free(trimmed);
-                goto next_line;
             }
+
+            free(trimmed);
+            if (!line_end) break;
+            line_start = line_end + 1;
+            continue; // <-- clean jump to next line
         }
 
-        // Skip blank and comments
+        // --- Skip blanks and comments ---
         if (!trimmed || *trimmed == '\0') {
-            if (trimmed) free(trimmed);
-            goto next_line;
+            free(trimmed);
+            if (!line_end) break;
+            line_start = line_end + 1;
+            continue;
         }
 
-        // Section header
+        // --- Section header ---
         if (*trimmed == '[') {
             char *end = strchr(trimmed, ']');
             if (end) {
                 *end = '\0';
                 char *section_name = strdup_trim(trimmed + 1);
                 if (section_name && *section_name) {
-                    ini->sections = realloc(ini->sections, sizeof(*ini->sections) * (ini->section_count + 1));
+                    ini->sections = realloc(
+                        ini->sections,
+                        sizeof(*ini->sections) * (ini->section_count + 1)
+                    );
                     current_section = &ini->sections[ini->section_count++];
                     current_section->name = section_name;
                     current_section->entries = NULL;
@@ -155,35 +156,40 @@ int fossil_media_ini_load_string(const char *data, fossil_media_ini_t *ini) {
                     current_section = NULL;
                 }
             }
+            free(trimmed);
+            if (!line_end) break;
+            line_start = line_end + 1;
+            continue;
         }
-        // Key=value pair or key only
-        else if (current_section) {
+
+        // --- Key=value pair (or ignored key) ---
+        if (current_section) {
             char *eq = strchr(trimmed, '=');
             if (eq) {
                 *eq = '\0';
                 char *key = strdup_trim(trimmed);
                 char *value = strdup_trim(eq + 1);
 
-                // Handle quoted values (including multiline)
+                // Handle quoted (possibly multiline) values
                 if (value && (*value == '"' || *value == '\'')) {
                     char quote = *value;
                     size_t vlen = strlen(value);
-                    if (vlen > 1 && value[vlen-1] == quote) {
-                        value[vlen-1] = '\0';
-                        memmove(value, value+1, vlen-1);
+                    if (vlen > 1 && value[vlen - 1] == quote) {
+                        value[vlen - 1] = '\0';
+                        memmove(value, value + 1, vlen - 1);
                     } else {
-                        // Multiline quoted value
-                        memmove(value, value+1, vlen); // remove leading quote
+                        memmove(value, value + 1, vlen); // remove leading quote
                         multiline_key = key;
                         multiline_value = fossil_media_strdup(value);
                         multiline_quote = quote;
                         free(value);
                         free(trimmed);
-                        goto next_line;
+                        if (!line_end) break;
+                        line_start = line_end + 1;
+                        continue;
                     }
                 }
 
-                // Check for duplicate key: overwrite previous
                 fossil_media_ini_entry_t *entry = find_entry(current_section, key);
                 if (entry) {
                     free(entry->value);
@@ -198,29 +204,24 @@ int fossil_media_ini_load_string(const char *data, fossil_media_ini_t *ini) {
                     entry->key = key;
                     entry->value = value;
                 }
-            } else {
-                // Key without '=': ignore (do not store)
             }
         }
 
         free(trimmed);
-    next_line:
         if (!line_end) break;
         line_start = line_end + 1;
     }
 
-    // If file ends while still in multiline quoted value, store it
+    // Handle EOF during multiline quoted value
     if (multiline_quote && current_section && multiline_key && multiline_value) {
         current_section->entries = realloc(
             current_section->entries,
             sizeof(*current_section->entries) * (current_section->entry_count + 1)
         );
-        fossil_media_ini_entry_t *entry = &current_section->entries[current_section->entry_count++];
+        fossil_media_ini_entry_t *entry =
+            &current_section->entries[current_section->entry_count++];
         entry->key = multiline_key;
         entry->value = multiline_value;
-        multiline_key = NULL;
-        multiline_value = NULL;
-        multiline_quote = 0;
     }
 
     return 0;
