@@ -30,72 +30,99 @@
 #include <ctype.h>
 
 
-// Enhanced YAML parser: supports nested maps (basic indentation-based hierarchy)
+/*
+ * Enhanced YAML parser: supports nested maps (basic indentation-based hierarchy)
+ * Updated to survive all listed test cases.
+ */
 fossil_media_yaml_node_t *fossil_media_yaml_parse(const char *input) {
-    if (!input) return NULL;
+    if (!input || !*input) return NULL;
 
     fossil_media_yaml_node_t *root = NULL, *last = NULL;
     fossil_media_yaml_node_t **stack = NULL;
     size_t stack_size = 0, stack_cap = 0;
+    int parsed_any = 0;
 
     char *copy = fossil_media_strdup(input);
     if (!copy) return NULL;
 
-    char *line = strtok(copy, "\n");
+    char *saveptr = NULL;
+    char *line = strtok_r(copy, "\n", &saveptr);
     while (line) {
+        char *orig_line = line;
+        // Count indent (spaces/tabs before first non-space/tab)
         size_t indent = 0;
-        while (*line == ' ' || *line == '\t') {
-            indent++;
-            line++;
+        while (orig_line[indent] == ' ' || orig_line[indent] == '\t') indent++;
+        line = orig_line + indent;
+
+        // Skip lines that are only whitespace
+        if (*line == '\0' || strspn(line, " \t") == strlen(line)) {
+            line = strtok_r(NULL, "\n", &saveptr);
+            continue;
         }
 
         char *sep = strchr(line, ':');
-        if (sep) {
-            *sep = '\0';
-            char *key = fossil_media_trim(line);
-            char *value = fossil_media_trim(sep + 1);
-
-            fossil_media_yaml_node_t *node = calloc(1, sizeof(*node));
-            if (!node) break;
-            node->key = fossil_media_strdup(key);
-            node->value = fossil_media_strdup(value);
-            node->indent = indent;
-            node->next = NULL;
-            node->child = NULL;
-
-            // Stack management for hierarchy
-            while (stack_size > 0 && stack[stack_size - 1]->indent >= indent)
-                stack_size--;
-
-            if (stack_size == 0) {
-                // Top-level node
-                if (!root) root = node;
-                else last->next = node;
-                last = node;
-            } else {
-                // Child node
-                fossil_media_yaml_node_t *parent = stack[stack_size - 1];
-                if (!parent->child) parent->child = node;
-                else {
-                    fossil_media_yaml_node_t *sibling = parent->child;
-                    while (sibling->next) sibling = sibling->next;
-                    sibling->next = node;
-                }
-            }
-
-            // Push to stack
-            if (stack_size == stack_cap) {
-                stack_cap = stack_cap ? stack_cap * 2 : 8;
-                stack = realloc(stack, stack_cap * sizeof(*stack));
-            }
-            stack[stack_size++] = node;
+        if (!sep) {
+            line = strtok_r(NULL, "\n", &saveptr);
+            continue;
         }
-        line = strtok(NULL, "\n");
+
+        // Accept "key:" (colon at end) as valid, value is empty string
+        *sep = '\0';
+        char *key = fossil_media_trim(line);
+        char *value = fossil_media_trim(sep + 1);
+
+        if (!key || !*key) {
+            line = strtok_r(NULL, "\n", &saveptr);
+            continue;
+        }
+        if (!value) value = "";
+
+        fossil_media_yaml_node_t *node = calloc(1, sizeof(*node));
+        if (!node) break;
+        node->key = fossil_media_strdup(key);
+        node->value = fossil_media_strdup(value);
+        node->indent = indent;
+        node->next = NULL;
+        node->child = NULL;
+
+        // Stack management for hierarchy
+        while (stack_size > 0 && stack[stack_size - 1]->indent >= indent)
+            stack_size--;
+
+        if (stack_size == 0) {
+            // Top-level node
+            if (!root) root = node;
+            else last->next = node;
+            last = node;
+        } else {
+            // Child node
+            fossil_media_yaml_node_t *parent = stack[stack_size - 1];
+            if (!parent->child) parent->child = node;
+            else {
+                fossil_media_yaml_node_t *sibling = parent->child;
+                while (sibling->next) sibling = sibling->next;
+                sibling->next = node;
+            }
+        }
+
+        // Push to stack
+        if (stack_size == stack_cap) {
+            stack_cap = stack_cap ? stack_cap * 2 : 8;
+            stack = realloc(stack, stack_cap * sizeof(*stack));
+        }
+        stack[stack_size++] = node;
+        parsed_any = 1;
+
+        line = strtok_r(NULL, "\n", &saveptr);
     }
 
-    free(stack);
-    free(copy);
-    return root;
+    if (stack)
+        free(stack);
+    if (copy)
+        free(copy);
+
+    // If root is NULL, return NULL (no valid nodes parsed)
+    return parsed_any ? root : NULL;
 }
 
 void fossil_media_yaml_free(fossil_media_yaml_node_t *head) {
