@@ -364,23 +364,30 @@ void fossil_media_html_free(fossil_media_html_doc_t *doc) {
     if (doc->root) stack[sp++] = doc->root;
     while (sp > 0) {
         fossil_media_html_node_t *n = stack[--sp];
-        if (n->tag) free(n->tag);
-        if (n->text) free(n->text);
-        for (size_t i = 0; i < n->attrs.count; ++i) {
-            free(n->attrs.keys[i]);
-            free(n->attrs.values[i]);
-        }
-        free(n->attrs.keys);
-        free(n->attrs.values);
-        for (fossil_media_html_node_t *c = n->first_child; c; c = c->next_sibling) {
+        // Save next_sibling before freeing n
+        fossil_media_html_node_t *child = n->first_child;
+        while (child) {
             if (sp >= stack_cap) {
                 stack_cap *= 2;
                 fossil_media_html_node_t **new_stack = (fossil_media_html_node_t**)realloc(stack, stack_cap * sizeof(fossil_media_html_node_t*));
-                if (!new_stack) break;
+                if (!new_stack) {
+                    // If realloc fails, just free what we can and exit
+                    break;
+                }
                 stack = new_stack;
             }
-            stack[sp++] = c;
+            fossil_media_html_node_t *next = child->next_sibling;
+            stack[sp++] = child;
+            child = next;
         }
+        if (n->tag) { free(n->tag); n->tag = NULL; }
+        if (n->text) { free(n->text); n->text = NULL; }
+        for (size_t i = 0; i < n->attrs.count; ++i) {
+            if (n->attrs.keys) { free(n->attrs.keys[i]); n->attrs.keys[i] = NULL; }
+            if (n->attrs.values) { free(n->attrs.values[i]); n->attrs.values[i] = NULL; }
+        }
+        if (n->attrs.keys) { free(n->attrs.keys); n->attrs.keys = NULL; }
+        if (n->attrs.values) { free(n->attrs.values); n->attrs.values = NULL; }
         free(n);
     }
     free(stack);
