@@ -99,6 +99,127 @@ FOSSIL_TEST_CASE(cpp_test_yaml_move_assignment) {
     ASSUME_ITS_TRUE(doc1.get("x") == nullptr); // doc1 should be empty after move
 }
 
+FOSSIL_TEST_CASE(cpp_test_yaml_parse_nested) {
+    using fossil::media::Yaml;
+    const char *yaml =
+        "parent: root\n"
+        "  child1: value1\n"
+        "  child2: value2\n"
+        "    grandchild: value3\n"
+        "sibling: outside\n";
+    Yaml doc(yaml);
+
+    ASSUME_ITS_TRUE(strcmp(doc.get("parent"), "root") == 0);
+    ASSUME_ITS_TRUE(strcmp(doc.get("child1"), "value1") == 0);
+    ASSUME_ITS_TRUE(strcmp(doc.get("child2"), "value2") == 0);
+    ASSUME_ITS_TRUE(strcmp(doc.get("grandchild"), "value3") == 0);
+    ASSUME_ITS_TRUE(strcmp(doc.get("sibling"), "outside") == 0);
+}
+
+FOSSIL_TEST_CASE(cpp_test_yaml_parse_trailing_spaces) {
+    using fossil::media::Yaml;
+    const char *yaml = "key1: value1   \n   key2:    value2\n";
+    Yaml doc(yaml);
+
+    ASSUME_ITS_TRUE(strcmp(doc.get("key1"), "value1") == 0);
+    ASSUME_ITS_TRUE(strcmp(doc.get("key2"), "value2") == 0);
+}
+
+FOSSIL_TEST_CASE(cpp_test_yaml_parse_multiple_indents) {
+    using fossil::media::Yaml;
+    const char *yaml =
+        "a: 1\n"
+        "  b: 2\n"
+        "    c: 3\n"
+        "      d: 4\n";
+    Yaml doc(yaml);
+
+    ASSUME_ITS_TRUE(strcmp(doc.get("a"), "1") == 0);
+    ASSUME_ITS_TRUE(strcmp(doc.get("b"), "2") == 0);
+    ASSUME_ITS_TRUE(strcmp(doc.get("c"), "3") == 0);
+    ASSUME_ITS_TRUE(strcmp(doc.get("d"), "4") == 0);
+}
+
+FOSSIL_TEST_CASE(cpp_test_yaml_print_output) {
+    using fossil::media::Yaml;
+    const char *yaml = "x: 10\n  y: 20\n";
+    Yaml doc(yaml);
+
+    // Just call print to ensure no crash; output not checked here
+    doc.print();
+}
+
+FOSSIL_TEST_CASE(cpp_test_yaml_parse_only_spaces) {
+    using fossil::media::Yaml;
+    const char *yaml = "   \n\t\n";
+    bool threw = false;
+    try {
+        Yaml doc(yaml);
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    ASSUME_ITS_TRUE(threw);
+}
+
+FOSSIL_TEST_CASE(cpp_test_yaml_parse_no_colon) {
+    using fossil::media::Yaml;
+    const char *yaml = "justakey\nanotherkey\n";
+    bool threw = false;
+    try {
+        Yaml doc(yaml);
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    ASSUME_ITS_TRUE(threw);
+}
+
+FOSSIL_TEST_CASE(cpp_test_yaml_parse_colon_at_end) {
+    using fossil::media::Yaml;
+    const char *yaml = "key:\nother: value\n";
+    Yaml doc(yaml);
+
+    ASSUME_ITS_TRUE(strcmp(doc.get("key"), "") == 0);
+    ASSUME_ITS_TRUE(strcmp(doc.get("other"), "value") == 0);
+}
+
+FOSSIL_TEST_CASE(cpp_test_yaml_parse_duplicate_keys) {
+    using fossil::media::Yaml;
+    const char *yaml = "dup: first\n  dup: second\n";
+    Yaml doc(yaml);
+
+    // Only first match is returned by get
+    ASSUME_ITS_TRUE(strcmp(doc.get("dup"), "first") == 0);
+}
+
+FOSSIL_TEST_CASE(cpp_test_yaml_parse_long_key_and_value) {
+    using fossil::media::Yaml;
+    const char *yaml = "averyveryverylongkeyname: averyveryverylongvaluename\n";
+    Yaml doc(yaml);
+
+    ASSUME_ITS_TRUE(strcmp(doc.get("averyveryverylongkeyname"), "averyveryverylongvaluename") == 0);
+}
+
+FOSSIL_TEST_CASE(cpp_test_yaml_parse_tabs_and_spaces_indent) {
+    using fossil::media::Yaml;
+    const char *yaml = "main: root\n\tchild: tabbed\n  child2: spaced\n";
+    Yaml doc(yaml);
+
+    ASSUME_ITS_TRUE(strcmp(doc.get("main"), "root") == 0);
+    ASSUME_ITS_TRUE(strcmp(doc.get("child"), "tabbed") == 0);
+    ASSUME_ITS_TRUE(strcmp(doc.get("child2"), "spaced") == 0);
+}
+
+FOSSIL_TEST_CASE(cpp_test_yaml_get_nested_value) {
+    using fossil::media::Yaml;
+    const char *yaml =
+        "root: base\n"
+        "  nested: value\n"
+        "    deep: deeper\n";
+    Yaml doc(yaml);
+
+    ASSUME_ITS_TRUE(strcmp(doc.get("deep"), "deeper") == 0);
+}
+
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -107,6 +228,17 @@ FOSSIL_TEST_GROUP(cpp_yaml_tests) {
     FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_construct_invalid);
     FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_move_constructor);
     FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_move_assignment);
+    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_nested);
+    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_trailing_spaces);
+    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_multiple_indents);
+    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_print_output);
+    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_only_spaces);
+    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_no_colon);
+    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_colon_at_end);
+    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_duplicate_keys);
+    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_long_key_and_value);
+    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_tabs_and_spaces_indent);
+    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_get_nested_value);
 
     FOSSIL_TEST_REGISTER(cpp_yaml_fixture);
 } // end of tests

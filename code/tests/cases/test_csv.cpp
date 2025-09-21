@@ -92,6 +92,67 @@ FOSSIL_TEST_CASE(cpp_test_parse_invalid_input) {
     ASSUME_ITS_TRUE(csv.row_count() == 0);
 }
 
+FOSSIL_TEST_CASE(cpp_test_parse_single_row) {
+    Csv csv("foo,bar,baz\n");
+    ASSUME_ITS_TRUE(csv.row_count() == 1);
+    ASSUME_ITS_TRUE(csv.field(0, 0) == "foo");
+    ASSUME_ITS_TRUE(csv.field(0, 1) == "bar");
+    ASSUME_ITS_TRUE(csv.field(0, 2) == "baz");
+}
+
+FOSSIL_TEST_CASE(cpp_test_parse_trailing_newline) {
+    Csv csv("x,y,z\n1,2,3\n\n");
+    ASSUME_ITS_TRUE(csv.row_count() == 3);
+    ASSUME_ITS_TRUE(csv.field_count(2) == 0);
+}
+
+FOSSIL_TEST_CASE(cpp_test_parse_custom_delimiter) {
+    Csv csv("a;b;c\n1;2;3\n", ';');
+    ASSUME_ITS_TRUE(csv.row_count() == 2);
+    ASSUME_ITS_TRUE(csv.field(1, 2) == "3");
+}
+
+FOSSIL_TEST_CASE(cpp_test_stringify_empty_doc) {
+    Csv csv("");
+    std::string out = csv.to_string();
+    ASSUME_ITS_TRUE(out.empty());
+}
+
+FOSSIL_TEST_CASE(cpp_test_parse_only_newlines) {
+    Csv csv("\n\n\n");
+    ASSUME_ITS_TRUE(csv.row_count() == 3);
+    ASSUME_ITS_TRUE(csv.field_count(0) == 0);
+}
+
+FOSSIL_TEST_CASE(cpp_test_parse_only_delimiters) {
+    Csv csv(",,,\n,,,\n");
+    ASSUME_ITS_TRUE(csv.row_count() == 2);
+    ASSUME_ITS_TRUE(csv.field_count(0) == 4);
+    ASSUME_ITS_TRUE(csv.field(0, 2) == "");
+}
+
+FOSSIL_TEST_CASE(cpp_test_parse_escaped_quotes) {
+    Csv csv("\"a\"\"b\",c\n");
+    ASSUME_ITS_TRUE(csv.row_count() == 1);
+    ASSUME_ITS_TRUE(csv.field(0, 0) == "a\"b");
+    ASSUME_ITS_TRUE(csv.field(0, 1) == "c");
+}
+
+FOSSIL_TEST_CASE(cpp_test_parse_long_field) {
+    std::string long_field(1023, 'x');
+    std::string csv_text = long_field + ",1\n";
+    Csv csv(csv_text);
+    ASSUME_ITS_TRUE(csv.row_count() == 1);
+    ASSUME_ITS_TRUE(csv.field(0, 0) == long_field);
+    ASSUME_ITS_TRUE(csv.field(0, 1) == "1");
+}
+
+FOSSIL_TEST_CASE(cpp_test_parse_no_fields) {
+    Csv csv("");
+    ASSUME_ITS_TRUE(csv.row_count() == 0);
+}
+
+
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -102,6 +163,15 @@ FOSSIL_TEST_GROUP(cpp_csv_tests) {
     FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_stringify_roundtrip);
     FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_append_row);
     FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_invalid_input);
+    FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_single_row);
+    FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_trailing_newline);
+    FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_custom_delimiter);
+    FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_stringify_empty_doc);
+    FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_only_newlines);
+    FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_only_delimiters);
+    FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_escaped_quotes);
+    FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_long_field);
+    FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_no_fields);
 
     FOSSIL_TEST_REGISTER(cpp_csv_fixture);
 } // end of tests
