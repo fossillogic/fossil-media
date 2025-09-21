@@ -77,8 +77,7 @@ int fossil_media_toml_parse(const char *input, fossil_media_toml_t *out_toml) {
     memset(out_toml, 0, sizeof(*out_toml));
 
     char *data = fossil_media_strdup(input);
-    char *saveptr;
-    char *line = strtok_r(data, "\n", &saveptr);
+    char *line = strtok(data, "\n");
     fossil_media_toml_table_t *current_table = add_table(out_toml, NULL);
 
     while (line) {
@@ -86,7 +85,7 @@ int fossil_media_toml_parse(const char *input, fossil_media_toml_t *out_toml) {
         char *trimmed = trim_whitespace(line);
 
         if (*trimmed == '\0') {
-            line = strtok_r(NULL, "\n", &saveptr);
+            line = strtok(NULL, "\n");
             continue;
         }
 
@@ -105,7 +104,7 @@ int fossil_media_toml_parse(const char *input, fossil_media_toml_t *out_toml) {
             }
         }
 
-        line = strtok_r(NULL, "\n", &saveptr);
+        line = strtok(NULL, "\n");
     }
 
     free(data);
