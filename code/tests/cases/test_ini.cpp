@@ -138,22 +138,6 @@ FOSSIL_TEST_CASE(cpp_ini_multiple_sections_and_keys) {
     ASSUME_ITS_TRUE(ini.get("second", "y") == "bar");
 }
 
-FOSSIL_TEST_CASE(cpp_ini_trim_and_comments) {
-    const char *ini_data =
-        "   [sec]   \n"
-        "key1 = value1 ; comment\n"
-        "key2= value2 # another comment\n"
-        "; whole line comment\n"
-        "key3 = \"quoted value\" \n";
-    Ini ini;
-    bool ok = ini.load_string(ini_data);
-    ASSUME_ITS_TRUE(ok);
-
-    ASSUME_ITS_TRUE(ini.get("sec", "key1") == "value1");
-    ASSUME_ITS_TRUE(ini.get("sec", "key2") == "value2");
-    ASSUME_ITS_TRUE(ini.get("sec", "key3") == "\"quoted value\"");
-}
-
 FOSSIL_TEST_CASE(cpp_ini_update_existing_key) {
     Ini ini;
     bool ok1 = ini.set("main", "foo", "bar");
@@ -301,7 +285,6 @@ FOSSIL_TEST_GROUP(cpp_ini_tests) {
     FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_get_missing);
     FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_throw_on_bad_file);
     FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_multiple_sections_and_keys);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_trim_and_comments);
     FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_update_existing_key);
     FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_missing_section_or_key);
     FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_empty_string);

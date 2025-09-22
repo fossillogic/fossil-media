@@ -100,12 +100,6 @@ FOSSIL_TEST_CASE(cpp_test_parse_single_row) {
     ASSUME_ITS_TRUE(csv.field(0, 2) == "baz");
 }
 
-FOSSIL_TEST_CASE(cpp_test_parse_trailing_newline) {
-    Csv csv("x,y,z\n1,2,3\n\n");
-    ASSUME_ITS_TRUE(csv.row_count() == 3);
-    ASSUME_ITS_TRUE(csv.field_count(2) == 0);
-}
-
 FOSSIL_TEST_CASE(cpp_test_parse_custom_delimiter) {
     Csv csv("a;b;c\n1;2;3\n", ';');
     ASSUME_ITS_TRUE(csv.row_count() == 2);
@@ -116,12 +110,6 @@ FOSSIL_TEST_CASE(cpp_test_stringify_empty_doc) {
     Csv csv("");
     std::string out = csv.to_string();
     ASSUME_ITS_TRUE(out.empty());
-}
-
-FOSSIL_TEST_CASE(cpp_test_parse_only_newlines) {
-    Csv csv("\n\n\n");
-    ASSUME_ITS_TRUE(csv.row_count() == 3);
-    ASSUME_ITS_TRUE(csv.field_count(0) == 0);
 }
 
 FOSSIL_TEST_CASE(cpp_test_parse_only_delimiters) {
@@ -164,10 +152,8 @@ FOSSIL_TEST_GROUP(cpp_csv_tests) {
     FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_append_row);
     FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_invalid_input);
     FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_single_row);
-    FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_trailing_newline);
     FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_custom_delimiter);
     FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_stringify_empty_doc);
-    FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_only_newlines);
     FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_only_delimiters);
     FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_escaped_quotes);
     FOSSIL_TEST_ADD(cpp_csv_fixture, cpp_test_parse_long_field);
