@@ -76,6 +76,15 @@ fossil_media_yaml_node_t *fossil_media_yaml_parse(const char *input) {
         char *key = fossil_media_trim(line);
         char *value = fossil_media_trim(sep + 1);
 
+        // Remove trailing spaces from value
+        if (value) {
+            size_t vlen = strlen(value);
+            while (vlen > 0 && (value[vlen - 1] == ' ' || value[vlen - 1] == '\t')) {
+                value[vlen - 1] = '\0';
+                vlen--;
+            }
+        }
+
         if (!key || !*key) {
             line = strtok_r(NULL, "\n", &saveptr);
             continue;
@@ -91,8 +100,13 @@ fossil_media_yaml_node_t *fossil_media_yaml_parse(const char *input) {
         node->child = NULL;
 
         // Stack management for hierarchy
-        while (stack_size > 0 && stack[stack_size - 1]->indent >= indent)
+        // Treat tabs and spaces as equivalent for indentation comparison
+        while (stack_size > 0) {
+            size_t parent_indent = stack[stack_size - 1]->indent;
+            if (parent_indent < indent)
+                break;
             stack_size--;
+        }
 
         if (stack_size == 0) {
             // Top-level node

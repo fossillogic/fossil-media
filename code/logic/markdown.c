@@ -119,17 +119,25 @@ fossil_media_md_node_t *fossil_media_md_parse(const char *input) {
         else if (is_code_fence(line)) {
             const char *lang = line + 3;
             while (*lang == ' ' || *lang == '\t') lang++;
+            // If lang is only whitespace or empty, treat as no language
             const char *code_start = line_ptr;
             const char *code_end = strstr(code_start, "```");
             if (!code_end) {
                 free(line);
                 break;
             }
-            char *block = fossil_media_strndup(code_start, (size_t)(code_end - code_start));
-            fossil_media_md_node_t *code_node = md_new_node(FOSSIL_MEDIA_MD_CODE_BLOCK, block, *lang ? lang : NULL);
+            // Remove trailing newline if present before closing fence
+            size_t block_len = (size_t)(code_end - code_start);
+            while (block_len > 0 && (code_start[block_len - 1] == '\n' || code_start[block_len - 1] == '\r')) {
+                block_len--;
+            }
+            char *block = fossil_media_strndup(code_start, block_len);
+            fossil_media_md_node_t *code_node = md_new_node(FOSSIL_MEDIA_MD_CODE_BLOCK, block, (*lang && *lang != '\n') ? lang : NULL);
             md_add_child(root, code_node);
             free(block);
             line_ptr = code_end + 3;
+            // Skip possible trailing newline after closing fence
+            if (*line_ptr == '\n' || *line_ptr == '\r') line_ptr++;
         }
         else {
             md_add_child(root, md_new_node(FOSSIL_MEDIA_MD_TEXT, line, NULL));
