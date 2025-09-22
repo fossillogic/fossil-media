@@ -36,6 +36,5 @@
 #include "ini.h"
 #include "xml.h"
 #include "csv.h"
-#include "elf.h"
 
 #endif /* FOSSIL_MEDIA_FRAMEWORK_H */

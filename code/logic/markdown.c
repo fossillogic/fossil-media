@@ -40,48 +40,109 @@ static fossil_media_md_node_t *md_new_node(fossil_media_md_type_t type, const ch
 
 static void md_add_child(fossil_media_md_node_t *parent, fossil_media_md_node_t *child) {
     if (!parent || !child) return;
-    parent->children = realloc(parent->children, sizeof(*parent->children) * (parent->child_count + 1));
+    fossil_media_md_node_t **new_children = realloc(parent->children, sizeof(*parent->children) * (parent->child_count + 1));
+    if (!new_children) return; // realloc failed, do not modify parent
+    parent->children = new_children;
     parent->children[parent->child_count++] = child;
     child->parent = parent;
 }
 
-/* ---------- Public API ---------- */
+/* ---------- Enhanced Markdown Parser ---------- */
+
+static int is_blank_line(const char *line) {
+    while (*line) {
+        if (*line != ' ' && *line != '\t' && *line != '\r' && *line != '\n')
+            return 0;
+        line++;
+    }
+    return 1;
+}
+
+static int is_heading(const char *line, size_t *level) {
+    *level = 0;
+    while (*line == '#') { (*level)++; line++; }
+    if (*level > 0 && (*line == ' ' || *line == '\t')) return 1;
+    return 0;
+}
+
+static int is_list_item(const char *line) {
+    return ((*line == '-' || *line == '*' || *line == '+') && (line[1] == ' ' || line[1] == '\t'));
+}
+
+static int is_code_fence(const char *line) {
+    return (strncmp(line, "```", 3) == 0);
+}
+
+static int is_blockquote(const char *line) {
+    return (*line == '>' && (line[1] == ' ' || line[1] == '\t'));
+}
+
+static char *extract_line(const char *start, const char **next) {
+    const char *end = strchr(start, '\n');
+    size_t len = end ? (size_t)(end - start) : strlen(start);
+    char *line = fossil_media_strndup(start, len);
+    *next = end ? end + 1 : start + len;
+    return line;
+}
 
 fossil_media_md_node_t *fossil_media_md_parse(const char *input) {
     if (!input) return NULL;
 
     fossil_media_md_node_t *root = md_new_node(FOSSIL_MEDIA_MD_PARAGRAPH, NULL, NULL);
 
-    const char *line = input;
-    while (*line) {
-        if (*line == '#') {
-            size_t level = 0;
-            while (*line == '#') { level++; line++; }
-            while (*line == ' ') line++;
+    const char *line_ptr = input;
+    while (*line_ptr) {
+        char *line = extract_line(line_ptr, &line_ptr);
+        if (is_blank_line(line)) {
+            free(line);
+            continue;
+        }
 
-            fossil_media_md_node_t *heading = md_new_node(FOSSIL_MEDIA_MD_HEADING, line, NULL);
-            heading->level = (int)level;  /* Store heading level in node */
+        size_t level = 0;
+        if (is_heading(line, &level)) {
+            const char *content = line + level;
+            while (*content == ' ' || *content == '\t') content++;
+            fossil_media_md_node_t *heading = md_new_node(FOSSIL_MEDIA_MD_HEADING, content, NULL);
+            heading->level = (int)level;
             md_add_child(root, heading);
         }
-        else if (*line == '-' && line[1] == ' ') {
-            md_add_child(root, md_new_node(FOSSIL_MEDIA_MD_LIST_ITEM, line + 2, NULL));
+        else if (is_list_item(line)) {
+            const char *content = line + 2;
+            while (*content == ' ' || *content == '\t') content++;
+            md_add_child(root, md_new_node(FOSSIL_MEDIA_MD_LIST_ITEM, content, NULL));
         }
-        else if (strncmp(line, "```", 3) == 0) {
-            line += 3;
-            const char *end = strstr(line, "```");
-            if (!end) break;
-            char *block = fossil_media_strndup(line, (size_t)(end - line));
-            md_add_child(root, md_new_node(FOSSIL_MEDIA_MD_CODE_BLOCK, block, NULL));
+        else if (is_blockquote(line)) {
+            const char *content = line + 1;
+            while (*content == ' ' || *content == '\t') content++;
+            md_add_child(root, md_new_node(FOSSIL_MEDIA_MD_BLOCKQUOTE, content, NULL));
+        }
+        else if (is_code_fence(line)) {
+            const char *lang = line + 3;
+            while (*lang == ' ' || *lang == '\t') lang++;
+            // If lang is only whitespace or empty, treat as no language
+            const char *code_start = line_ptr;
+            const char *code_end = strstr(code_start, "```");
+            if (!code_end) {
+                free(line);
+                break;
+            }
+            // Remove trailing newline if present before closing fence
+            size_t block_len = (size_t)(code_end - code_start);
+            while (block_len > 0 && (code_start[block_len - 1] == '\n' || code_start[block_len - 1] == '\r')) {
+                block_len--;
+            }
+            char *block = fossil_media_strndup(code_start, block_len);
+            fossil_media_md_node_t *code_node = md_new_node(FOSSIL_MEDIA_MD_CODE_BLOCK, block, (*lang && *lang != '\n') ? lang : NULL);
+            md_add_child(root, code_node);
             free(block);
-            line = end + 3;
+            line_ptr = code_end + 3;
+            // Skip possible trailing newline after closing fence
+            if (*line_ptr == '\n' || *line_ptr == '\r') line_ptr++;
         }
         else {
             md_add_child(root, md_new_node(FOSSIL_MEDIA_MD_TEXT, line, NULL));
         }
-
-        const char *next = strchr(line, '\n');
-        if (!next) break;
-        line = next + 1;
+        free(line);
     }
 
     return root;
@@ -97,10 +158,31 @@ char *fossil_media_md_serialize(const fossil_media_md_node_t *root) {
     for (size_t i = 0; i < root->child_count; i++) {
         const fossil_media_md_node_t *n = root->children[i];
         const char *prefix = "";
+        char heading_prefix[8] = {0};
         switch (n->type) {
-            case FOSSIL_MEDIA_MD_HEADING: prefix = "# "; break;
+            case FOSSIL_MEDIA_MD_HEADING:
+                memset(heading_prefix, '#', n->level > 6 ? 6 : n->level);
+                heading_prefix[n->level > 6 ? 6 : n->level] = ' ';
+                prefix = heading_prefix;
+                break;
             case FOSSIL_MEDIA_MD_LIST_ITEM: prefix = "- "; break;
-            case FOSSIL_MEDIA_MD_CODE_BLOCK: prefix = "```\n"; break;
+            case FOSSIL_MEDIA_MD_CODE_BLOCK:
+                if (n->extra && strlen(n->extra) > 0) {
+                    snprintf(buf + len, buf_size - len, "```%s\n", n->extra);
+                    len = strlen(buf);
+                } else {
+                    strcat(buf, "```\n");
+                    len = strlen(buf);
+                }
+                if (n->content) {
+                    strcat(buf, n->content);
+                    len = strlen(buf);
+                }
+                strcat(buf, "\n```");
+                len = strlen(buf);
+                strcat(buf, "\n");
+                continue;
+            case FOSSIL_MEDIA_MD_BLOCKQUOTE: prefix = "> "; break;
             default: break;
         }
         size_t chunk_len = strlen(prefix) + (n->content ? strlen(n->content) : 0) + 5;
@@ -110,7 +192,6 @@ char *fossil_media_md_serialize(const fossil_media_md_node_t *root) {
         }
         strcat(buf, prefix);
         if (n->content) strcat(buf, n->content);
-        if (n->type == FOSSIL_MEDIA_MD_CODE_BLOCK) strcat(buf, "\n```");
         strcat(buf, "\n");
         len = strlen(buf);
     }
@@ -120,11 +201,13 @@ char *fossil_media_md_serialize(const fossil_media_md_node_t *root) {
 
 void fossil_media_md_free(fossil_media_md_node_t *node) {
     if (!node) return;
-    free(node->content);
-    free(node->extra);
-    for (size_t i = 0; i < node->child_count; i++) {
-        fossil_media_md_free(node->children[i]);
+    if (node->content) free(node->content);
+    if (node->extra) free(node->extra);
+    if (node->children) {
+        for (size_t i = 0; i < node->child_count; i++) {
+            fossil_media_md_free(node->children[i]);
+        }
+        free(node->children);
     }
-    free(node->children);
     free(node);
 }

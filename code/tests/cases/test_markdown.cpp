@@ -66,11 +66,153 @@ FOSSIL_TEST_CASE(cpp_test_md_parse_and_serialize) {
     }
 }
 
+FOSSIL_TEST_CASE(cpp_test_md_parse_headings) {
+    const std::string md_input = "# H1\n## H2\n### H3";
+    fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
+    ASSUME_NOT_CNULL(root);
+
+    std::string md_output = fossil::media::Markdown::serialize(root);
+    ASSUME_ITS_TRUE(md_output.find("# H1") != std::string::npos);
+    ASSUME_ITS_TRUE(md_output.find("## H2") != std::string::npos);
+    ASSUME_ITS_TRUE(md_output.find("### H3") != std::string::npos);
+
+    fossil::media::Markdown::free(root);
+}
+
+FOSSIL_TEST_CASE(cpp_test_md_parse_list_items) {
+    const std::string md_input = "- Item 1\n* Item 2\n+ Item 3";
+    fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
+    ASSUME_NOT_CNULL(root);
+
+    std::string md_output = fossil::media::Markdown::serialize(root);
+    ASSUME_ITS_TRUE(md_output.find("- Item 1") != std::string::npos);
+    ASSUME_ITS_TRUE(md_output.find("- Item 2") != std::string::npos);
+    ASSUME_ITS_TRUE(md_output.find("- Item 3") != std::string::npos);
+
+    fossil::media::Markdown::free(root);
+}
+
+FOSSIL_TEST_CASE(cpp_test_md_parse_code_block) {
+    const std::string md_input = "```c\nint main() { return 0; }\n```";
+    fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
+    ASSUME_NOT_CNULL(root);
+
+    std::string md_output = fossil::media::Markdown::serialize(root);
+    ASSUME_ITS_TRUE(md_output.find("```c") != std::string::npos);
+    ASSUME_ITS_TRUE(md_output.find("int main()") != std::string::npos);
+
+    fossil::media::Markdown::free(root);
+}
+
+FOSSIL_TEST_CASE(cpp_test_md_parse_blockquote) {
+    const std::string md_input = "> This is a quote";
+    fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
+    ASSUME_NOT_CNULL(root);
+
+    std::string md_output = fossil::media::Markdown::serialize(root);
+    ASSUME_ITS_TRUE(md_output.find("> This is a quote") != std::string::npos);
+
+    fossil::media::Markdown::free(root);
+}
+
+FOSSIL_TEST_CASE(cpp_test_md_parse_empty_input) {
+    const std::string md_input = "";
+    fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
+    ASSUME_NOT_CNULL(root);
+
+    std::string md_output = fossil::media::Markdown::serialize(root);
+    ASSUME_ITS_TRUE(md_output.empty() || md_output == "\n");
+
+    fossil::media::Markdown::free(root);
+}
+
+FOSSIL_TEST_CASE(cpp_test_md_parse_multiple_blank_lines) {
+    const std::string md_input = "\n\n# Heading\n\n\nText after blanks\n\n";
+    fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
+    ASSUME_NOT_CNULL(root);
+
+    std::string md_output = fossil::media::Markdown::serialize(root);
+    ASSUME_ITS_TRUE(md_output.find("# Heading") != std::string::npos);
+    ASSUME_ITS_TRUE(md_output.find("Text after blanks") != std::string::npos);
+
+    fossil::media::Markdown::free(root);
+}
+
+FOSSIL_TEST_CASE(cpp_test_md_parse_malformed_heading) {
+    const std::string md_input = "##NoSpaceHeading";
+    fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
+    ASSUME_NOT_CNULL(root);
+
+    std::string md_output = fossil::media::Markdown::serialize(root);
+    ASSUME_ITS_TRUE(md_output.find("##NoSpaceHeading") != std::string::npos);
+
+    fossil::media::Markdown::free(root);
+}
+
+FOSSIL_TEST_CASE(cpp_test_md_parse_nested_blockquote) {
+    const std::string md_input = "> Outer quote\n> > Nested quote";
+    fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
+    ASSUME_NOT_CNULL(root);
+
+    std::string md_output = fossil::media::Markdown::serialize(root);
+    ASSUME_ITS_TRUE(md_output.find("> Outer quote") != std::string::npos);
+    ASSUME_ITS_TRUE(md_output.find("> > Nested quote") != std::string::npos);
+
+    fossil::media::Markdown::free(root);
+}
+
+FOSSIL_TEST_CASE(cpp_test_md_parse_code_block_no_language) {
+    const std::string md_input = "```\ncode without language\n```";
+    fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
+    ASSUME_NOT_CNULL(root);
+
+    std::string md_output = fossil::media::Markdown::serialize(root);
+    ASSUME_ITS_TRUE(md_output.find("```\ncode without language\n```") != std::string::npos);
+
+    fossil::media::Markdown::free(root);
+}
+
+FOSSIL_TEST_CASE(cpp_test_md_parse_unclosed_code_block) {
+    const std::string md_input = "```python\nprint('Hello')";
+    fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
+    ASSUME_NOT_CNULL(root);
+
+    std::string md_output = fossil::media::Markdown::serialize(root);
+    ASSUME_ITS_TRUE(md_output.find("print('Hello')") == std::string::npos || md_output.find("```python") == std::string::npos);
+
+    fossil::media::Markdown::free(root);
+}
+
+FOSSIL_TEST_CASE(cpp_test_md_parse_long_input) {
+    std::string md_input = "# Heading\n";
+    for (int i = 0; i < 100; ++i) {
+        md_input += "- Item\n";
+    }
+    fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
+    ASSUME_NOT_CNULL(root);
+
+    std::string md_output = fossil::media::Markdown::serialize(root);
+    ASSUME_ITS_TRUE(md_output.find("# Heading") != std::string::npos);
+
+    fossil::media::Markdown::free(root);
+}
+
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_markdown_tests) {
     FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_and_serialize);
+    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_headings);
+    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_list_items);
+    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_code_block);
+    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_blockquote);
+    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_empty_input);
+    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_multiple_blank_lines);
+    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_malformed_heading);
+    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_nested_blockquote);
+    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_code_block_no_language);
+    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_unclosed_code_block);
+    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_long_input);
 
     FOSSIL_TEST_REGISTER(cpp_markdown_fixture);
 } // end of tests

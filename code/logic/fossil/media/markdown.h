@@ -46,6 +46,7 @@ typedef enum {
     FOSSIL_MEDIA_MD_LIST_ITEM,  /**< - List item */
     FOSSIL_MEDIA_MD_LINK,       /**< [text](url) */
     FOSSIL_MEDIA_MD_PARAGRAPH,  /**< Paragraph block */
+    FOSSIL_MEDIA_MD_BLOCKQUOTE   /**< > Blockquote */
 } fossil_media_md_type_t;
 
 /**

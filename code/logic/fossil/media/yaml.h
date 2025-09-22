@@ -41,6 +41,7 @@ typedef struct fossil_media_yaml_node_t {
     char *value;                         /**< YAML value string */
     size_t indent;                       /**< Indentation level */
     struct fossil_media_yaml_node_t *next; /**< Next node in linked list */
+    struct fossil_media_yaml_node_t *child; /**< Child node (for nested maps) */
 } fossil_media_yaml_node_t;
 
 /**

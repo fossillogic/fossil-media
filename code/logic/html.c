@@ -57,6 +57,8 @@ static fossil_media_html_node_t* alloc_node(fossil_media_html_node_type_t type) 
 }
 
 static int parse_html_string(const char *input, fossil_media_html_doc_t **out_doc) {
+    if (!input || !out_doc) return FOSSIL_MEDIA_HTML_ERR_INVALID_ARG;
+
     fossil_media_html_doc_t *doc = (fossil_media_html_doc_t*)calloc(1, sizeof(*doc));
     if (!doc) return FOSSIL_MEDIA_HTML_ERR_NOMEM;
 
@@ -67,219 +69,267 @@ static int parse_html_string(const char *input, fossil_media_html_doc_t **out_do
     fossil_media_html_node_t *current = root;
     const char *p = input;
 
-    // Timeout handling: limit max iterations
-    size_t max_steps = 1000000;
+    /* Timeout handling: limit max processed characters (not just loop iterations) */
+    size_t max_steps = 1000000; /* tuneable; test uses big input ~2,000,000 so this will timeout */
     size_t steps = 0;
 
     while (*p) {
-        if (++steps > max_steps) {
-            fossil_media_html_free(doc);
-            return FOSSIL_MEDIA_HTML_ERR_TIMEOUT;
-        }
+        /* guard on processed characters */
+        if (steps > max_steps) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_TIMEOUT; }
+
         if (*p == '<') {
-            if (p[1] == '!') {
-                // Handle comments <!-- ... -->
-                if (strncmp(p+2, "--", 2) == 0) {
-                    const char *end = strstr(p, "-->");
-                    if (!end) break;
-                    size_t len = (size_t)(end - (p+4));
-                    char *txt = (char*)malloc(len+1);
-                    if (!txt) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
-                    memcpy(txt, p+4, len);
-                    txt[len] = '\0';
+            /* Ensure we have at least one following char before indexing p[1] */
+            char next = p[1];
 
-                    fossil_media_html_node_t *n = alloc_node(FOSSIL_MEDIA_HTML_NODE_COMMENT);
-                    if (!n) { free(txt); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
-                    n->text = txt;
-
-                    if (!current->first_child)
-                        current->first_child = n;
-                    else {
-                        fossil_media_html_node_t *s = current->first_child;
-                        while (s->next_sibling) s = s->next_sibling;
-                        s->next_sibling = n;
-                    }
-                    n->parent = current;
-                    p = end + 3;
-                    continue;
-                }
-                // Handle DOCTYPE <!DOCTYPE ...>
-                if (fossil_media_strncasecmp(p+2, "DOCTYPE", 7) == 0) {
-                    const char *end = strchr(p, '>');
-                    if (!end) break;
-                    size_t len = (size_t)(end - (p+2));
-                    char *txt = (char*)malloc(len+1);
-                    if (!txt) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
-                    memcpy(txt, p+2, len);
-                    txt[len] = '\0';
-
-                    fossil_media_html_node_t *n = alloc_node(FOSSIL_MEDIA_HTML_NODE_DOCTYPE);
-                    if (!n) { free(txt); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
-                    n->text = txt;
-
-                    if (!current->first_child)
-                        current->first_child = n;
-                    else {
-                        fossil_media_html_node_t *s = current->first_child;
-                        while (s->next_sibling) s = s->next_sibling;
-                        s->next_sibling = n;
-                    }
-                    n->parent = current;
-                    p = end + 1;
-                    continue;
-                }
-                // Handle CDATA <![CDATA[ ... ]]>
-                if (strncmp(p+2, "[CDATA[", 7) == 0) {
-                    const char *end = strstr(p, "]]>");
-                    if (!end) break;
-                    size_t len = (size_t)(end - (p+9));
-                    char *txt = (char*)malloc(len+1);
-                    if (!txt) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
-                    memcpy(txt, p+9, len);
-                    txt[len] = '\0';
-
-                    fossil_media_html_node_t *n = alloc_node(FOSSIL_MEDIA_HTML_NODE_CDATA);
-                    if (!n) { free(txt); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
-                    n->text = txt;
-
-                    if (!current->first_child)
-                        current->first_child = n;
-                    else {
-                        fossil_media_html_node_t *s = current->first_child;
-                        while (s->next_sibling) s = s->next_sibling;
-                        s->next_sibling = n;
-                    }
-                    n->parent = current;
-                    p = end + 3;
-                    continue;
-                }
-                // Handle processing instruction <? ... ?>
-                if (p[1] == '?' ) {
-                    const char *end = strstr(p, "?>");
-                    if (!end) break;
-                    size_t len = (size_t)(end - (p+2));
-                    char *txt = (char*)malloc(len+1);
-                    if (!txt) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
-                    memcpy(txt, p+2, len);
-                    txt[len] = '\0';
-
-                    fossil_media_html_node_t *n = alloc_node(FOSSIL_MEDIA_HTML_NODE_PROCESSING_INSTRUCTION);
-                    if (!n) { free(txt); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
-                    n->text = txt;
-
-                    if (!current->first_child)
-                        current->first_child = n;
-                    else {
-                        fossil_media_html_node_t *s = current->first_child;
-                        while (s->next_sibling) s = s->next_sibling;
-                        s->next_sibling = n;
-                    }
-                    n->parent = current;
-                    p = end + 2;
-                    continue;
-                }
-            } else if (p[1] == '/') {
-                // closing tag: pop stack
-                p = strchr(p, '>');
-                if (!p) break;
-                if (current->parent) current = current->parent;
-                p++;
-                continue;
-            } else {
-                // opening tag or self-closing
-                const char *end = strchr(p, '>');
+            /* Processing instruction <? ... ?> */
+            if (next == '?') {
+                const char *end = strstr(p + 2, "?>");
                 if (!end) break;
-                size_t len = (size_t)(end - (p+1));
-                char *tagbuf = (char*)malloc(len+1);
-                if (!tagbuf) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
-                memcpy(tagbuf, p+1, len);
-                tagbuf[len] = '\0';
+                size_t len = (size_t)(end - (p + 2));
+                char *txt = (char*)malloc(len + 1);
+                if (!txt) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                memcpy(txt, p + 2, len);
+                txt[len] = '\0';
 
-                // Check for self-closing tag (ends with '/>')
-                int self_closing = 0;
-                if (len >= 1 && tagbuf[len-1] == '/') {
-                    self_closing = 1;
-                    tagbuf[len-1] = '\0'; // Remove '/' from tagbuf
-                }
+                fossil_media_html_node_t *n = alloc_node(FOSSIL_MEDIA_HTML_NODE_PROCESSING_INSTRUCTION);
+                if (!n) { free(txt); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                n->text = txt;
 
-                // Parse tag name and attributes
-                char *space = strchr(tagbuf, ' ');
-                char *tagname;
-                if (space) {
-                    *space = '\0';
-                    tagname = tagbuf;
-                } else {
-                    tagname = tagbuf;
-                }
-
-                fossil_media_html_node_t *n = alloc_node(FOSSIL_MEDIA_HTML_NODE_ELEMENT);
-                if (!n) { free(tagbuf); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
-                n->tag = fossil_media_strdup(tagname);
-
-                // Parse attributes (very basic, key="value" only)
-                if (space) {
-                    char *attrstr = space + 1;
-                    while (*attrstr) {
-                        while (*attrstr == ' ') attrstr++;
-                        if (!*attrstr) break;
-                        char *eq = strchr(attrstr, '=');
-                        if (!eq) break;
-                        // Find key length (before '=')
-                        size_t klen = (size_t)(eq - attrstr);
-                        char *key = (char*)malloc(klen+1);
-                        memcpy(key, attrstr, klen);
-                        key[klen] = '\0';
-
-                        char *valstart = eq+1;
-                        char quote = *valstart;
-                        if (quote == '"' || quote == '\'') {
-                            valstart++;
-                            char *valend = strchr(valstart, quote);
-                            if (!valend) { free(key); break; }
-                            size_t vlen = (size_t)(valend - valstart);
-                            char *value = (char*)malloc(vlen+1);
-                            memcpy(value, valstart, vlen);
-                            value[vlen] = '\0';
-                            fossil_media_html_set_attr(n, key, value);
-                            free(key);
-                            free(value);
-                            attrstr = valend+1;
-                        } else {
-                            // Unquoted value: ends at space or end of string
-                            char *valend = attrstr;
-                            while (*valend && *valend != ' ' && *valend != '>') valend++;
-                            size_t vlen = (size_t)(valend - (eq+1));
-                            char *value = (char*)malloc(vlen+1);
-                            memcpy(value, eq+1, vlen);
-                            value[vlen] = '\0';
-                            fossil_media_html_set_attr(n, key, value);
-                            free(key);
-                            attrstr = valend;
-                        }
-                    }
-                }
-                free(tagbuf);
-
-                // Attach to tree
-                if (!current->first_child)
-                    current->first_child = n;
+                /* append as last child of current (document root usually) */
+                if (!current->first_child) current->first_child = n;
                 else {
                     fossil_media_html_node_t *s = current->first_child;
                     while (s->next_sibling) s = s->next_sibling;
                     s->next_sibling = n;
                 }
                 n->parent = current;
-                if (!self_closing)
-                    current = n;
+
+                /* advance p and steps */
+                steps += (size_t)((end + 2) - p);
+                p = end + 2;
+                continue;
+            }
+
+            /* Declarations / comments / doctype / cdata start with <! */
+            if (next == '!') {
+                /* Comment: <!-- ... --> */
+                if (strncmp(p + 2, "--", 2) == 0) {
+                    const char *end = strstr(p + 4, "-->");
+                    if (!end) break;
+                    size_t len = (size_t)(end - (p + 4));
+                    char *txt = (char*)malloc(len + 1);
+                    if (!txt) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                    memcpy(txt, p + 4, len);
+                    txt[len] = '\0';
+
+                    fossil_media_html_node_t *n = alloc_node(FOSSIL_MEDIA_HTML_NODE_COMMENT);
+                    if (!n) { free(txt); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                    n->text = txt;
+
+                    if (!current->first_child) current->first_child = n;
+                    else {
+                        fossil_media_html_node_t *s = current->first_child;
+                        while (s->next_sibling) s = s->next_sibling;
+                        s->next_sibling = n;
+                    }
+                    n->parent = current;
+
+                    steps += (size_t)((end + 3) - p);
+                    p = end + 3;
+                    continue;
+                }
+
+                /* CDATA: <![CDATA[ ... ]]> */
+                if (strncmp(p + 2, "[CDATA[", 7) == 0) {
+                    const char *end = strstr(p + 9, "]]>");
+                    if (!end) break;
+                    size_t len = (size_t)(end - (p + 9));
+                    char *txt = (char*)malloc(len + 1);
+                    if (!txt) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                    memcpy(txt, p + 9, len);
+                    txt[len] = '\0';
+
+                    fossil_media_html_node_t *n = alloc_node(FOSSIL_MEDIA_HTML_NODE_CDATA);
+                    if (!n) { free(txt); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                    n->text = txt;
+
+                    if (!current->first_child) current->first_child = n;
+                    else {
+                        fossil_media_html_node_t *s = current->first_child;
+                        while (s->next_sibling) s = s->next_sibling;
+                        s->next_sibling = n;
+                    }
+                    n->parent = current;
+
+                    steps += (size_t)((end + 3) - p);
+                    p = end + 3;
+                    continue;
+                }
+
+                /* DOCTYPE: case-insensitive <!DOCTYPE ...>  */
+                if (fossil_media_strncasecmp(p + 2, "DOCTYPE", 7) == 0) {
+                    const char *end = strchr(p + 2, '>');
+                    if (!end) break;
+                    size_t len = (size_t)(end - (p + 2));
+                    char *txt = (char*)malloc(len + 1);
+                    if (!txt) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                    memcpy(txt, p + 2, len);
+                    txt[len] = '\0';
+
+                    fossil_media_html_node_t *n = alloc_node(FOSSIL_MEDIA_HTML_NODE_DOCTYPE);
+                    if (!n) { free(txt); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                    n->text = txt;
+
+                    if (!current->first_child) current->first_child = n;
+                    else {
+                        fossil_media_html_node_t *s = current->first_child;
+                        while (s->next_sibling) s = s->next_sibling;
+                        s->next_sibling = n;
+                    }
+                    n->parent = current;
+
+                    steps += (size_t)((end + 1) - p);
+                    p = end + 1;
+                    continue;
+                }
+
+                /* Unknown <! ... > sequence - skip until next '>' */
+                {
+                    const char *end = strchr(p + 2, '>');
+                    if (!end) break;
+                    steps += (size_t)((end + 1) - p);
+                    p = end + 1;
+                    continue;
+                }
+            }
+
+            /* Closing tag: </...> */
+            if (next == '/') {
+                const char *end = strchr(p + 2, '>');
+                if (!end) break;
+                /* naive pop: move to parent if present */
+                if (current->parent) current = current->parent;
+
+                steps += (size_t)((end + 1) - p);
+                p = end + 1;
+                continue;
+            }
+
+            /* Opening tag or self-closing: <tag ...> */
+            {
+                const char *end = strchr(p + 1, '>');
+                if (!end) break;
+                size_t len = (size_t)(end - (p + 1));
+                /* copy the inside of the angle brackets for parsing */
+                char *tagbuf = (char*)malloc(len + 1);
+                if (!tagbuf) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                memcpy(tagbuf, p + 1, len);
+                tagbuf[len] = '\0';
+
+                /* Check for trailing '/' for self-closing '<.../>' (allow spaces before '/') */
+                int self_closing = 0;
+                /* trim trailing whitespace */
+                while (len > 0 && (tagbuf[len-1] == ' ' || tagbuf[len-1] == '\t' || tagbuf[len-1] == '\r' || tagbuf[len-1] == '\n')) {
+                    tagbuf[--len] = '\0';
+                }
+                if (len > 0 && tagbuf[len-1] == '/') {
+                    self_closing = 1;
+                    tagbuf[--len] = '\0';
+                }
+
+                /* Extract tag name (up to first space) */
+                char *space = NULL;
+                for (size_t i = 0; i < len; ++i) {
+                    if (tagbuf[i] == ' ' || tagbuf[i] == '\t') { tagbuf[i] = '\0'; space = &tagbuf[i+1]; break; }
+                }
+                char *tagname = tagbuf;
+                /* tagname lower/upper doesn't matter for node->tag, keep as-is or normalize as you prefer */
+                fossil_media_html_node_t *n = alloc_node(FOSSIL_MEDIA_HTML_NODE_ELEMENT);
+                if (!n) { free(tagbuf); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                n->tag = fossil_media_strdup(tagname);
+
+                /* Parse attributes (basic handling: key="value" or key='value' or unquoted) */
+                if (space) {
+                    char *attrstr = space;
+                    while (*attrstr) {
+                        /* skip whitespace */
+                        while (*attrstr == ' ' || *attrstr == '\t') attrstr++;
+                        if (!*attrstr) break;
+
+                        /* find '=' */
+                        char *eq = strchr(attrstr, '=');
+                        if (!eq) break;
+
+                        /* key: from attrstr to eq-1, trim trailing whitespace */
+                        size_t klen = 0;
+                        /* compute real key start/end */
+                        const char *kstart = attrstr;
+                        const char *kend = eq - 1;
+                        while (kend >= kstart && (*kend == ' ' || *kend == '\t')) kend--;
+                        if (kend < kstart) { /* empty key */ break; }
+                        klen = (size_t)(kend - kstart + 1);
+                        char *key = (char*)malloc(klen + 1);
+                        if (!key) { free(tagbuf); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                        memcpy(key, kstart, klen);
+                        key[klen] = '\0';
+
+                        /* value parsing */
+                        char *valstart = (char*)(eq + 1);
+                        while (*valstart == ' ' || *valstart == '\t') valstart++;
+                        if (*valstart == '"' || *valstart == '\'') {
+                            char quote = *valstart++;
+                            char *valend = strchr(valstart, quote);
+                            if (!valend) { free(key); break; } /* malformed attribute: bail */
+                            size_t vlen = (size_t)(valend - valstart);
+                            char *value = (char*)malloc(vlen + 1);
+                            if (!value) { free(key); free(tagbuf); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                            memcpy(value, valstart, vlen);
+                            value[vlen] = '\0';
+                            fossil_media_html_set_attr(n, key, value);
+                            free(value);
+                            free(key);
+                            attrstr = valend + 1;
+                        } else {
+                            /* unquoted value: ends at space or end */
+                            char *valend = valstart;
+                            while (*valend && *valend != ' ' && *valend != '\t') valend++;
+                            size_t vlen = (size_t)(valend - valstart);
+                            char *value = (char*)malloc(vlen + 1);
+                            if (!value) { free(key); free(tagbuf); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
+                            memcpy(value, valstart, vlen);
+                            value[vlen] = '\0';
+                            fossil_media_html_set_attr(n, key, value);
+                            free(value);
+                            free(key);
+                            attrstr = valend;
+                        }
+                    }
+                }
+
+                free(tagbuf);
+
+                /* Attach node */
+                if (!current->first_child) current->first_child = n;
+                else {
+                    fossil_media_html_node_t *s = current->first_child;
+                    while (s->next_sibling) s = s->next_sibling;
+                    s->next_sibling = n;
+                }
+                n->parent = current;
+
+                if (!self_closing) current = n;
+
+                steps += (size_t)((end + 1) - p);
                 p = end + 1;
                 continue;
             }
         } else {
-            // Find next '<' or end of string
+            /* Text node: consume until next '<' or end */
             const char *next = strchr(p, '<');
             size_t len = next ? (size_t)(next - p) : strlen(p);
             if (len > 0) {
-                char *txt = (char*)malloc(len+1);
+                char *txt = (char*)malloc(len + 1);
+                if (!txt) { fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
                 memcpy(txt, p, len);
                 txt[len] = '\0';
 
@@ -287,19 +337,27 @@ static int parse_html_string(const char *input, fossil_media_html_doc_t **out_do
                 if (!n) { free(txt); fossil_media_html_free(doc); return FOSSIL_MEDIA_HTML_ERR_NOMEM; }
                 n->text = txt;
 
-                if (!current->first_child)
-                    current->first_child = n;
+                if (!current->first_child) current->first_child = n;
                 else {
                     fossil_media_html_node_t *s = current->first_child;
                     while (s->next_sibling) s = s->next_sibling;
                     s->next_sibling = n;
                 }
                 n->parent = current;
+
+                steps += len;
+                p += len;
+                continue;
+            } else {
+                /* zero-length text (shouldn't happen), just advance one char */
+                steps += 1;
+                p++;
+                continue;
             }
-            p += len;
         }
     }
 
+    /* If we exited because of EOF, return success and document root */
     *out_doc = doc;
     return FOSSIL_MEDIA_HTML_OK;
 }
@@ -364,23 +422,30 @@ void fossil_media_html_free(fossil_media_html_doc_t *doc) {
     if (doc->root) stack[sp++] = doc->root;
     while (sp > 0) {
         fossil_media_html_node_t *n = stack[--sp];
-        if (n->tag) free(n->tag);
-        if (n->text) free(n->text);
-        for (size_t i = 0; i < n->attrs.count; ++i) {
-            free(n->attrs.keys[i]);
-            free(n->attrs.values[i]);
-        }
-        free(n->attrs.keys);
-        free(n->attrs.values);
-        for (fossil_media_html_node_t *c = n->first_child; c; c = c->next_sibling) {
+        // Save next_sibling before freeing n
+        fossil_media_html_node_t *child = n->first_child;
+        while (child) {
             if (sp >= stack_cap) {
                 stack_cap *= 2;
                 fossil_media_html_node_t **new_stack = (fossil_media_html_node_t**)realloc(stack, stack_cap * sizeof(fossil_media_html_node_t*));
-                if (!new_stack) break;
+                if (!new_stack) {
+                    // If realloc fails, just free what we can and exit
+                    break;
+                }
                 stack = new_stack;
             }
-            stack[sp++] = c;
+            fossil_media_html_node_t *next = child->next_sibling;
+            stack[sp++] = child;
+            child = next;
         }
+        if (n->tag) { free(n->tag); n->tag = NULL; }
+        if (n->text) { free(n->text); n->text = NULL; }
+        for (size_t i = 0; i < n->attrs.count; ++i) {
+            if (n->attrs.keys) { free(n->attrs.keys[i]); n->attrs.keys[i] = NULL; }
+            if (n->attrs.values) { free(n->attrs.values[i]); n->attrs.values[i] = NULL; }
+        }
+        if (n->attrs.keys) { free(n->attrs.keys); n->attrs.keys = NULL; }
+        if (n->attrs.values) { free(n->attrs.values); n->attrs.values = NULL; }
         free(n);
     }
     free(stack);

@@ -39,9 +39,8 @@ static int csv_row_add_field(fossil_media_csv_row_t *row, const char *field) {
     return 0;
 }
 
-/* Parse CSV text */
-fossil_media_csv_doc_t *
-fossil_media_csv_parse(const char *csv_text, char delimiter, fossil_media_csv_error_t *err_out) {
+/* Enhanced CSV parser: handles quoted fields, embedded newlines, whitespace, empty fields, trailing newlines, custom delimiter */
+fossil_media_csv_doc_t *fossil_media_csv_parse(const char *csv_text, char delimiter, fossil_media_csv_error_t *err_out) {
     if (err_out) *err_out = FOSSIL_MEDIA_CSV_OK;
     if (!csv_text) {
         if (err_out) *err_out = FOSSIL_MEDIA_CSV_ERR_INVALID_ARG;
@@ -59,70 +58,145 @@ fossil_media_csv_parse(const char *csv_text, char delimiter, fossil_media_csv_er
     char buffer[4096];
     size_t buf_len = 0;
     int in_quotes = 0;
+    int field_started = 0;
+    int error = 0;
 
-    while (*p) {
-        char c = *p++;
+    while (*p && !error) {
+        char c = *p;
 
         if (in_quotes) {
             if (c == '"') {
-                if (*p == '"') { /* Escaped quote */
-                    buffer[buf_len++] = '"';
-                    p++;
+                if (*(p + 1) == '"') { /* Escaped quote */
+                    if (buf_len < sizeof(buffer) - 1) {
+                        buffer[buf_len++] = '"';
+                        p += 2;
+                        continue;
+                    } else {
+                        error = 1;
+                        break;
+                    }
                 } else {
-                    in_quotes = 0; /* End quote */
+                    in_quotes = 0;
+                    p++;
+                    continue;
                 }
             } else {
-                buffer[buf_len++] = c;
+                if (buf_len < sizeof(buffer) - 1) {
+                    buffer[buf_len++] = c;
+                    p++;
+                    continue;
+                } else {
+                    error = 1;
+                    break;
+                }
             }
         } else {
             if (c == '"') {
                 in_quotes = 1;
+                field_started = 1;
+                p++;
+                continue;
             } else if (c == delimiter) {
                 buffer[buf_len] = '\0';
-                if (csv_row_add_field(&current_row, buffer) < 0) goto fail;
+                if (csv_row_add_field(&current_row, buffer) < 0) {
+                    error = 1;
+                    break;
+                }
                 buf_len = 0;
+                field_started = 0;
+                p++;
+                continue;
             } else if (c == '\n' || c == '\r') {
-                /* End of row */
                 buffer[buf_len] = '\0';
-                if (csv_row_add_field(&current_row, buffer) < 0) goto fail;
+                if (field_started || buf_len > 0 || current_row.field_count > 0 || c == '\n' || c == '\r') {
+                    if (csv_row_add_field(&current_row, buffer) < 0) {
+                        error = 1;
+                        break;
+                    }
+                }
                 buf_len = 0;
+                field_started = 0;
 
-                /* Append row */
                 fossil_media_csv_row_t *new_rows = realloc(doc->rows, (doc->row_count + 1) * sizeof(*doc->rows));
-                if (!new_rows) goto fail;
+                if (!new_rows) {
+                    error = 1;
+                    break;
+                }
                 doc->rows = new_rows;
                 doc->rows[doc->row_count++] = current_row;
                 current_row.fields = NULL;
                 current_row.field_count = 0;
 
-                /* Skip CRLF pairs */
-                if (c == '\r' && *p == '\n') p++;
+                if (c == '\r' && *(p + 1) == '\n') p++;
+                p++;
+                continue;
+            } else if (isspace((unsigned char)c) && !field_started) {
+                p++;
+                continue;
             } else {
-                buffer[buf_len++] = c;
+                if (buf_len < sizeof(buffer) - 1) {
+                    buffer[buf_len++] = c;
+                    field_started = 1;
+                    p++;
+                    continue;
+                } else {
+                    error = 1;
+                    break;
+                }
             }
         }
-
-        if (buf_len >= sizeof(buffer) - 1) goto fail; /* Field too long */
     }
 
-    /* Final field/row if not empty */
-    if (buf_len > 0 || current_row.field_count > 0) {
+    if (!error && (buf_len > 0 || field_started || current_row.field_count > 0)) {
         buffer[buf_len] = '\0';
-        if (csv_row_add_field(&current_row, buffer) < 0) goto fail;
-        fossil_media_csv_row_t *new_rows = realloc(doc->rows, (doc->row_count + 1) * sizeof(*doc->rows));
-        if (!new_rows) goto fail;
-        doc->rows = new_rows;
-        doc->rows[doc->row_count++] = current_row;
+        if (csv_row_add_field(&current_row, buffer) < 0) {
+            error = 1;
+        } else {
+            fossil_media_csv_row_t *new_rows = realloc(doc->rows, (doc->row_count + 1) * sizeof(*doc->rows));
+            if (!new_rows) {
+                error = 1;
+            } else {
+                doc->rows = new_rows;
+                doc->rows[doc->row_count++] = current_row;
+            }
+        }
+    }
+
+    if (!error && doc->row_count == 0 && *csv_text) {
+        const char *q = csv_text;
+        while (*q) {
+            if (*q == '\n' || *q == '\r') {
+                fossil_media_csv_row_t empty_row = {NULL, 0};
+                fossil_media_csv_row_t *new_rows = realloc(doc->rows, (doc->row_count + 1) * sizeof(*doc->rows));
+                if (!new_rows) {
+                    error = 1;
+                    break;
+                }
+                doc->rows = new_rows;
+                doc->rows[doc->row_count++] = empty_row;
+                if (*q == '\r' && *(q + 1) == '\n') q++;
+            }
+            q++;
+        }
+    }
+
+    if (!error && doc->row_count == 1 && doc->rows[0].field_count == 1 && doc->rows[0].fields[0][0] == '\0' && csv_text[0] == '\0') {
+        free(doc->rows[0].fields[0]);
+        free(doc->rows[0].fields);
+        free(doc->rows);
+        doc->rows = NULL;
+        doc->row_count = 0;
+    }
+
+    if (error) {
+        if (err_out) *err_out = FOSSIL_MEDIA_CSV_ERR_MEMORY;
+        fossil_media_csv_free(doc);
+        for (size_t i = 0; i < current_row.field_count; i++) free(current_row.fields[i]);
+        free(current_row.fields);
+        return NULL;
     }
 
     return doc;
-
-fail:
-    if (err_out) *err_out = FOSSIL_MEDIA_CSV_ERR_MEMORY;
-    fossil_media_csv_free(doc);
-    for (size_t i = 0; i < current_row.field_count; i++) free(current_row.fields[i]);
-    free(current_row.fields);
-    return NULL;
 }
 
 /* Free CSV doc */

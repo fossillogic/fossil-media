@@ -42,6 +42,12 @@ char *fossil_media_text_trim(char *str) {
     while (end > start && isspace((unsigned char)*end)) end--;
 
     *(end + 1) = '\0';
+
+    // If start != str, move trimmed string to the beginning to avoid double free issues
+    if (start != str) {
+        memmove(str, start, strlen(start) + 1);
+        return str;
+    }
     return start;
 }
 
@@ -74,12 +80,15 @@ size_t fossil_media_text_replace(char *str, const char *old_sub, const char *new
     while (pos) {
         size_t tail_len = strlen(pos + old_len);
 
+        // Check for buffer overflow
         if ((strlen(str) - old_len + new_len) >= buf_size) {
-            // No room for replacement
             break;
         }
 
-        memmove(pos + new_len, pos + old_len, tail_len + 1);
+        // If new_sub is longer, move tail forward
+        if (new_len != old_len) {
+            memmove(pos + new_len, pos + old_len, tail_len + 1);
+        }
         memcpy(pos, new_sub, new_len);
 
         count++;
