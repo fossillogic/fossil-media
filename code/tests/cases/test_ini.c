@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/media/framework.h"
 
 
@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(c_ini_fixture);
+FOSSIL_SUITE(c_ini_fixture);
 
 FOSSIL_SETUP(c_ini_fixture) {
     // Setup the test fixture
@@ -51,7 +51,7 @@ FOSSIL_TEARDOWN(c_ini_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(c_test_ini_load_string) {
+FOSSIL_TEST(c_test_ini_load_string) {
     const char *ini_data =
         "[section]\n"
         "key=value\n";
@@ -65,7 +65,7 @@ FOSSIL_TEST_CASE(c_test_ini_load_string) {
     fossil_media_ini_free(&ini);
 }
 
-FOSSIL_TEST_CASE(c_test_ini_set_and_get) {
+FOSSIL_TEST(c_test_ini_set_and_get) {
     fossil_media_ini_t ini = {0};
     fossil_media_ini_set(&ini, "main", "foo", "bar");
 
@@ -76,7 +76,7 @@ FOSSIL_TEST_CASE(c_test_ini_set_and_get) {
     fossil_media_ini_free(&ini);
 }
 
-FOSSIL_TEST_CASE(c_test_ini_save_and_load_file) {
+FOSSIL_TEST(c_test_ini_save_and_load_file) {
     const char *test_path = "test_tmp.ini";
     fossil_media_ini_t ini = {0};
     fossil_media_ini_set(&ini, "alpha", "beta", "gamma");
@@ -96,7 +96,7 @@ FOSSIL_TEST_CASE(c_test_ini_save_and_load_file) {
     remove(test_path);
 }
 
-FOSSIL_TEST_CASE(c_test_ini_multiple_sections_and_keys) {
+FOSSIL_TEST(c_test_ini_multiple_sections_and_keys) {
     const char *ini_data =
         "[first]\n"
         "a=1\n"
@@ -115,7 +115,7 @@ FOSSIL_TEST_CASE(c_test_ini_multiple_sections_and_keys) {
     fossil_media_ini_free(&ini);
 }
 
-FOSSIL_TEST_CASE(c_test_ini_trim_and_comments) {
+FOSSIL_TEST(c_test_ini_trim_and_comments) {
     const char *ini_data =
         "   [sec]   \n"
         "key1 = value1 ; comment\n"
@@ -132,7 +132,7 @@ FOSSIL_TEST_CASE(c_test_ini_trim_and_comments) {
     fossil_media_ini_free(&ini);
 }
 
-FOSSIL_TEST_CASE(c_test_ini_update_existing_key) {
+FOSSIL_TEST(c_test_ini_update_existing_key) {
     fossil_media_ini_t ini = {0};
     fossil_media_ini_set(&ini, "main", "foo", "bar");
     fossil_media_ini_set(&ini, "main", "foo", "baz");
@@ -144,7 +144,7 @@ FOSSIL_TEST_CASE(c_test_ini_update_existing_key) {
     fossil_media_ini_free(&ini);
 }
 
-FOSSIL_TEST_CASE(c_test_ini_missing_section_or_key) {
+FOSSIL_TEST(c_test_ini_missing_section_or_key) {
     fossil_media_ini_t ini = {0};
     fossil_media_ini_set(&ini, "main", "foo", "bar");
 
@@ -156,21 +156,21 @@ FOSSIL_TEST_CASE(c_test_ini_missing_section_or_key) {
 
 // Edge case tests for INI parser
 
-FOSSIL_TEST_CASE(c_test_ini_empty_string) {
+FOSSIL_TEST(c_test_ini_empty_string) {
     fossil_media_ini_t ini = {0};
     fossil_media_ini_load_string("", &ini);
     ASSUME_ITS_CNULL(fossil_media_ini_get(&ini, "any", "key"));
     fossil_media_ini_free(&ini);
 }
 
-FOSSIL_TEST_CASE(c_test_ini_null_string) {
+FOSSIL_TEST(c_test_ini_null_string) {
     fossil_media_ini_t ini = {0};
     fossil_media_ini_load_string(NULL, &ini);
     ASSUME_ITS_CNULL(fossil_media_ini_get(&ini, "any", "key"));
     fossil_media_ini_free(&ini);
 }
 
-FOSSIL_TEST_CASE(c_test_ini_no_section) {
+FOSSIL_TEST(c_test_ini_no_section) {
     const char *ini_data = "key=value\n";
     fossil_media_ini_t ini;
     fossil_media_ini_load_string(ini_data, &ini);
@@ -178,7 +178,7 @@ FOSSIL_TEST_CASE(c_test_ini_no_section) {
     fossil_media_ini_free(&ini);
 }
 
-FOSSIL_TEST_CASE(c_test_ini_duplicate_keys) {
+FOSSIL_TEST(c_test_ini_duplicate_keys) {
     const char *ini_data =
         "[dup]\n"
         "key=first\n"
@@ -189,7 +189,7 @@ FOSSIL_TEST_CASE(c_test_ini_duplicate_keys) {
     fossil_media_ini_free(&ini);
 }
 
-FOSSIL_TEST_CASE(c_test_ini_long_key_and_value) {
+FOSSIL_TEST(c_test_ini_long_key_and_value) {
     char long_key[256], long_value[256];
     memset(long_key, 'k', 255); long_key[255] = '\0';
     memset(long_value, 'v', 255); long_value[255] = '\0';
@@ -206,7 +206,7 @@ FOSSIL_TEST_CASE(c_test_ini_long_key_and_value) {
 
 // Complex INI parser test cases
 
-FOSSIL_TEST_CASE(c_test_ini_nested_sections_like_names) {
+FOSSIL_TEST(c_test_ini_nested_sections_like_names) {
     const char *ini_data =
         "[main]\n"
         "key=val\n"
@@ -224,7 +224,7 @@ FOSSIL_TEST_CASE(c_test_ini_nested_sections_like_names) {
     fossil_media_ini_free(&ini);
 }
 
-FOSSIL_TEST_CASE(c_test_ini_multiline_value) {
+FOSSIL_TEST(c_test_ini_multiline_value) {
     const char *ini_data =
         "[multi]\n"
         "desc=\"This is a\n"
@@ -241,7 +241,7 @@ FOSSIL_TEST_CASE(c_test_ini_multiline_value) {
     fossil_media_ini_free(&ini);
 }
 
-FOSSIL_TEST_CASE(c_test_ini_special_characters) {
+FOSSIL_TEST(c_test_ini_special_characters) {
     const char *ini_data =
         "[specialchars]\n"
         "path=C:\\Program Files\\App\n"
@@ -257,7 +257,7 @@ FOSSIL_TEST_CASE(c_test_ini_special_characters) {
     fossil_media_ini_free(&ini);
 }
 
-FOSSIL_TEST_CASE(c_test_ini_section_and_key_whitespace) {
+FOSSIL_TEST(c_test_ini_section_and_key_whitespace) {
     const char *ini_data =
         "[  spaced section  ]\n"
         "   spaced key   =   spaced value   \n";
@@ -269,7 +269,7 @@ FOSSIL_TEST_CASE(c_test_ini_section_and_key_whitespace) {
     fossil_media_ini_free(&ini);
 }
 
-FOSSIL_TEST_CASE(c_test_ini_key_without_value) {
+FOSSIL_TEST(c_test_ini_key_without_value) {
     const char *ini_data =
         "[empty]\n"
         "novalue=\n"
@@ -287,23 +287,23 @@ FOSSIL_TEST_CASE(c_test_ini_key_without_value) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_ini_tests) {    
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_load_string);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_set_and_get);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_save_and_load_file);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_multiple_sections_and_keys);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_trim_and_comments);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_update_existing_key);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_missing_section_or_key);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_empty_string);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_null_string);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_no_section);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_duplicate_keys);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_long_key_and_value);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_nested_sections_like_names);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_multiline_value);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_special_characters);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_section_and_key_whitespace);
-    FOSSIL_TEST_ADD(c_ini_fixture, c_test_ini_key_without_value);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_load_string);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_set_and_get);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_save_and_load_file);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_multiple_sections_and_keys);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_trim_and_comments);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_update_existing_key);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_missing_section_or_key);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_empty_string);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_null_string);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_no_section);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_duplicate_keys);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_long_key_and_value);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_nested_sections_like_names);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_multiline_value);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_special_characters);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_section_and_key_whitespace);
+    FOSSIL_ADD_TEST(c_ini_fixture, c_test_ini_key_without_value);
 
-    FOSSIL_TEST_REGISTER(c_ini_fixture);
+    FOSSIL_ADD_SUITE(c_ini_fixture);
 } // end of tests

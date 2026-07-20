@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/media/framework.h"
 
 
@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(c_html_fixture);
+FOSSIL_SUITE(c_html_fixture);
 
 FOSSIL_SETUP(c_html_fixture) {
     // Setup for HTML tests
@@ -51,7 +51,7 @@ FOSSIL_TEARDOWN(c_html_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(c_test_html_load_string_and_root) {
+FOSSIL_TEST(c_test_html_load_string_and_root) {
     const char *html = "<!DOCTYPE html><html><body><h1>Hello</h1></body></html>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -70,7 +70,7 @@ FOSSIL_TEST_CASE(c_test_html_load_string_and_root) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_find_by_tag) {
+FOSSIL_TEST(c_test_html_find_by_tag) {
     const char *html = "<html><body><div id=\"main\">Text</div></body></html>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -85,7 +85,7 @@ FOSSIL_TEST_CASE(c_test_html_find_by_tag) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_get_and_set_attr) {
+FOSSIL_TEST(c_test_html_get_and_set_attr) {
     const char *html = "<div id=\"main\"></div>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -107,7 +107,7 @@ FOSSIL_TEST_CASE(c_test_html_get_and_set_attr) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_node_text) {
+FOSSIL_TEST(c_test_html_node_text) {
     const char *html = "<p>Hello <b>World</b></p>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -126,7 +126,7 @@ FOSSIL_TEST_CASE(c_test_html_node_text) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_serialize_roundtrip) {
+FOSSIL_TEST(c_test_html_serialize_roundtrip) {
     const char *html = "<div id=\"main\">Hello</div>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -143,7 +143,7 @@ FOSSIL_TEST_CASE(c_test_html_serialize_roundtrip) {
 }
 
 
-FOSSIL_TEST_CASE(c_test_html_empty_string) {
+FOSSIL_TEST(c_test_html_empty_string) {
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string("", &doc);
     ASSUME_ITS_EQUAL_I32(rc, FOSSIL_MEDIA_HTML_OK);
@@ -156,7 +156,7 @@ FOSSIL_TEST_CASE(c_test_html_empty_string) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_self_closing_tag) {
+FOSSIL_TEST(c_test_html_self_closing_tag) {
     const char *html = "<br/>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -171,7 +171,7 @@ FOSSIL_TEST_CASE(c_test_html_self_closing_tag) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_comment_node) {
+FOSSIL_TEST(c_test_html_comment_node) {
     const char *html = "<!-- This is a comment --><div></div>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -187,7 +187,7 @@ FOSSIL_TEST_CASE(c_test_html_comment_node) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_cdata_node) {
+FOSSIL_TEST(c_test_html_cdata_node) {
     const char *html = "<![CDATA[Some <cdata> content]]><div></div>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -203,7 +203,7 @@ FOSSIL_TEST_CASE(c_test_html_cdata_node) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_processing_instruction) {
+FOSSIL_TEST(c_test_html_processing_instruction) {
     const char *html = "<?xml version=\"1.0\"?><div></div>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -219,7 +219,7 @@ FOSSIL_TEST_CASE(c_test_html_processing_instruction) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_multiple_attributes) {
+FOSSIL_TEST(c_test_html_multiple_attributes) {
     const char *html = "<input type=\"text\" name=\"username\" value=\"user1\"/>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -237,7 +237,7 @@ FOSSIL_TEST_CASE(c_test_html_multiple_attributes) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_nested_elements) {
+FOSSIL_TEST(c_test_html_nested_elements) {
     const char *html = "<ul><li>One</li><li>Two</li></ul>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -261,7 +261,7 @@ FOSSIL_TEST_CASE(c_test_html_nested_elements) {
 }
 
 
-FOSSIL_TEST_CASE(c_test_html_unclosed_tag) {
+FOSSIL_TEST(c_test_html_unclosed_tag) {
     const char *html = "<div><span>Text";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -282,7 +282,7 @@ FOSSIL_TEST_CASE(c_test_html_unclosed_tag) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_attribute_no_quotes) {
+FOSSIL_TEST(c_test_html_attribute_no_quotes) {
     const char *html = "<div id=main></div>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -299,7 +299,7 @@ FOSSIL_TEST_CASE(c_test_html_attribute_no_quotes) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_multiple_comments) {
+FOSSIL_TEST(c_test_html_multiple_comments) {
     const char *html = "<!--A--><!--B--><div></div>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -320,7 +320,7 @@ FOSSIL_TEST_CASE(c_test_html_multiple_comments) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_empty_tag) {
+FOSSIL_TEST(c_test_html_empty_tag) {
     const char *html = "<div></div>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -335,7 +335,7 @@ FOSSIL_TEST_CASE(c_test_html_empty_tag) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_large_input_timeout) {
+FOSSIL_TEST(c_test_html_large_input_timeout) {
     size_t big_size = 2000000;
     char *big_html = (char*)malloc(big_size + 32);
     memset(big_html, 'a', big_size);
@@ -352,7 +352,7 @@ FOSSIL_TEST_CASE(c_test_html_large_input_timeout) {
     free(big_html);
 }
 
-FOSSIL_TEST_CASE(c_test_html_tag_with_single_quotes) {
+FOSSIL_TEST(c_test_html_tag_with_single_quotes) {
     const char *html = "<div id='main' class='container'></div>";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -369,7 +369,7 @@ FOSSIL_TEST_CASE(c_test_html_tag_with_single_quotes) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_text_outside_tags) {
+FOSSIL_TEST(c_test_html_text_outside_tags) {
     const char *html = "Hello<div>World</div>!";
     fossil_media_html_doc_t *doc = NULL;
     int rc = fossil_media_html_load_string(html, &doc);
@@ -394,7 +394,7 @@ FOSSIL_TEST_CASE(c_test_html_text_outside_tags) {
     fossil_media_html_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_html_complete_document) {
+FOSSIL_TEST(c_test_html_complete_document) {
     const char *html =
         "<!DOCTYPE html>"
         "<html>"
@@ -471,26 +471,26 @@ FOSSIL_TEST_CASE(c_test_html_complete_document) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_html_tests) {
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_load_string_and_root);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_find_by_tag);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_get_and_set_attr);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_node_text);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_serialize_roundtrip);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_empty_string);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_self_closing_tag);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_comment_node);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_cdata_node);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_processing_instruction);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_multiple_attributes);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_nested_elements);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_unclosed_tag);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_attribute_no_quotes);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_multiple_comments);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_empty_tag);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_large_input_timeout);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_tag_with_single_quotes);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_text_outside_tags);
-    FOSSIL_TEST_ADD(c_html_fixture, c_test_html_complete_document);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_load_string_and_root);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_find_by_tag);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_get_and_set_attr);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_node_text);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_serialize_roundtrip);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_empty_string);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_self_closing_tag);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_comment_node);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_cdata_node);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_processing_instruction);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_multiple_attributes);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_nested_elements);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_unclosed_tag);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_attribute_no_quotes);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_multiple_comments);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_empty_tag);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_large_input_timeout);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_tag_with_single_quotes);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_text_outside_tags);
+    FOSSIL_ADD_TEST(c_html_fixture, c_test_html_complete_document);
 
-    FOSSIL_TEST_REGISTER(c_html_fixture);
+    FOSSIL_ADD_SUITE(c_html_fixture);
 }

@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/media/framework.h"
 
 
@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(cpp_json_fixture);
+FOSSIL_SUITE(cpp_json_fixture);
 
 FOSSIL_SETUP(cpp_json_fixture) {
     // Setup the test fixture
@@ -54,34 +54,34 @@ FOSSIL_TEARDOWN(cpp_json_fixture) {
 using fossil::media::Json;
 using fossil::media::JsonError;
 
-FOSSIL_TEST_CASE(cpp_test_json_parse_null) {
+FOSSIL_TEST(cpp_test_json_parse_null) {
     Json j = Json::parse("null");
     ASSUME_ITS_EQUAL_CSTR(j.stringify().c_str(), "null");
 }
 
-FOSSIL_TEST_CASE(cpp_test_json_parse_bool) {
+FOSSIL_TEST(cpp_test_json_parse_bool) {
     Json jt = Json::parse("true");
     Json jf = Json::parse("false");
     ASSUME_ITS_EQUAL_CSTR(jt.stringify().c_str(), "true");
     ASSUME_ITS_EQUAL_CSTR(jf.stringify().c_str(), "false");
 }
 
-FOSSIL_TEST_CASE(cpp_test_json_parse_number) {
+FOSSIL_TEST(cpp_test_json_parse_number) {
     Json j = Json::parse("42.5");
     ASSUME_ITS_EQUAL_CSTR(j.stringify().c_str(), "42.5");
 }
 
-FOSSIL_TEST_CASE(cpp_test_json_parse_string) {
+FOSSIL_TEST(cpp_test_json_parse_string) {
     Json j = Json::parse("\"hello\"");
     ASSUME_ITS_EQUAL_CSTR(j.stringify().c_str(), "\"hello\"");
 }
 
-FOSSIL_TEST_CASE(cpp_test_json_parse_array) {
+FOSSIL_TEST(cpp_test_json_parse_array) {
     Json j = Json::parse("[1, 2, 3]");
     ASSUME_ITS_EQUAL_CSTR(j.stringify().c_str(), "[1,2,3]");
 }
 
-FOSSIL_TEST_CASE(cpp_test_json_parse_object) {
+FOSSIL_TEST(cpp_test_json_parse_object) {
     Json j = Json::parse("{\"a\":1,\"b\":2}");
     // Accept either order due to unordered object keys
     std::string s = j.stringify();
@@ -89,7 +89,7 @@ FOSSIL_TEST_CASE(cpp_test_json_parse_object) {
     ASSUME_ITS_TRUE(ok);
 }
 
-FOSSIL_TEST_CASE(cpp_test_json_stringify_roundtrip) {
+FOSSIL_TEST(cpp_test_json_stringify_roundtrip) {
     std::string src = "{\"foo\":[1,true,null]}";
     Json j = Json::parse(src);
     std::string out = j.stringify();
@@ -101,13 +101,13 @@ FOSSIL_TEST_CASE(cpp_test_json_stringify_roundtrip) {
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_json_tests) {    
     // C++ Wrapper Tests
-    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_json_parse_null);
-    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_json_parse_bool);
-    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_json_parse_number);
-    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_json_parse_string);
-    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_json_parse_array);
-    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_json_parse_object);
-    FOSSIL_TEST_ADD(cpp_json_fixture, cpp_test_json_stringify_roundtrip);
+    FOSSIL_ADD_TEST(cpp_json_fixture, cpp_test_json_parse_null);
+    FOSSIL_ADD_TEST(cpp_json_fixture, cpp_test_json_parse_bool);
+    FOSSIL_ADD_TEST(cpp_json_fixture, cpp_test_json_parse_number);
+    FOSSIL_ADD_TEST(cpp_json_fixture, cpp_test_json_parse_string);
+    FOSSIL_ADD_TEST(cpp_json_fixture, cpp_test_json_parse_array);
+    FOSSIL_ADD_TEST(cpp_json_fixture, cpp_test_json_parse_object);
+    FOSSIL_ADD_TEST(cpp_json_fixture, cpp_test_json_stringify_roundtrip);
 
-    FOSSIL_TEST_REGISTER(cpp_json_fixture);
+    FOSSIL_ADD_SUITE(cpp_json_fixture);
 } // end of tests

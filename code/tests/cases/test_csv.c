@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/media/framework.h"
 
 
@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(c_csv_fixture);
+FOSSIL_SUITE(c_csv_fixture);
 
 FOSSIL_SETUP(c_csv_fixture) {
     // Setup the test fixture
@@ -51,7 +51,7 @@ FOSSIL_TEARDOWN(c_csv_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(c_test_parse_simple_csv) {
+FOSSIL_TEST(c_test_parse_simple_csv) {
     const char *csv = "a,b,c\n1,2,3\n";
     fossil_media_csv_error_t err;
     fossil_media_csv_doc_t *doc = fossil_media_csv_parse(csv, ',', &err);
@@ -64,7 +64,7 @@ FOSSIL_TEST_CASE(c_test_parse_simple_csv) {
     fossil_media_csv_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_parse_quoted_fields) {
+FOSSIL_TEST(c_test_parse_quoted_fields) {
     const char *csv = "\"a\",\"b\",\"c\"\n\"1,2\",\"3\",\"4\"\n";
     fossil_media_csv_error_t err;
     fossil_media_csv_doc_t *doc = fossil_media_csv_parse(csv, ',', &err);
@@ -74,7 +74,7 @@ FOSSIL_TEST_CASE(c_test_parse_quoted_fields) {
     fossil_media_csv_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_parse_empty_fields) {
+FOSSIL_TEST(c_test_parse_empty_fields) {
     const char *csv = "a,,c\n,,\n";
     fossil_media_csv_error_t err;
     fossil_media_csv_doc_t *doc = fossil_media_csv_parse(csv, ',', &err);
@@ -85,7 +85,7 @@ FOSSIL_TEST_CASE(c_test_parse_empty_fields) {
     fossil_media_csv_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_stringify_roundtrip) {
+FOSSIL_TEST(c_test_stringify_roundtrip) {
     const char *csv = "a,b,\"c,d\"\n1,2,3\n";
     fossil_media_csv_error_t err;
     fossil_media_csv_doc_t *doc = fossil_media_csv_parse(csv, ',', &err);
@@ -98,7 +98,7 @@ FOSSIL_TEST_CASE(c_test_stringify_roundtrip) {
     free(out);
 }
 
-FOSSIL_TEST_CASE(c_test_append_row) {
+FOSSIL_TEST(c_test_append_row) {
     fossil_media_csv_error_t err;
     fossil_media_csv_doc_t *doc = fossil_media_csv_parse("a,b\n", ',', &err);
     ASSUME_ITS_TRUE(doc != NULL);
@@ -110,14 +110,14 @@ FOSSIL_TEST_CASE(c_test_append_row) {
     fossil_media_csv_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_parse_invalid_input) {
+FOSSIL_TEST(c_test_parse_invalid_input) {
     fossil_media_csv_error_t err = FOSSIL_MEDIA_CSV_OK;
     fossil_media_csv_doc_t *doc = fossil_media_csv_parse(NULL, ',', &err);
     ASSUME_ITS_TRUE(doc == NULL);
     ASSUME_ITS_TRUE(err == FOSSIL_MEDIA_CSV_ERR_INVALID_ARG);
 }
 
-FOSSIL_TEST_CASE(c_test_parse_single_row) {
+FOSSIL_TEST(c_test_parse_single_row) {
     const char *csv = "foo,bar,baz\n";
     fossil_media_csv_error_t err;
     fossil_media_csv_doc_t *doc = fossil_media_csv_parse(csv, ',', &err);
@@ -127,7 +127,7 @@ FOSSIL_TEST_CASE(c_test_parse_single_row) {
     fossil_media_csv_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_parse_trailing_newline) {
+FOSSIL_TEST(c_test_parse_trailing_newline) {
     const char *csv = "x,y,z\n1,2,3\n\n";
     fossil_media_csv_error_t err;
     fossil_media_csv_doc_t *doc = fossil_media_csv_parse(csv, ',', &err);
@@ -136,7 +136,7 @@ FOSSIL_TEST_CASE(c_test_parse_trailing_newline) {
     fossil_media_csv_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_parse_custom_delimiter) {
+FOSSIL_TEST(c_test_parse_custom_delimiter) {
     const char *csv = "a;b;c\n1;2;3\n";
     fossil_media_csv_error_t err;
     fossil_media_csv_doc_t *doc = fossil_media_csv_parse(csv, ';', &err);
@@ -146,7 +146,7 @@ FOSSIL_TEST_CASE(c_test_parse_custom_delimiter) {
     fossil_media_csv_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_stringify_empty_doc) {
+FOSSIL_TEST(c_test_stringify_empty_doc) {
     fossil_media_csv_doc_t empty_doc = {0};
     fossil_media_csv_error_t err;
     char *out = fossil_media_csv_stringify(&empty_doc, ',', &err);
@@ -155,7 +155,7 @@ FOSSIL_TEST_CASE(c_test_stringify_empty_doc) {
     free(out);
 }
 
-FOSSIL_TEST_CASE(c_test_parse_only_newlines) {
+FOSSIL_TEST(c_test_parse_only_newlines) {
     const char *csv = "\n\n\n";
     fossil_media_csv_error_t err;
     fossil_media_csv_doc_t *doc = fossil_media_csv_parse(csv, ',', &err);
@@ -164,7 +164,7 @@ FOSSIL_TEST_CASE(c_test_parse_only_newlines) {
     fossil_media_csv_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_parse_only_delimiters) {
+FOSSIL_TEST(c_test_parse_only_delimiters) {
     const char *csv = ",,,\n,,,\n";
     fossil_media_csv_error_t err;
     fossil_media_csv_doc_t *doc = fossil_media_csv_parse(csv, ',', &err);
@@ -175,7 +175,7 @@ FOSSIL_TEST_CASE(c_test_parse_only_delimiters) {
     fossil_media_csv_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_parse_escaped_quotes) {
+FOSSIL_TEST(c_test_parse_escaped_quotes) {
     const char *csv = "\"a\"\"b\",c\n";
     fossil_media_csv_error_t err;
     fossil_media_csv_doc_t *doc = fossil_media_csv_parse(csv, ',', &err);
@@ -184,7 +184,7 @@ FOSSIL_TEST_CASE(c_test_parse_escaped_quotes) {
     fossil_media_csv_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_parse_long_field) {
+FOSSIL_TEST(c_test_parse_long_field) {
     char long_field[1024];
     memset(long_field, 'x', sizeof(long_field) - 1);
     long_field[sizeof(long_field) - 1] = '\0';
@@ -197,7 +197,7 @@ FOSSIL_TEST_CASE(c_test_parse_long_field) {
     fossil_media_csv_free(doc);
 }
 
-FOSSIL_TEST_CASE(c_test_parse_no_fields) {
+FOSSIL_TEST(c_test_parse_no_fields) {
     const char *csv = "";
     fossil_media_csv_error_t err;
     fossil_media_csv_doc_t *doc = fossil_media_csv_parse(csv, ',', &err);
@@ -210,21 +210,21 @@ FOSSIL_TEST_CASE(c_test_parse_no_fields) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_csv_tests) {    
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_parse_simple_csv);
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_parse_quoted_fields);
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_parse_empty_fields);
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_stringify_roundtrip);
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_append_row);
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_parse_invalid_input);
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_parse_single_row);
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_parse_trailing_newline);
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_parse_custom_delimiter);
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_stringify_empty_doc);
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_parse_only_newlines);
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_parse_only_delimiters);
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_parse_escaped_quotes);
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_parse_long_field);
-    FOSSIL_TEST_ADD(c_csv_fixture, c_test_parse_no_fields);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_parse_simple_csv);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_parse_quoted_fields);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_parse_empty_fields);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_stringify_roundtrip);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_append_row);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_parse_invalid_input);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_parse_single_row);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_parse_trailing_newline);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_parse_custom_delimiter);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_stringify_empty_doc);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_parse_only_newlines);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_parse_only_delimiters);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_parse_escaped_quotes);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_parse_long_field);
+    FOSSIL_ADD_TEST(c_csv_fixture, c_test_parse_no_fields);
 
-    FOSSIL_TEST_REGISTER(c_csv_fixture);
+    FOSSIL_ADD_SUITE(c_csv_fixture);
 } // end of tests

@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/media/framework.h"
 
 
@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(cpp_xml_fixture);
+FOSSIL_SUITE(cpp_xml_fixture);
 
 FOSSIL_SETUP(cpp_xml_fixture) {
     // Setup for XML tests
@@ -51,35 +51,35 @@ FOSSIL_TEARDOWN(cpp_xml_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(cpp_test_xml_new_element) {
+FOSSIL_TEST(cpp_test_xml_new_element) {
     fossil::media::Xml node = fossil::media::Xml::new_element("foo");
     ASSUME_NOT_CNULL(node.get());
     ASSUME_ITS_EQUAL_CSTR(node.get()->name, "foo");
     ASSUME_ITS_EQUAL_CSTR(node.type_name(), "element");
 }
 
-FOSSIL_TEST_CASE(cpp_test_xml_new_text) {
+FOSSIL_TEST(cpp_test_xml_new_text) {
     fossil::media::Xml node = fossil::media::Xml::new_text("bar");
     ASSUME_NOT_CNULL(node.get());
     ASSUME_ITS_EQUAL_CSTR(node.get()->content, "bar");
     ASSUME_ITS_EQUAL_CSTR(node.type_name(), "text");
 }
 
-FOSSIL_TEST_CASE(cpp_test_xml_new_comment) {
+FOSSIL_TEST(cpp_test_xml_new_comment) {
     fossil::media::Xml node = fossil::media::Xml::new_comment("baz");
     ASSUME_NOT_CNULL(node.get());
     ASSUME_ITS_EQUAL_CSTR(node.get()->content, "baz");
     ASSUME_ITS_EQUAL_CSTR(node.type_name(), "comment");
 }
 
-FOSSIL_TEST_CASE(cpp_test_xml_new_cdata) {
+FOSSIL_TEST(cpp_test_xml_new_cdata) {
     fossil::media::Xml node = fossil::media::Xml::new_cdata("cdata content");
     ASSUME_NOT_CNULL(node.get());
     ASSUME_ITS_EQUAL_CSTR(node.get()->content, "cdata content");
     ASSUME_ITS_EQUAL_CSTR(node.type_name(), "cdata");
 }
 
-FOSSIL_TEST_CASE(cpp_test_xml_new_pi) {
+FOSSIL_TEST(cpp_test_xml_new_pi) {
     fossil::media::Xml node = fossil::media::Xml::new_pi("xml-stylesheet", "type=\"text/xsl\" href=\"style.xsl\"");
     ASSUME_NOT_CNULL(node.get());
     ASSUME_ITS_EQUAL_CSTR(node.get()->name, "xml-stylesheet");
@@ -87,7 +87,7 @@ FOSSIL_TEST_CASE(cpp_test_xml_new_pi) {
     ASSUME_ITS_EQUAL_CSTR(node.type_name(), "pi");
 }
 
-FOSSIL_TEST_CASE(cpp_test_xml_set_and_get_attribute) {
+FOSSIL_TEST(cpp_test_xml_set_and_get_attribute) {
     fossil::media::Xml node = fossil::media::Xml::new_element("item");
     node.set_attribute("id", "42");
     const char *val = node.get_attribute("id");
@@ -95,7 +95,7 @@ FOSSIL_TEST_CASE(cpp_test_xml_set_and_get_attribute) {
     ASSUME_ITS_EQUAL_CSTR(val, "42");
 }
 
-FOSSIL_TEST_CASE(cpp_test_xml_set_attribute_replace) {
+FOSSIL_TEST(cpp_test_xml_set_attribute_replace) {
     fossil::media::Xml node = fossil::media::Xml::new_element("item");
     node.set_attribute("id", "42");
     node.set_attribute("id", "43");
@@ -104,14 +104,14 @@ FOSSIL_TEST_CASE(cpp_test_xml_set_attribute_replace) {
     ASSUME_ITS_EQUAL_CSTR(val, "43");
 }
 
-FOSSIL_TEST_CASE(cpp_test_xml_stringify_simple) {
+FOSSIL_TEST(cpp_test_xml_stringify_simple) {
     fossil::media::Xml node = fossil::media::Xml::new_element("root");
     node.set_attribute("foo", "bar");
     std::string xml = node.stringify(false);
     ASSUME_ITS_TRUE(xml.find("<root foo=\"bar\"/>") != std::string::npos);
 }
 
-FOSSIL_TEST_CASE(cpp_test_xml_stringify_pretty) {
+FOSSIL_TEST(cpp_test_xml_stringify_pretty) {
     fossil::media::Xml root = fossil::media::Xml::new_element("root");
     fossil::media::Xml child = fossil::media::Xml::new_element("child");
     root.append_child(std::move(child));
@@ -120,14 +120,14 @@ FOSSIL_TEST_CASE(cpp_test_xml_stringify_pretty) {
     ASSUME_ITS_TRUE(xml.find("<child/>") != std::string::npos);
 }
 
-FOSSIL_TEST_CASE(cpp_test_xml_parse_dummy) {
+FOSSIL_TEST(cpp_test_xml_parse_dummy) {
     const char *xml = "<foo>bar</foo>";
     fossil::media::Xml node(xml);
     ASSUME_NOT_CNULL(node.get());
     ASSUME_ITS_EQUAL_CSTR(node.get()->name, "root"); // Dummy parser returns "root"
 }
 
-FOSSIL_TEST_CASE(cpp_test_xml_type_name) {
+FOSSIL_TEST(cpp_test_xml_type_name) {
     fossil::media::Xml elem = fossil::media::Xml::new_element("e");
     fossil::media::Xml txt = fossil::media::Xml::new_text("t");
     fossil::media::Xml com = fossil::media::Xml::new_comment("c");
@@ -144,17 +144,17 @@ FOSSIL_TEST_CASE(cpp_test_xml_type_name) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_xml_tests) {
-    FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_new_element);
-    FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_new_text);
-    FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_new_comment);
-    FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_new_cdata);
-    FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_new_pi);
-    FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_set_and_get_attribute);
-    FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_set_attribute_replace);
-    FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_stringify_simple);
-    FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_stringify_pretty);
-    FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_parse_dummy);
-    FOSSIL_TEST_ADD(cpp_xml_fixture, cpp_test_xml_type_name);
+    FOSSIL_ADD_TEST(cpp_xml_fixture, cpp_test_xml_new_element);
+    FOSSIL_ADD_TEST(cpp_xml_fixture, cpp_test_xml_new_text);
+    FOSSIL_ADD_TEST(cpp_xml_fixture, cpp_test_xml_new_comment);
+    FOSSIL_ADD_TEST(cpp_xml_fixture, cpp_test_xml_new_cdata);
+    FOSSIL_ADD_TEST(cpp_xml_fixture, cpp_test_xml_new_pi);
+    FOSSIL_ADD_TEST(cpp_xml_fixture, cpp_test_xml_set_and_get_attribute);
+    FOSSIL_ADD_TEST(cpp_xml_fixture, cpp_test_xml_set_attribute_replace);
+    FOSSIL_ADD_TEST(cpp_xml_fixture, cpp_test_xml_stringify_simple);
+    FOSSIL_ADD_TEST(cpp_xml_fixture, cpp_test_xml_stringify_pretty);
+    FOSSIL_ADD_TEST(cpp_xml_fixture, cpp_test_xml_parse_dummy);
+    FOSSIL_ADD_TEST(cpp_xml_fixture, cpp_test_xml_type_name);
 
-    FOSSIL_TEST_REGISTER(cpp_xml_fixture);
+    FOSSIL_ADD_SUITE(cpp_xml_fixture);
 } // end of tests

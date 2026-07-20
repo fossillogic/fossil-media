@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/media/framework.h"
 
 
@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(c_text_fixture);
+FOSSIL_SUITE(c_text_fixture);
 
 FOSSIL_SETUP(c_text_fixture) {
     // Setup the test fixture
@@ -51,75 +51,75 @@ FOSSIL_TEARDOWN(c_text_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(c_test_text_trim_basic) {
+FOSSIL_TEST(c_test_text_trim_basic) {
     char buf[] = "   hello world   ";
     char *trimmed = fossil_media_text_trim(buf);
     ASSUME_ITS_TRUE(trimmed != NULL);
     ASSUME_ITS_TRUE(strcmp(trimmed, "hello world") == 0);
 }
 
-FOSSIL_TEST_CASE(c_test_text_trim_all_spaces) {
+FOSSIL_TEST(c_test_text_trim_all_spaces) {
     char buf[] = "     ";
     char *trimmed = fossil_media_text_trim(buf);
     ASSUME_ITS_TRUE(trimmed != NULL);
     ASSUME_ITS_TRUE(strcmp(trimmed, "") == 0);
 }
 
-FOSSIL_TEST_CASE(c_test_text_trim_no_spaces) {
+FOSSIL_TEST(c_test_text_trim_no_spaces) {
     char buf[] = "abc";
     char *trimmed = fossil_media_text_trim(buf);
     ASSUME_ITS_TRUE(trimmed != NULL);
     ASSUME_ITS_TRUE(strcmp(trimmed, "abc") == 0);
 }
 
-FOSSIL_TEST_CASE(c_test_text_tolower_basic) {
+FOSSIL_TEST(c_test_text_tolower_basic) {
     char buf[] = "HeLLo WoRLD!";
     char *lower = fossil_media_text_tolower(buf);
     ASSUME_ITS_TRUE(lower != NULL);
     ASSUME_ITS_TRUE(strcmp(lower, "hello world!") == 0);
 }
 
-FOSSIL_TEST_CASE(c_test_text_toupper_basic) {
+FOSSIL_TEST(c_test_text_toupper_basic) {
     char buf[] = "HeLLo WoRLD!";
     char *upper = fossil_media_text_toupper(buf);
     ASSUME_ITS_TRUE(upper != NULL);
     ASSUME_ITS_TRUE(strcmp(upper, "HELLO WORLD!") == 0);
 }
 
-FOSSIL_TEST_CASE(c_test_text_replace_basic) {
+FOSSIL_TEST(c_test_text_replace_basic) {
     char buf[64] = "one fish two fish";
     size_t replaced = fossil_media_text_replace(buf, "fish", "cat", sizeof(buf));
     ASSUME_ITS_TRUE(replaced == 2);
     ASSUME_ITS_TRUE(strcmp(buf, "one cat two cat") == 0);
 }
 
-FOSSIL_TEST_CASE(c_test_text_replace_no_match) {
+FOSSIL_TEST(c_test_text_replace_no_match) {
     char buf[32] = "hello world";
     size_t replaced = fossil_media_text_replace(buf, "foo", "bar", sizeof(buf));
     ASSUME_ITS_TRUE(replaced == 0);
     ASSUME_ITS_TRUE(strcmp(buf, "hello world") == 0);
 }
 
-FOSSIL_TEST_CASE(c_test_text_replace_buffer_too_small) {
+FOSSIL_TEST(c_test_text_replace_buffer_too_small) {
     char buf[16] = "abc def abc";
     size_t replaced = fossil_media_text_replace(buf, "abc", "longerstring", sizeof(buf));
     ASSUME_ITS_TRUE(replaced == 0);
 }
 
-FOSSIL_TEST_CASE(c_test_text_find_basic) {
+FOSSIL_TEST(c_test_text_find_basic) {
     const char *haystack = "abcdefg";
     char *found = fossil_media_text_find(haystack, "cde");
     ASSUME_ITS_TRUE(found != NULL);
     ASSUME_ITS_TRUE(strncmp(found, "cde", 3) == 0);
 }
 
-FOSSIL_TEST_CASE(c_test_text_find_not_found) {
+FOSSIL_TEST(c_test_text_find_not_found) {
     const char *haystack = "abcdefg";
     char *found = fossil_media_text_find(haystack, "xyz");
     ASSUME_ITS_TRUE(found == NULL);
 }
 
-FOSSIL_TEST_CASE(c_test_text_split_basic) {
+FOSSIL_TEST(c_test_text_split_basic) {
     char buf[] = "a,b,c";
     char *tokens[3];
     size_t count = fossil_media_text_split(buf, ',', tokens, 3);
@@ -129,7 +129,7 @@ FOSSIL_TEST_CASE(c_test_text_split_basic) {
     ASSUME_ITS_TRUE(strcmp(tokens[2], "c") == 0);
 }
 
-FOSSIL_TEST_CASE(c_test_text_split_limit_tokens) {
+FOSSIL_TEST(c_test_text_split_limit_tokens) {
     char buf[] = "a,b,c,d";
     char *tokens[2];
     size_t count = fossil_media_text_split(buf, ',', tokens, 2);
@@ -138,7 +138,7 @@ FOSSIL_TEST_CASE(c_test_text_split_limit_tokens) {
     ASSUME_ITS_TRUE(tokens[1] != NULL);
 }
 
-FOSSIL_TEST_CASE(c_test_text_split_empty_string) {
+FOSSIL_TEST(c_test_text_split_empty_string) {
     char buf[] = "";
     char *tokens[1];
     size_t count = fossil_media_text_split(buf, ',', tokens, 1);
@@ -150,19 +150,19 @@ FOSSIL_TEST_CASE(c_test_text_split_empty_string) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_text_tests) {
-    FOSSIL_TEST_ADD(c_text_fixture, c_test_text_trim_basic);
-    FOSSIL_TEST_ADD(c_text_fixture, c_test_text_trim_all_spaces);
-    FOSSIL_TEST_ADD(c_text_fixture, c_test_text_trim_no_spaces);
-    FOSSIL_TEST_ADD(c_text_fixture, c_test_text_tolower_basic);
-    FOSSIL_TEST_ADD(c_text_fixture, c_test_text_toupper_basic);
-    FOSSIL_TEST_ADD(c_text_fixture, c_test_text_replace_basic);
-    FOSSIL_TEST_ADD(c_text_fixture, c_test_text_replace_no_match);
-    FOSSIL_TEST_ADD(c_text_fixture, c_test_text_replace_buffer_too_small);
-    FOSSIL_TEST_ADD(c_text_fixture, c_test_text_find_basic);
-    FOSSIL_TEST_ADD(c_text_fixture, c_test_text_find_not_found);
-    FOSSIL_TEST_ADD(c_text_fixture, c_test_text_split_basic);
-    FOSSIL_TEST_ADD(c_text_fixture, c_test_text_split_limit_tokens);
-    FOSSIL_TEST_ADD(c_text_fixture, c_test_text_split_empty_string);
+    FOSSIL_ADD_TEST(c_text_fixture, c_test_text_trim_basic);
+    FOSSIL_ADD_TEST(c_text_fixture, c_test_text_trim_all_spaces);
+    FOSSIL_ADD_TEST(c_text_fixture, c_test_text_trim_no_spaces);
+    FOSSIL_ADD_TEST(c_text_fixture, c_test_text_tolower_basic);
+    FOSSIL_ADD_TEST(c_text_fixture, c_test_text_toupper_basic);
+    FOSSIL_ADD_TEST(c_text_fixture, c_test_text_replace_basic);
+    FOSSIL_ADD_TEST(c_text_fixture, c_test_text_replace_no_match);
+    FOSSIL_ADD_TEST(c_text_fixture, c_test_text_replace_buffer_too_small);
+    FOSSIL_ADD_TEST(c_text_fixture, c_test_text_find_basic);
+    FOSSIL_ADD_TEST(c_text_fixture, c_test_text_find_not_found);
+    FOSSIL_ADD_TEST(c_text_fixture, c_test_text_split_basic);
+    FOSSIL_ADD_TEST(c_text_fixture, c_test_text_split_limit_tokens);
+    FOSSIL_ADD_TEST(c_text_fixture, c_test_text_split_empty_string);
 
-    FOSSIL_TEST_REGISTER(c_text_fixture);
+    FOSSIL_ADD_SUITE(c_text_fixture);
 } // end of tests

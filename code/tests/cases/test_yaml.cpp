@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/media/framework.h"
 
 
@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(cpp_yaml_fixture);
+FOSSIL_SUITE(cpp_yaml_fixture);
 
 FOSSIL_SETUP(cpp_yaml_fixture) {
     // Setup the test fixture
@@ -51,7 +51,7 @@ FOSSIL_TEARDOWN(cpp_yaml_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(cpp_test_yaml_construct_and_get) {
+FOSSIL_TEST(cpp_test_yaml_construct_and_get) {
     using fossil::media::Yaml;
     const char *yaml = "foo: bar\nbaz: qux\n";
     Yaml doc(yaml);
@@ -60,7 +60,7 @@ FOSSIL_TEST_CASE(cpp_test_yaml_construct_and_get) {
     ASSUME_ITS_TRUE(doc.get("notfound") == nullptr);
 }
 
-FOSSIL_TEST_CASE(cpp_test_yaml_construct_invalid) {
+FOSSIL_TEST(cpp_test_yaml_construct_invalid) {
     using fossil::media::Yaml;
     bool threw = false;
     try {
@@ -79,7 +79,7 @@ FOSSIL_TEST_CASE(cpp_test_yaml_construct_invalid) {
     ASSUME_ITS_TRUE(threw);
 }
 
-FOSSIL_TEST_CASE(cpp_test_yaml_move_constructor) {
+FOSSIL_TEST(cpp_test_yaml_move_constructor) {
     using fossil::media::Yaml;
     const char *yaml = "alpha: 1\nbeta: 2\n";
     Yaml doc1(yaml);
@@ -88,7 +88,7 @@ FOSSIL_TEST_CASE(cpp_test_yaml_move_constructor) {
     ASSUME_ITS_TRUE(doc1.get("alpha") == nullptr); // doc1 should be empty after move
 }
 
-FOSSIL_TEST_CASE(cpp_test_yaml_move_assignment) {
+FOSSIL_TEST(cpp_test_yaml_move_assignment) {
     using fossil::media::Yaml;
     const char *yaml1 = "x: 10\ny: 20\n";
     const char *yaml2 = "a: b\n";
@@ -99,7 +99,7 @@ FOSSIL_TEST_CASE(cpp_test_yaml_move_assignment) {
     ASSUME_ITS_TRUE(doc1.get("x") == nullptr); // doc1 should be empty after move
 }
 
-FOSSIL_TEST_CASE(cpp_test_yaml_parse_nested) {
+FOSSIL_TEST(cpp_test_yaml_parse_nested) {
     using fossil::media::Yaml;
     const char *yaml =
         "parent: root\n"
@@ -116,7 +116,7 @@ FOSSIL_TEST_CASE(cpp_test_yaml_parse_nested) {
     ASSUME_ITS_TRUE(strcmp(doc.get("sibling"), "outside") == 0);
 }
 
-FOSSIL_TEST_CASE(cpp_test_yaml_parse_trailing_spaces) {
+FOSSIL_TEST(cpp_test_yaml_parse_trailing_spaces) {
     using fossil::media::Yaml;
     const char *yaml = "key1: value1   \n   key2:    value2\n";
     Yaml doc(yaml);
@@ -125,7 +125,7 @@ FOSSIL_TEST_CASE(cpp_test_yaml_parse_trailing_spaces) {
     ASSUME_ITS_TRUE(strcmp(doc.get("key2"), "value2") == 0);
 }
 
-FOSSIL_TEST_CASE(cpp_test_yaml_parse_multiple_indents) {
+FOSSIL_TEST(cpp_test_yaml_parse_multiple_indents) {
     using fossil::media::Yaml;
     const char *yaml =
         "a: 1\n"
@@ -140,7 +140,7 @@ FOSSIL_TEST_CASE(cpp_test_yaml_parse_multiple_indents) {
     ASSUME_ITS_TRUE(strcmp(doc.get("d"), "4") == 0);
 }
 
-FOSSIL_TEST_CASE(cpp_test_yaml_print_output) {
+FOSSIL_TEST(cpp_test_yaml_print_output) {
     using fossil::media::Yaml;
     const char *yaml = "x: 10\n  y: 20\n";
     Yaml doc(yaml);
@@ -149,7 +149,7 @@ FOSSIL_TEST_CASE(cpp_test_yaml_print_output) {
     doc.print();
 }
 
-FOSSIL_TEST_CASE(cpp_test_yaml_parse_only_spaces) {
+FOSSIL_TEST(cpp_test_yaml_parse_only_spaces) {
     using fossil::media::Yaml;
     const char *yaml = "   \n\t\n";
     bool threw = false;
@@ -161,7 +161,7 @@ FOSSIL_TEST_CASE(cpp_test_yaml_parse_only_spaces) {
     ASSUME_ITS_TRUE(threw);
 }
 
-FOSSIL_TEST_CASE(cpp_test_yaml_parse_no_colon) {
+FOSSIL_TEST(cpp_test_yaml_parse_no_colon) {
     using fossil::media::Yaml;
     const char *yaml = "justakey\nanotherkey\n";
     bool threw = false;
@@ -173,7 +173,7 @@ FOSSIL_TEST_CASE(cpp_test_yaml_parse_no_colon) {
     ASSUME_ITS_TRUE(threw);
 }
 
-FOSSIL_TEST_CASE(cpp_test_yaml_parse_colon_at_end) {
+FOSSIL_TEST(cpp_test_yaml_parse_colon_at_end) {
     using fossil::media::Yaml;
     const char *yaml = "key:\nother: value\n";
     Yaml doc(yaml);
@@ -182,7 +182,7 @@ FOSSIL_TEST_CASE(cpp_test_yaml_parse_colon_at_end) {
     ASSUME_ITS_TRUE(strcmp(doc.get("other"), "value") == 0);
 }
 
-FOSSIL_TEST_CASE(cpp_test_yaml_parse_duplicate_keys) {
+FOSSIL_TEST(cpp_test_yaml_parse_duplicate_keys) {
     using fossil::media::Yaml;
     const char *yaml = "dup: first\n  dup: second\n";
     Yaml doc(yaml);
@@ -191,7 +191,7 @@ FOSSIL_TEST_CASE(cpp_test_yaml_parse_duplicate_keys) {
     ASSUME_ITS_TRUE(strcmp(doc.get("dup"), "first") == 0);
 }
 
-FOSSIL_TEST_CASE(cpp_test_yaml_parse_long_key_and_value) {
+FOSSIL_TEST(cpp_test_yaml_parse_long_key_and_value) {
     using fossil::media::Yaml;
     const char *yaml = "averyveryverylongkeyname: averyveryverylongvaluename\n";
     Yaml doc(yaml);
@@ -199,7 +199,7 @@ FOSSIL_TEST_CASE(cpp_test_yaml_parse_long_key_and_value) {
     ASSUME_ITS_TRUE(strcmp(doc.get("averyveryverylongkeyname"), "averyveryverylongvaluename") == 0);
 }
 
-FOSSIL_TEST_CASE(cpp_test_yaml_parse_tabs_and_spaces_indent) {
+FOSSIL_TEST(cpp_test_yaml_parse_tabs_and_spaces_indent) {
     using fossil::media::Yaml;
     const char *yaml = "main: root\n\tchild: tabbed\n  child2: spaced\n";
     Yaml doc(yaml);
@@ -209,7 +209,7 @@ FOSSIL_TEST_CASE(cpp_test_yaml_parse_tabs_and_spaces_indent) {
     ASSUME_ITS_TRUE(strcmp(doc.get("child2"), "spaced") == 0);
 }
 
-FOSSIL_TEST_CASE(cpp_test_yaml_get_nested_value) {
+FOSSIL_TEST(cpp_test_yaml_get_nested_value) {
     using fossil::media::Yaml;
     const char *yaml =
         "root: base\n"
@@ -224,21 +224,21 @@ FOSSIL_TEST_CASE(cpp_test_yaml_get_nested_value) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_yaml_tests) {
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_construct_and_get);
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_construct_invalid);
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_move_constructor);
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_move_assignment);
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_nested);
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_trailing_spaces);
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_multiple_indents);
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_print_output);
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_only_spaces);
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_no_colon);
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_colon_at_end);
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_duplicate_keys);
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_long_key_and_value);
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_parse_tabs_and_spaces_indent);
-    FOSSIL_TEST_ADD(cpp_yaml_fixture, cpp_test_yaml_get_nested_value);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_construct_and_get);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_construct_invalid);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_move_constructor);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_move_assignment);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_parse_nested);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_parse_trailing_spaces);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_parse_multiple_indents);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_print_output);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_parse_only_spaces);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_parse_no_colon);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_parse_colon_at_end);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_parse_duplicate_keys);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_parse_long_key_and_value);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_parse_tabs_and_spaces_indent);
+    FOSSIL_ADD_TEST(cpp_yaml_fixture, cpp_test_yaml_get_nested_value);
 
-    FOSSIL_TEST_REGISTER(cpp_yaml_fixture);
+    FOSSIL_ADD_SUITE(cpp_yaml_fixture);
 } // end of tests

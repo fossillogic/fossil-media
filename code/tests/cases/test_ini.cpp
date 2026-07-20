@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/media/framework.h"
 
 
@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(cpp_ini_fixture);
+FOSSIL_SUITE(cpp_ini_fixture);
 
 FOSSIL_SETUP(cpp_ini_fixture) {
     // Setup the test fixture
@@ -53,25 +53,25 @@ FOSSIL_TEARDOWN(cpp_ini_fixture) {
 
 using fossil::media::Ini;
 
-FOSSIL_TEST_CASE(cpp_ini_default_ctor) {
+FOSSIL_TEST(cpp_ini_default_ctor) {
     Ini ini;
     ASSUME_ITS_TRUE(ini.get("section", "key").empty());
 }
 
-FOSSIL_TEST_CASE(cpp_ini_load_string_ctor) {
+FOSSIL_TEST(cpp_ini_load_string_ctor) {
     const char *data = "[s]\nk=v\n";
     Ini ini(data);
     ASSUME_ITS_TRUE(ini.get("s", "k") == "v");
 }
 
-FOSSIL_TEST_CASE(cpp_ini_move_ctor) {
+FOSSIL_TEST(cpp_ini_move_ctor) {
     Ini ini1;
     ini1.set("x", "y", "z");
     Ini ini2(std::move(ini1));
     ASSUME_ITS_TRUE(ini2.get("x", "y") == "z");
 }
 
-FOSSIL_TEST_CASE(cpp_ini_move_assign) {
+FOSSIL_TEST(cpp_ini_move_assign) {
     Ini ini1;
     ini1.set("a", "b", "c");
     Ini ini2;
@@ -79,14 +79,14 @@ FOSSIL_TEST_CASE(cpp_ini_move_assign) {
     ASSUME_ITS_TRUE(ini2.get("a", "b") == "c");
 }
 
-FOSSIL_TEST_CASE(cpp_ini_set_and_get) {
+FOSSIL_TEST(cpp_ini_set_and_get) {
     Ini ini;
     bool ok = ini.set("main", "foo", "bar");
     ASSUME_ITS_TRUE(ok);
     ASSUME_ITS_TRUE(ini.get("main", "foo") == "bar");
 }
 
-FOSSIL_TEST_CASE(cpp_ini_save_and_load_file) {
+FOSSIL_TEST(cpp_ini_save_and_load_file) {
     Ini ini;
     ini.set("alpha", "beta", "gamma");
     std::string path = "cpp_ini_save_load.ini";
@@ -100,27 +100,27 @@ FOSSIL_TEST_CASE(cpp_ini_save_and_load_file) {
     remove(path.c_str());
 }
 
-FOSSIL_TEST_CASE(cpp_ini_load_string) {
+FOSSIL_TEST(cpp_ini_load_string) {
     Ini ini;
     bool ok = ini.load_string("[sec]\nk1=v1\n");
     ASSUME_ITS_TRUE(ok);
     ASSUME_ITS_TRUE(ini.get("sec", "k1") == "v1");
 }
 
-FOSSIL_TEST_CASE(cpp_ini_get_missing) {
+FOSSIL_TEST(cpp_ini_get_missing) {
     Ini ini;
     ini.set("s", "k", "v");
     ASSUME_ITS_TRUE(ini.get("s", "missing").empty());
     ASSUME_ITS_TRUE(ini.get("missing", "k").empty());
 }
 
-FOSSIL_TEST_CASE(cpp_ini_throw_on_bad_file) {
+FOSSIL_TEST(cpp_ini_throw_on_bad_file) {
     Ini ini;
     bool loaded = ini.load_file("no_such_file_123456789.ini");
     ASSUME_ITS_TRUE(!loaded);
 }
 
-FOSSIL_TEST_CASE(cpp_ini_multiple_sections_and_keys) {
+FOSSIL_TEST(cpp_ini_multiple_sections_and_keys) {
     const char *ini_data =
         "[first]\n"
         "a=1\n"
@@ -138,7 +138,7 @@ FOSSIL_TEST_CASE(cpp_ini_multiple_sections_and_keys) {
     ASSUME_ITS_TRUE(ini.get("second", "y") == "bar");
 }
 
-FOSSIL_TEST_CASE(cpp_ini_update_existing_key) {
+FOSSIL_TEST(cpp_ini_update_existing_key) {
     Ini ini;
     bool ok1 = ini.set("main", "foo", "bar");
     bool ok2 = ini.set("main", "foo", "baz");
@@ -147,7 +147,7 @@ FOSSIL_TEST_CASE(cpp_ini_update_existing_key) {
     ASSUME_ITS_TRUE(ini.get("main", "foo") == "baz");
 }
 
-FOSSIL_TEST_CASE(cpp_ini_missing_section_or_key) {
+FOSSIL_TEST(cpp_ini_missing_section_or_key) {
     Ini ini;
     ini.set("main", "foo", "bar");
 
@@ -157,21 +157,21 @@ FOSSIL_TEST_CASE(cpp_ini_missing_section_or_key) {
 
 // Edge case tests for INI parser
 
-FOSSIL_TEST_CASE(cpp_ini_empty_string) {
+FOSSIL_TEST(cpp_ini_empty_string) {
     Ini ini;
     bool ok = ini.load_string("");
     ASSUME_ITS_TRUE(ok);
     ASSUME_ITS_TRUE(ini.get("any", "key").empty());
 }
 
-FOSSIL_TEST_CASE(cpp_ini_null_string) {
+FOSSIL_TEST(cpp_ini_null_string) {
     Ini ini;
     bool ok = ini.load_string(nullptr);
     ASSUME_ITS_TRUE(ok);
     ASSUME_ITS_TRUE(ini.get("any", "key").empty());
 }
 
-FOSSIL_TEST_CASE(cpp_ini_no_section) {
+FOSSIL_TEST(cpp_ini_no_section) {
     const char *ini_data = "key=value\n";
     Ini ini;
     bool ok = ini.load_string(ini_data);
@@ -179,7 +179,7 @@ FOSSIL_TEST_CASE(cpp_ini_no_section) {
     ASSUME_ITS_TRUE(ini.get("", "key").empty());
 }
 
-FOSSIL_TEST_CASE(cpp_ini_duplicate_keys) {
+FOSSIL_TEST(cpp_ini_duplicate_keys) {
     const char *ini_data =
         "[dup]\n"
         "key=first\n"
@@ -190,7 +190,7 @@ FOSSIL_TEST_CASE(cpp_ini_duplicate_keys) {
     ASSUME_ITS_TRUE(ini.get("dup", "key") == "second");
 }
 
-FOSSIL_TEST_CASE(cpp_ini_long_key_and_value) {
+FOSSIL_TEST(cpp_ini_long_key_and_value) {
     std::string long_key(255, 'k');
     std::string long_value(255, 'v');
 
@@ -203,7 +203,7 @@ FOSSIL_TEST_CASE(cpp_ini_long_key_and_value) {
 
 // Complex INI parser test cases
 
-FOSSIL_TEST_CASE(cpp_ini_nested_sections_like_names) {
+FOSSIL_TEST(cpp_ini_nested_sections_like_names) {
     const char *ini_data =
         "[main]\n"
         "key=val\n"
@@ -220,7 +220,7 @@ FOSSIL_TEST_CASE(cpp_ini_nested_sections_like_names) {
     ASSUME_ITS_TRUE(ini.get("main.sub.sub2", "key") == "sub2val");
 }
 
-FOSSIL_TEST_CASE(cpp_ini_multiline_value) {
+FOSSIL_TEST(cpp_ini_multiline_value) {
     const char *ini_data =
         "[multi]\n"
         "desc=\"This is a\n"
@@ -235,7 +235,7 @@ FOSSIL_TEST_CASE(cpp_ini_multiline_value) {
     ASSUME_ITS_TRUE(val.find("multiline") != std::string::npos);
 }
 
-FOSSIL_TEST_CASE(cpp_ini_special_characters) {
+FOSSIL_TEST(cpp_ini_special_characters) {
     const char *ini_data =
         "[specialchars]\n"
         "path=C:\\Program Files\\App\n"
@@ -250,7 +250,7 @@ FOSSIL_TEST_CASE(cpp_ini_special_characters) {
     ASSUME_ITS_TRUE(ini.get("specialchars", "escaped") == "Line\\nBreak");
 }
 
-FOSSIL_TEST_CASE(cpp_ini_section_and_key_whitespace) {
+FOSSIL_TEST(cpp_ini_section_and_key_whitespace) {
     const char *ini_data =
         "[  spaced section  ]\n"
         "   spaced key   =   spaced value   \n";
@@ -261,7 +261,7 @@ FOSSIL_TEST_CASE(cpp_ini_section_and_key_whitespace) {
     ASSUME_ITS_TRUE(ini.get("spaced section", "spaced key") == "spaced value");
 }
 
-FOSSIL_TEST_CASE(cpp_ini_key_without_value) {
+FOSSIL_TEST(cpp_ini_key_without_value) {
     const char *ini_data =
         "[empty]\n"
         "novalue=\n"
@@ -275,28 +275,28 @@ FOSSIL_TEST_CASE(cpp_ini_key_without_value) {
 }
 
 FOSSIL_TEST_GROUP(cpp_ini_tests) {
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_default_ctor);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_load_string_ctor);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_move_ctor);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_move_assign);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_set_and_get);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_save_and_load_file);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_load_string);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_get_missing);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_throw_on_bad_file);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_multiple_sections_and_keys);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_update_existing_key);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_missing_section_or_key);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_empty_string);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_null_string);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_no_section);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_duplicate_keys);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_long_key_and_value);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_nested_sections_like_names);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_multiline_value);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_special_characters);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_section_and_key_whitespace);
-    FOSSIL_TEST_ADD(cpp_ini_fixture, cpp_ini_key_without_value);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_default_ctor);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_load_string_ctor);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_move_ctor);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_move_assign);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_set_and_get);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_save_and_load_file);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_load_string);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_get_missing);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_throw_on_bad_file);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_multiple_sections_and_keys);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_update_existing_key);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_missing_section_or_key);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_empty_string);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_null_string);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_no_section);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_duplicate_keys);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_long_key_and_value);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_nested_sections_like_names);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_multiline_value);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_special_characters);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_section_and_key_whitespace);
+    FOSSIL_ADD_TEST(cpp_ini_fixture, cpp_ini_key_without_value);
 
-    FOSSIL_TEST_REGISTER(cpp_ini_fixture);
+    FOSSIL_ADD_SUITE(cpp_ini_fixture);
 } // end of tests

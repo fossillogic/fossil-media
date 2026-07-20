@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/media/framework.h"
 
 
@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(cpp_markdown_fixture);
+FOSSIL_SUITE(cpp_markdown_fixture);
 
 FOSSIL_SETUP(cpp_markdown_fixture) {
     // Setup the test fixture
@@ -51,7 +51,7 @@ FOSSIL_TEARDOWN(cpp_markdown_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(cpp_test_md_parse_and_serialize) {
+FOSSIL_TEST(cpp_test_md_parse_and_serialize) {
     const std::string md_input = "# Heading\n\nThis is a **bold** text.";
     fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -66,7 +66,7 @@ FOSSIL_TEST_CASE(cpp_test_md_parse_and_serialize) {
     }
 }
 
-FOSSIL_TEST_CASE(cpp_test_md_parse_headings) {
+FOSSIL_TEST(cpp_test_md_parse_headings) {
     const std::string md_input = "# H1\n## H2\n### H3";
     fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -79,7 +79,7 @@ FOSSIL_TEST_CASE(cpp_test_md_parse_headings) {
     fossil::media::Markdown::free(root);
 }
 
-FOSSIL_TEST_CASE(cpp_test_md_parse_list_items) {
+FOSSIL_TEST(cpp_test_md_parse_list_items) {
     const std::string md_input = "- Item 1\n* Item 2\n+ Item 3";
     fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -92,7 +92,7 @@ FOSSIL_TEST_CASE(cpp_test_md_parse_list_items) {
     fossil::media::Markdown::free(root);
 }
 
-FOSSIL_TEST_CASE(cpp_test_md_parse_code_block) {
+FOSSIL_TEST(cpp_test_md_parse_code_block) {
     const std::string md_input = "```c\nint main() { return 0; }\n```";
     fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -104,7 +104,7 @@ FOSSIL_TEST_CASE(cpp_test_md_parse_code_block) {
     fossil::media::Markdown::free(root);
 }
 
-FOSSIL_TEST_CASE(cpp_test_md_parse_blockquote) {
+FOSSIL_TEST(cpp_test_md_parse_blockquote) {
     const std::string md_input = "> This is a quote";
     fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -115,7 +115,7 @@ FOSSIL_TEST_CASE(cpp_test_md_parse_blockquote) {
     fossil::media::Markdown::free(root);
 }
 
-FOSSIL_TEST_CASE(cpp_test_md_parse_empty_input) {
+FOSSIL_TEST(cpp_test_md_parse_empty_input) {
     const std::string md_input = "";
     fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -126,7 +126,7 @@ FOSSIL_TEST_CASE(cpp_test_md_parse_empty_input) {
     fossil::media::Markdown::free(root);
 }
 
-FOSSIL_TEST_CASE(cpp_test_md_parse_multiple_blank_lines) {
+FOSSIL_TEST(cpp_test_md_parse_multiple_blank_lines) {
     const std::string md_input = "\n\n# Heading\n\n\nText after blanks\n\n";
     fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -138,7 +138,7 @@ FOSSIL_TEST_CASE(cpp_test_md_parse_multiple_blank_lines) {
     fossil::media::Markdown::free(root);
 }
 
-FOSSIL_TEST_CASE(cpp_test_md_parse_malformed_heading) {
+FOSSIL_TEST(cpp_test_md_parse_malformed_heading) {
     const std::string md_input = "##NoSpaceHeading";
     fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -149,7 +149,7 @@ FOSSIL_TEST_CASE(cpp_test_md_parse_malformed_heading) {
     fossil::media::Markdown::free(root);
 }
 
-FOSSIL_TEST_CASE(cpp_test_md_parse_nested_blockquote) {
+FOSSIL_TEST(cpp_test_md_parse_nested_blockquote) {
     const std::string md_input = "> Outer quote\n> > Nested quote";
     fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -161,7 +161,7 @@ FOSSIL_TEST_CASE(cpp_test_md_parse_nested_blockquote) {
     fossil::media::Markdown::free(root);
 }
 
-FOSSIL_TEST_CASE(cpp_test_md_parse_code_block_no_language) {
+FOSSIL_TEST(cpp_test_md_parse_code_block_no_language) {
     const std::string md_input = "```\ncode without language\n```";
     fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -172,7 +172,7 @@ FOSSIL_TEST_CASE(cpp_test_md_parse_code_block_no_language) {
     fossil::media::Markdown::free(root);
 }
 
-FOSSIL_TEST_CASE(cpp_test_md_parse_unclosed_code_block) {
+FOSSIL_TEST(cpp_test_md_parse_unclosed_code_block) {
     const std::string md_input = "```python\nprint('Hello')";
     fossil_media_md_node_t* root = fossil::media::Markdown::parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -183,7 +183,7 @@ FOSSIL_TEST_CASE(cpp_test_md_parse_unclosed_code_block) {
     fossil::media::Markdown::free(root);
 }
 
-FOSSIL_TEST_CASE(cpp_test_md_parse_long_input) {
+FOSSIL_TEST(cpp_test_md_parse_long_input) {
     std::string md_input = "# Heading\n";
     for (int i = 0; i < 100; ++i) {
         md_input += "- Item\n";
@@ -201,18 +201,18 @@ FOSSIL_TEST_CASE(cpp_test_md_parse_long_input) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_markdown_tests) {
-    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_and_serialize);
-    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_headings);
-    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_list_items);
-    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_code_block);
-    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_blockquote);
-    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_empty_input);
-    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_multiple_blank_lines);
-    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_malformed_heading);
-    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_nested_blockquote);
-    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_code_block_no_language);
-    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_unclosed_code_block);
-    FOSSIL_TEST_ADD(cpp_markdown_fixture, cpp_test_md_parse_long_input);
+    FOSSIL_ADD_TEST(cpp_markdown_fixture, cpp_test_md_parse_and_serialize);
+    FOSSIL_ADD_TEST(cpp_markdown_fixture, cpp_test_md_parse_headings);
+    FOSSIL_ADD_TEST(cpp_markdown_fixture, cpp_test_md_parse_list_items);
+    FOSSIL_ADD_TEST(cpp_markdown_fixture, cpp_test_md_parse_code_block);
+    FOSSIL_ADD_TEST(cpp_markdown_fixture, cpp_test_md_parse_blockquote);
+    FOSSIL_ADD_TEST(cpp_markdown_fixture, cpp_test_md_parse_empty_input);
+    FOSSIL_ADD_TEST(cpp_markdown_fixture, cpp_test_md_parse_multiple_blank_lines);
+    FOSSIL_ADD_TEST(cpp_markdown_fixture, cpp_test_md_parse_malformed_heading);
+    FOSSIL_ADD_TEST(cpp_markdown_fixture, cpp_test_md_parse_nested_blockquote);
+    FOSSIL_ADD_TEST(cpp_markdown_fixture, cpp_test_md_parse_code_block_no_language);
+    FOSSIL_ADD_TEST(cpp_markdown_fixture, cpp_test_md_parse_unclosed_code_block);
+    FOSSIL_ADD_TEST(cpp_markdown_fixture, cpp_test_md_parse_long_input);
 
-    FOSSIL_TEST_REGISTER(cpp_markdown_fixture);
+    FOSSIL_ADD_SUITE(cpp_markdown_fixture);
 } // end of tests

@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/media/framework.h"
 
 
@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(c_yaml_fixture);
+FOSSIL_SUITE(c_yaml_fixture);
 
 FOSSIL_SETUP(c_yaml_fixture) {
     // Setup the test fixture
@@ -51,7 +51,7 @@ FOSSIL_TEARDOWN(c_yaml_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(c_test_yaml_parse_simple) {
+FOSSIL_TEST(c_test_yaml_parse_simple) {
     const char *yaml = "foo: bar\nbaz: qux\n";
     fossil_media_yaml_node_t *head = fossil_media_yaml_parse(yaml);
     ASSUME_ITS_TRUE(head != NULL);
@@ -63,7 +63,7 @@ FOSSIL_TEST_CASE(c_test_yaml_parse_simple) {
     fossil_media_yaml_free(head);
 }
 
-FOSSIL_TEST_CASE(c_test_yaml_parse_with_indent) {
+FOSSIL_TEST(c_test_yaml_parse_with_indent) {
     const char *yaml = "foo: bar\n  indented: value\n";
     fossil_media_yaml_node_t *head = fossil_media_yaml_parse(yaml);
     ASSUME_ITS_TRUE(head != NULL);
@@ -75,7 +75,7 @@ FOSSIL_TEST_CASE(c_test_yaml_parse_with_indent) {
     fossil_media_yaml_free(head);
 }
 
-FOSSIL_TEST_CASE(c_test_yaml_parse_empty_and_invalid) {
+FOSSIL_TEST(c_test_yaml_parse_empty_and_invalid) {
     fossil_media_yaml_node_t *head = fossil_media_yaml_parse(NULL);
     ASSUME_ITS_TRUE(head == NULL);
 
@@ -88,7 +88,7 @@ FOSSIL_TEST_CASE(c_test_yaml_parse_empty_and_invalid) {
     fossil_media_yaml_free(head);
 }
 
-FOSSIL_TEST_CASE(c_test_yaml_get_value) {
+FOSSIL_TEST(c_test_yaml_get_value) {
     const char *yaml = "alpha: 1\nbeta: 2\n";
     fossil_media_yaml_node_t *head = fossil_media_yaml_parse(yaml);
     const char *val = fossil_media_yaml_get(head, "beta");
@@ -99,7 +99,7 @@ FOSSIL_TEST_CASE(c_test_yaml_get_value) {
     fossil_media_yaml_free(head);
 }
 
-FOSSIL_TEST_CASE(c_test_yaml_parse_nested) {
+FOSSIL_TEST(c_test_yaml_parse_nested) {
     const char *yaml =
         "parent: root\n"
         "  child1: value1\n"
@@ -120,7 +120,7 @@ FOSSIL_TEST_CASE(c_test_yaml_parse_nested) {
     fossil_media_yaml_free(head);
 }
 
-FOSSIL_TEST_CASE(c_test_yaml_parse_multiple_indents) {
+FOSSIL_TEST(c_test_yaml_parse_multiple_indents) {
     const char *yaml =
         "a: 1\n"
         "  b: 2\n"
@@ -139,7 +139,7 @@ FOSSIL_TEST_CASE(c_test_yaml_parse_multiple_indents) {
     fossil_media_yaml_free(head);
 }
 
-FOSSIL_TEST_CASE(c_test_yaml_print_output) {
+FOSSIL_TEST(c_test_yaml_print_output) {
     const char *yaml = "x: 10\n  y: 20\n";
     fossil_media_yaml_node_t *head = fossil_media_yaml_parse(yaml);
 
@@ -148,19 +148,19 @@ FOSSIL_TEST_CASE(c_test_yaml_print_output) {
     fossil_media_yaml_free(head);
 }
 
-FOSSIL_TEST_CASE(c_test_yaml_parse_only_spaces) {
+FOSSIL_TEST(c_test_yaml_parse_only_spaces) {
     const char *yaml = "   \n\t\n";
     fossil_media_yaml_node_t *head = fossil_media_yaml_parse(yaml);
     ASSUME_ITS_TRUE(head == NULL);
 }
 
-FOSSIL_TEST_CASE(c_test_yaml_parse_no_colon) {
+FOSSIL_TEST(c_test_yaml_parse_no_colon) {
     const char *yaml = "justakey\nanotherkey\n";
     fossil_media_yaml_node_t *head = fossil_media_yaml_parse(yaml);
     ASSUME_ITS_TRUE(head == NULL);
 }
 
-FOSSIL_TEST_CASE(c_test_yaml_parse_colon_at_end) {
+FOSSIL_TEST(c_test_yaml_parse_colon_at_end) {
     const char *yaml = "key:\nother: value\n";
     fossil_media_yaml_node_t *head = fossil_media_yaml_parse(yaml);
     ASSUME_ITS_TRUE(head != NULL);
@@ -172,7 +172,7 @@ FOSSIL_TEST_CASE(c_test_yaml_parse_colon_at_end) {
     fossil_media_yaml_free(head);
 }
 
-FOSSIL_TEST_CASE(c_test_yaml_parse_duplicate_keys) {
+FOSSIL_TEST(c_test_yaml_parse_duplicate_keys) {
     const char *yaml = "dup: first\n  dup: second\n";
     fossil_media_yaml_node_t *head = fossil_media_yaml_parse(yaml);
     ASSUME_ITS_TRUE(head != NULL);
@@ -184,7 +184,7 @@ FOSSIL_TEST_CASE(c_test_yaml_parse_duplicate_keys) {
     fossil_media_yaml_free(head);
 }
 
-FOSSIL_TEST_CASE(c_test_yaml_parse_long_key_and_value) {
+FOSSIL_TEST(c_test_yaml_parse_long_key_and_value) {
     const char *yaml = "averyveryverylongkeyname: averyveryverylongvaluename\n";
     fossil_media_yaml_node_t *head = fossil_media_yaml_parse(yaml);
     ASSUME_ITS_TRUE(head != NULL);
@@ -193,7 +193,7 @@ FOSSIL_TEST_CASE(c_test_yaml_parse_long_key_and_value) {
     fossil_media_yaml_free(head);
 }
 
-FOSSIL_TEST_CASE(c_test_yaml_get_nested_value) {
+FOSSIL_TEST(c_test_yaml_get_nested_value) {
     const char *yaml =
         "root: base\n"
         "  nested: value\n"
@@ -209,19 +209,19 @@ FOSSIL_TEST_CASE(c_test_yaml_get_nested_value) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_yaml_tests) {
-    FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_parse_simple);
-    FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_parse_with_indent);
-    FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_parse_empty_and_invalid);
-    FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_get_value);
-    FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_parse_nested);
-    FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_parse_multiple_indents);
-    FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_print_output);
-    FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_parse_only_spaces);
-    FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_parse_no_colon);
-    FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_parse_colon_at_end);
-    FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_parse_duplicate_keys);
-    FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_parse_long_key_and_value);
-    FOSSIL_TEST_ADD(c_yaml_fixture, c_test_yaml_get_nested_value);
+    FOSSIL_ADD_TEST(c_yaml_fixture, c_test_yaml_parse_simple);
+    FOSSIL_ADD_TEST(c_yaml_fixture, c_test_yaml_parse_with_indent);
+    FOSSIL_ADD_TEST(c_yaml_fixture, c_test_yaml_parse_empty_and_invalid);
+    FOSSIL_ADD_TEST(c_yaml_fixture, c_test_yaml_get_value);
+    FOSSIL_ADD_TEST(c_yaml_fixture, c_test_yaml_parse_nested);
+    FOSSIL_ADD_TEST(c_yaml_fixture, c_test_yaml_parse_multiple_indents);
+    FOSSIL_ADD_TEST(c_yaml_fixture, c_test_yaml_print_output);
+    FOSSIL_ADD_TEST(c_yaml_fixture, c_test_yaml_parse_only_spaces);
+    FOSSIL_ADD_TEST(c_yaml_fixture, c_test_yaml_parse_no_colon);
+    FOSSIL_ADD_TEST(c_yaml_fixture, c_test_yaml_parse_colon_at_end);
+    FOSSIL_ADD_TEST(c_yaml_fixture, c_test_yaml_parse_duplicate_keys);
+    FOSSIL_ADD_TEST(c_yaml_fixture, c_test_yaml_parse_long_key_and_value);
+    FOSSIL_ADD_TEST(c_yaml_fixture, c_test_yaml_get_nested_value);
 
-    FOSSIL_TEST_REGISTER(c_yaml_fixture);
+    FOSSIL_ADD_SUITE(c_yaml_fixture);
 } // end of tests

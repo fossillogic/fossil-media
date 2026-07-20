@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/media/framework.h"
 
 
@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(cpp_html_fixture);
+FOSSIL_SUITE(cpp_html_fixture);
 
 FOSSIL_SETUP(cpp_html_fixture) {
     // Setup for HTML tests
@@ -51,7 +51,7 @@ FOSSIL_TEARDOWN(cpp_html_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(cpp_test_html_load_string_and_root) {
+FOSSIL_TEST(cpp_test_html_load_string_and_root) {
     // Use C++ wrapper
     fossil::media::Html doc = fossil::media::Html::from_string("<html><body><h1>Hello</h1></body></html>");
     ASSUME_ITS_TRUE(doc.is_valid());
@@ -67,7 +67,7 @@ FOSSIL_TEST_CASE(cpp_test_html_load_string_and_root) {
     ASSUME_ITS_EQUAL_CSTR(fossil_media_html_node_tag(html_node), "html");
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_find_by_tag) {
+FOSSIL_TEST(cpp_test_html_find_by_tag) {
     fossil::media::Html doc = fossil::media::Html::from_string("<html><body><div id=\"main\">Text</div></body></html>");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -77,7 +77,7 @@ FOSSIL_TEST_CASE(cpp_test_html_find_by_tag) {
     ASSUME_ITS_EQUAL_CSTR(fossil_media_html_node_tag(div), "div");
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_get_and_set_attr) {
+FOSSIL_TEST(cpp_test_html_get_and_set_attr) {
     fossil::media::Html doc = fossil::media::Html::from_string("<div id=\"main\"></div>");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -94,7 +94,7 @@ FOSSIL_TEST_CASE(cpp_test_html_get_and_set_attr) {
     ASSUME_ITS_EQUAL_CSTR(class_val, "container");
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_node_text) {
+FOSSIL_TEST(cpp_test_html_node_text) {
     fossil::media::Html doc = fossil::media::Html::from_string("<p>Hello <b>World</b></p>");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -108,7 +108,7 @@ FOSSIL_TEST_CASE(cpp_test_html_node_text) {
     ASSUME_ITS_EQUAL_CSTR(fossil_media_html_node_text(child), "Hello ");
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_serialize_roundtrip) {
+FOSSIL_TEST(cpp_test_html_serialize_roundtrip) {
     fossil::media::Html doc = fossil::media::Html::from_string("<div id=\"main\">Hello</div>");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -116,7 +116,7 @@ FOSSIL_TEST_CASE(cpp_test_html_serialize_roundtrip) {
     ASSUME_ITS_TRUE(out.find("div") != std::string::npos);
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_empty_string) {
+FOSSIL_TEST(cpp_test_html_empty_string) {
     fossil::media::Html doc = fossil::media::Html::from_string("");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -125,7 +125,7 @@ FOSSIL_TEST_CASE(cpp_test_html_empty_string) {
     ASSUME_ITS_EQUAL_I32(fossil_media_html_node_type(root), FOSSIL_MEDIA_HTML_NODE_DOCUMENT);
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_self_closing_tag) {
+FOSSIL_TEST(cpp_test_html_self_closing_tag) {
     fossil::media::Html doc = fossil::media::Html::from_string("<br/>");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -135,7 +135,7 @@ FOSSIL_TEST_CASE(cpp_test_html_self_closing_tag) {
     ASSUME_ITS_EQUAL_I32(fossil_media_html_node_type(br), FOSSIL_MEDIA_HTML_NODE_ELEMENT);
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_comment_node) {
+FOSSIL_TEST(cpp_test_html_comment_node) {
     fossil::media::Html doc = fossil::media::Html::from_string("<!-- This is a comment --><div></div>");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -146,7 +146,7 @@ FOSSIL_TEST_CASE(cpp_test_html_comment_node) {
     ASSUME_ITS_EQUAL_CSTR(fossil_media_html_node_text(comment), " This is a comment ");
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_cdata_node) {
+FOSSIL_TEST(cpp_test_html_cdata_node) {
     fossil::media::Html doc = fossil::media::Html::from_string("<![CDATA[Some <cdata> content]]><div></div>");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -157,7 +157,7 @@ FOSSIL_TEST_CASE(cpp_test_html_cdata_node) {
     ASSUME_ITS_EQUAL_CSTR(fossil_media_html_node_text(cdata), "Some <cdata> content");
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_processing_instruction) {
+FOSSIL_TEST(cpp_test_html_processing_instruction) {
     fossil::media::Html doc = fossil::media::Html::from_string("<?xml version=\"1.0\"?><div></div>");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -168,7 +168,7 @@ FOSSIL_TEST_CASE(cpp_test_html_processing_instruction) {
     ASSUME_ITS_TRUE(strstr(fossil_media_html_node_text(pi), "xml version=\"1.0\"") != NULL);
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_multiple_attributes) {
+FOSSIL_TEST(cpp_test_html_multiple_attributes) {
     fossil::media::Html doc = fossil::media::Html::from_string("<input type=\"text\" name=\"username\" value=\"user1\"/>");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -181,7 +181,7 @@ FOSSIL_TEST_CASE(cpp_test_html_multiple_attributes) {
     ASSUME_ITS_EQUAL_CSTR(fossil_media_html_get_attr(input, "value"), "user1");
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_nested_elements) {
+FOSSIL_TEST(cpp_test_html_nested_elements) {
     fossil::media::Html doc = fossil::media::Html::from_string("<ul><li>One</li><li>Two</li></ul>");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -199,7 +199,7 @@ FOSSIL_TEST_CASE(cpp_test_html_nested_elements) {
     ASSUME_ITS_EQUAL_CSTR(fossil_media_html_node_tag(li2), "li");
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_unclosed_tag) {
+FOSSIL_TEST(cpp_test_html_unclosed_tag) {
     fossil::media::Html doc = fossil::media::Html::from_string("<div><span>Text");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -215,7 +215,7 @@ FOSSIL_TEST_CASE(cpp_test_html_unclosed_tag) {
     ASSUME_ITS_EQUAL_CSTR(fossil_media_html_node_text(text), "Text");
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_attribute_no_quotes) {
+FOSSIL_TEST(cpp_test_html_attribute_no_quotes) {
     fossil::media::Html doc = fossil::media::Html::from_string("<div id=main></div>");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -227,7 +227,7 @@ FOSSIL_TEST_CASE(cpp_test_html_attribute_no_quotes) {
     ASSUME_ITS_EQUAL_CSTR(id_val, "main");
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_multiple_comments) {
+FOSSIL_TEST(cpp_test_html_multiple_comments) {
     fossil::media::Html doc = fossil::media::Html::from_string("<!--A--><!--B--><div></div>");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -243,7 +243,7 @@ FOSSIL_TEST_CASE(cpp_test_html_multiple_comments) {
     ASSUME_ITS_EQUAL_CSTR(fossil_media_html_node_text(comment2), "B");
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_empty_tag) {
+FOSSIL_TEST(cpp_test_html_empty_tag) {
     fossil::media::Html doc = fossil::media::Html::from_string("<div></div>");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -253,7 +253,7 @@ FOSSIL_TEST_CASE(cpp_test_html_empty_tag) {
     ASSUME_ITS_CNULL(fossil_media_html_first_child(div));
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_tag_with_single_quotes) {
+FOSSIL_TEST(cpp_test_html_tag_with_single_quotes) {
     fossil::media::Html doc = fossil::media::Html::from_string("<div id='main' class='container'></div>");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -265,7 +265,7 @@ FOSSIL_TEST_CASE(cpp_test_html_tag_with_single_quotes) {
     ASSUME_ITS_EQUAL_CSTR(fossil_media_html_get_attr(div, "class"), "container");
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_text_outside_tags) {
+FOSSIL_TEST(cpp_test_html_text_outside_tags) {
     fossil::media::Html doc = fossil::media::Html::from_string("Hello<div>World</div>!");
     ASSUME_ITS_TRUE(doc.is_valid());
 
@@ -285,7 +285,7 @@ FOSSIL_TEST_CASE(cpp_test_html_text_outside_tags) {
     ASSUME_ITS_EQUAL_CSTR(fossil_media_html_node_text(exclam), "!");
 }
 
-FOSSIL_TEST_CASE(cpp_test_html_complete_document) {
+FOSSIL_TEST(cpp_test_html_complete_document) {
     std::string html =
         "<!DOCTYPE html>"
         "<html>"
@@ -356,7 +356,7 @@ FOSSIL_TEST_CASE(cpp_test_html_complete_document) {
 
 // The timeout test is not applicable for the C++ RAII wrapper, as it throws on error.
 // If you want to test timeout, you must catch the exception:
-FOSSIL_TEST_CASE(cpp_test_html_large_input_timeout) {
+FOSSIL_TEST(cpp_test_html_large_input_timeout) {
     size_t big_size = 2000000;
     std::string big_html = "<div>" + std::string(big_size - 11, 'a') + "</div>";
     bool threw = false;
@@ -372,26 +372,26 @@ FOSSIL_TEST_CASE(cpp_test_html_large_input_timeout) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_html_tests) {
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_load_string_and_root);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_find_by_tag);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_get_and_set_attr);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_node_text);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_serialize_roundtrip);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_empty_string);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_self_closing_tag);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_comment_node);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_cdata_node);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_processing_instruction);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_multiple_attributes);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_nested_elements);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_unclosed_tag);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_attribute_no_quotes);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_multiple_comments);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_empty_tag);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_tag_with_single_quotes);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_text_outside_tags);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_complete_document);
-    FOSSIL_TEST_ADD(cpp_html_fixture, cpp_test_html_large_input_timeout);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_load_string_and_root);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_find_by_tag);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_get_and_set_attr);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_node_text);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_serialize_roundtrip);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_empty_string);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_self_closing_tag);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_comment_node);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_cdata_node);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_processing_instruction);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_multiple_attributes);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_nested_elements);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_unclosed_tag);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_attribute_no_quotes);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_multiple_comments);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_empty_tag);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_tag_with_single_quotes);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_text_outside_tags);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_complete_document);
+    FOSSIL_ADD_TEST(cpp_html_fixture, cpp_test_html_large_input_timeout);
 
-    FOSSIL_TEST_REGISTER(cpp_html_fixture);
+    FOSSIL_ADD_SUITE(cpp_html_fixture);
 }

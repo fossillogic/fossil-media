@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/media/framework.h"
 
 
@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(c_fson_fixture);
+FOSSIL_SUITE(c_fson_fixture);
 
 FOSSIL_SETUP(c_fson_fixture) {
     // Setup the test fixture
@@ -51,7 +51,7 @@ FOSSIL_TEARDOWN(c_fson_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(c_test_fson_parse_null) {
+FOSSIL_TEST(c_test_fson_parse_null) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
@@ -63,7 +63,7 @@ FOSSIL_TEST_CASE(c_test_fson_parse_null) {
     fossil_media_fson_free(val);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_parse_bool) {
+FOSSIL_TEST(c_test_fson_parse_bool) {
     fossil_media_fson_error_t err = {0};
     const char *json_true =
         "{\n"
@@ -83,7 +83,7 @@ FOSSIL_TEST_CASE(c_test_fson_parse_bool) {
     fossil_media_fson_free(val_false);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_parse_number) {
+FOSSIL_TEST(c_test_fson_parse_number) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
@@ -95,7 +95,7 @@ FOSSIL_TEST_CASE(c_test_fson_parse_number) {
     fossil_media_fson_free(val);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_parse_string) {
+FOSSIL_TEST(c_test_fson_parse_string) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
@@ -107,7 +107,7 @@ FOSSIL_TEST_CASE(c_test_fson_parse_string) {
     fossil_media_fson_free(val);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_parse_array) {
+FOSSIL_TEST(c_test_fson_parse_array) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
@@ -124,7 +124,7 @@ FOSSIL_TEST_CASE(c_test_fson_parse_array) {
     fossil_media_fson_free(val);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_parse_object) {
+FOSSIL_TEST(c_test_fson_parse_object) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
@@ -139,7 +139,7 @@ FOSSIL_TEST_CASE(c_test_fson_parse_object) {
     fossil_media_fson_free(val);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_stringify_roundtrip) {
+FOSSIL_TEST(c_test_fson_stringify_roundtrip) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
@@ -154,7 +154,7 @@ FOSSIL_TEST_CASE(c_test_fson_stringify_roundtrip) {
     free(out);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_clone_and_equals) {
+FOSSIL_TEST(c_test_fson_clone_and_equals) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
@@ -179,7 +179,7 @@ FOSSIL_TEST_CASE(c_test_fson_clone_and_equals) {
     fossil_media_fson_free(clone);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_equals_not_equal) {
+FOSSIL_TEST(c_test_fson_equals_not_equal) {
     fossil_media_fson_error_t err = {0};
     const char *json1 =
         "{\n"
@@ -201,7 +201,7 @@ FOSSIL_TEST_CASE(c_test_fson_equals_not_equal) {
     fossil_media_fson_free(val2);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_parse_empty_array) {
+FOSSIL_TEST(c_test_fson_parse_empty_array) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
@@ -214,14 +214,14 @@ FOSSIL_TEST_CASE(c_test_fson_parse_empty_array) {
     fossil_media_fson_free(val);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_parse_invalid_json) {
+FOSSIL_TEST(c_test_fson_parse_invalid_json) {
     fossil_media_fson_error_t err = {0};
     const char *json = "{ invalid json ";
     fossil_media_fson_value_t *val = fossil_media_fson_parse(json, &err);
     ASSUME_ITS_CNULL(val);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_parse_large_number) {
+FOSSIL_TEST(c_test_fson_parse_large_number) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
@@ -233,7 +233,7 @@ FOSSIL_TEST_CASE(c_test_fson_parse_large_number) {
     fossil_media_fson_free(val);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_parse_special_char_string) {
+FOSSIL_TEST(c_test_fson_parse_special_char_string) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
@@ -245,7 +245,7 @@ FOSSIL_TEST_CASE(c_test_fson_parse_special_char_string) {
     fossil_media_fson_free(val);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_parse_datetime) {
+FOSSIL_TEST(c_test_fson_parse_datetime) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
@@ -257,7 +257,7 @@ FOSSIL_TEST_CASE(c_test_fson_parse_datetime) {
     fossil_media_fson_free(val);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_parse_duration) {
+FOSSIL_TEST(c_test_fson_parse_duration) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
@@ -269,7 +269,7 @@ FOSSIL_TEST_CASE(c_test_fson_parse_duration) {
     fossil_media_fson_free(val);
 }
 
-FOSSIL_TEST_CASE(c_test_fson_parse_invalid_duration) {
+FOSSIL_TEST(c_test_fson_parse_invalid_duration) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
@@ -281,7 +281,7 @@ FOSSIL_TEST_CASE(c_test_fson_parse_invalid_duration) {
 }
 
 // Complex object with nested arrays and objects
-FOSSIL_TEST_CASE(c_test_fson_complex_nested) {
+FOSSIL_TEST(c_test_fson_complex_nested) {
     fossil_media_fson_error_t err = {0};
     const char *json =
         "{\n"
@@ -326,23 +326,23 @@ FOSSIL_TEST_CASE(c_test_fson_complex_nested) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_fson_tests) {
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_null);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_bool);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_number);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_string);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_array);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_object);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_stringify_roundtrip);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_clone_and_equals);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_equals_not_equal);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_empty_array);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_invalid_json);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_large_number);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_special_char_string);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_datetime);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_duration);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_parse_invalid_duration);
-    FOSSIL_TEST_ADD(c_fson_fixture, c_test_fson_complex_nested);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_parse_null);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_parse_bool);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_parse_number);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_parse_string);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_parse_array);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_parse_object);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_stringify_roundtrip);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_clone_and_equals);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_equals_not_equal);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_parse_empty_array);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_parse_invalid_json);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_parse_large_number);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_parse_special_char_string);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_parse_datetime);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_parse_duration);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_parse_invalid_duration);
+    FOSSIL_ADD_TEST(c_fson_fixture, c_test_fson_complex_nested);
 
-    FOSSIL_TEST_REGISTER(c_fson_fixture);
+    FOSSIL_ADD_SUITE(c_fson_fixture);
 } // end of tests

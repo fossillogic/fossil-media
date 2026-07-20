@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/media/framework.h"
 
 
@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(c_markdown_fixture);
+FOSSIL_SUITE(c_markdown_fixture);
 
 FOSSIL_SETUP(c_markdown_fixture) {
     // Setup the test fixture
@@ -51,7 +51,7 @@ FOSSIL_TEARDOWN(c_markdown_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(c_test_md_parse_and_serialize) {
+FOSSIL_TEST(c_test_md_parse_and_serialize) {
     const char *md_input = "# Heading\n\nThis is a **bold** text.";
     fossil_media_md_node_t *root = fossil_media_md_parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -67,7 +67,7 @@ FOSSIL_TEST_CASE(c_test_md_parse_and_serialize) {
     free(md_output);
 }
 
-FOSSIL_TEST_CASE(c_test_md_parse_headings) {
+FOSSIL_TEST(c_test_md_parse_headings) {
     const char *md_input = "# H1\n## H2\n### H3";
     fossil_media_md_node_t *root = fossil_media_md_parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -83,7 +83,7 @@ FOSSIL_TEST_CASE(c_test_md_parse_headings) {
     free(md_output);
 }
 
-FOSSIL_TEST_CASE(c_test_md_parse_list_items) {
+FOSSIL_TEST(c_test_md_parse_list_items) {
     const char *md_input = "- Item 1\n* Item 2\n+ Item 3";
     fossil_media_md_node_t *root = fossil_media_md_parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -99,7 +99,7 @@ FOSSIL_TEST_CASE(c_test_md_parse_list_items) {
     free(md_output);
 }
 
-FOSSIL_TEST_CASE(c_test_md_parse_code_block) {
+FOSSIL_TEST(c_test_md_parse_code_block) {
     const char *md_input = "```c\nint main() { return 0; }\n```";
     fossil_media_md_node_t *root = fossil_media_md_parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -114,7 +114,7 @@ FOSSIL_TEST_CASE(c_test_md_parse_code_block) {
     free(md_output);
 }
 
-FOSSIL_TEST_CASE(c_test_md_parse_blockquote) {
+FOSSIL_TEST(c_test_md_parse_blockquote) {
     const char *md_input = "> This is a quote";
     fossil_media_md_node_t *root = fossil_media_md_parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -128,7 +128,7 @@ FOSSIL_TEST_CASE(c_test_md_parse_blockquote) {
     free(md_output);
 }
 
-FOSSIL_TEST_CASE(c_test_md_parse_empty_input) {
+FOSSIL_TEST(c_test_md_parse_empty_input) {
     const char *md_input = "";
     fossil_media_md_node_t *root = fossil_media_md_parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -143,7 +143,7 @@ FOSSIL_TEST_CASE(c_test_md_parse_empty_input) {
     free(md_output);
 }
 
-FOSSIL_TEST_CASE(c_test_md_parse_multiple_blank_lines) {
+FOSSIL_TEST(c_test_md_parse_multiple_blank_lines) {
     const char *md_input = "\n\n# Heading\n\n\nText after blanks\n\n";
     fossil_media_md_node_t *root = fossil_media_md_parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -158,7 +158,7 @@ FOSSIL_TEST_CASE(c_test_md_parse_multiple_blank_lines) {
     free(md_output);
 }
 
-FOSSIL_TEST_CASE(c_test_md_parse_malformed_heading) {
+FOSSIL_TEST(c_test_md_parse_malformed_heading) {
     const char *md_input = "##NoSpaceHeading";
     fossil_media_md_node_t *root = fossil_media_md_parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -173,7 +173,7 @@ FOSSIL_TEST_CASE(c_test_md_parse_malformed_heading) {
     free(md_output);
 }
 
-FOSSIL_TEST_CASE(c_test_md_parse_nested_blockquote) {
+FOSSIL_TEST(c_test_md_parse_nested_blockquote) {
     const char *md_input = "> Outer quote\n> > Nested quote";
     fossil_media_md_node_t *root = fossil_media_md_parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -188,7 +188,7 @@ FOSSIL_TEST_CASE(c_test_md_parse_nested_blockquote) {
     free(md_output);
 }
 
-FOSSIL_TEST_CASE(c_test_md_parse_code_block_no_language) {
+FOSSIL_TEST(c_test_md_parse_code_block_no_language) {
     const char *md_input = "```\ncode without language\n```";
     fossil_media_md_node_t *root = fossil_media_md_parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -202,7 +202,7 @@ FOSSIL_TEST_CASE(c_test_md_parse_code_block_no_language) {
     free(md_output);
 }
 
-FOSSIL_TEST_CASE(c_test_md_parse_unclosed_code_block) {
+FOSSIL_TEST(c_test_md_parse_unclosed_code_block) {
     const char *md_input = "```python\nprint('Hello')";
     fossil_media_md_node_t *root = fossil_media_md_parse(md_input);
     ASSUME_NOT_CNULL(root);
@@ -217,7 +217,7 @@ FOSSIL_TEST_CASE(c_test_md_parse_unclosed_code_block) {
     free(md_output);
 }
 
-FOSSIL_TEST_CASE(c_test_md_parse_long_input) {
+FOSSIL_TEST(c_test_md_parse_long_input) {
     char md_input[2048];
     strcpy(md_input, "# Heading\n");
     for (int i = 0; i < 100; ++i) {
@@ -239,18 +239,18 @@ FOSSIL_TEST_CASE(c_test_md_parse_long_input) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_markdown_tests) {
-    FOSSIL_TEST_ADD(c_markdown_fixture, c_test_md_parse_and_serialize);
-    FOSSIL_TEST_ADD(c_markdown_fixture, c_test_md_parse_headings);
-    FOSSIL_TEST_ADD(c_markdown_fixture, c_test_md_parse_list_items);
-    FOSSIL_TEST_ADD(c_markdown_fixture, c_test_md_parse_code_block);
-    FOSSIL_TEST_ADD(c_markdown_fixture, c_test_md_parse_blockquote);
-    FOSSIL_TEST_ADD(c_markdown_fixture, c_test_md_parse_empty_input);
-    FOSSIL_TEST_ADD(c_markdown_fixture, c_test_md_parse_multiple_blank_lines);
-    FOSSIL_TEST_ADD(c_markdown_fixture, c_test_md_parse_malformed_heading);
-    FOSSIL_TEST_ADD(c_markdown_fixture, c_test_md_parse_nested_blockquote);
-    FOSSIL_TEST_ADD(c_markdown_fixture, c_test_md_parse_code_block_no_language);
-    FOSSIL_TEST_ADD(c_markdown_fixture, c_test_md_parse_unclosed_code_block);
-    FOSSIL_TEST_ADD(c_markdown_fixture, c_test_md_parse_long_input);
+    FOSSIL_ADD_TEST(c_markdown_fixture, c_test_md_parse_and_serialize);
+    FOSSIL_ADD_TEST(c_markdown_fixture, c_test_md_parse_headings);
+    FOSSIL_ADD_TEST(c_markdown_fixture, c_test_md_parse_list_items);
+    FOSSIL_ADD_TEST(c_markdown_fixture, c_test_md_parse_code_block);
+    FOSSIL_ADD_TEST(c_markdown_fixture, c_test_md_parse_blockquote);
+    FOSSIL_ADD_TEST(c_markdown_fixture, c_test_md_parse_empty_input);
+    FOSSIL_ADD_TEST(c_markdown_fixture, c_test_md_parse_multiple_blank_lines);
+    FOSSIL_ADD_TEST(c_markdown_fixture, c_test_md_parse_malformed_heading);
+    FOSSIL_ADD_TEST(c_markdown_fixture, c_test_md_parse_nested_blockquote);
+    FOSSIL_ADD_TEST(c_markdown_fixture, c_test_md_parse_code_block_no_language);
+    FOSSIL_ADD_TEST(c_markdown_fixture, c_test_md_parse_unclosed_code_block);
+    FOSSIL_ADD_TEST(c_markdown_fixture, c_test_md_parse_long_input);
 
-    FOSSIL_TEST_REGISTER(c_markdown_fixture);
+    FOSSIL_ADD_SUITE(c_markdown_fixture);
 } // end of tests
